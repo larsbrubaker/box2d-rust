@@ -4,11 +4,17 @@
 //!
 //! Ported module by module from the pinned C reference in `box2d-cpp-reference/`.
 
+pub mod bitset;
+pub mod constants;
+pub mod core;
 pub mod math_functions;
 
 #[cfg(test)]
+mod bitset_tests;
+#[cfg(test)]
 mod math_functions_tests;
 
+pub use core::{get_version, is_double_precision, Version};
 pub use math_functions::{Aabb, CosSin, Mat22, Plane, Pos, Rot, Transform, Vec2, WorldTransform};
 
 /// Library version, kept in sync with Cargo.toml.
