@@ -24,10 +24,17 @@
 // SPDX-License-Identifier: MIT
 
 mod body;
+mod joint;
 mod shape;
 mod world;
 
 pub use body::{default_body_def, BodyDef, BodyType, MotionLocks, BODY_TYPE_COUNT};
+pub use joint::{
+    default_distance_joint_def, default_filter_joint_def, default_motor_joint_def,
+    default_prismatic_joint_def, default_revolute_joint_def, default_weld_joint_def,
+    default_wheel_joint_def, DistanceJointDef, FilterJointDef, JointDef, MotorJointDef,
+    PrismaticJointDef, RevoluteJointDef, WeldJointDef, WheelJointDef,
+};
 pub use shape::{
     default_chain_def, default_filter, default_query_filter, default_shape_def,
     default_surface_material, ChainDef, Filter, QueryFilter, ShapeDef, SurfaceMaterial,
