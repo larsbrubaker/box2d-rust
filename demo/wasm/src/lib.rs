@@ -154,6 +154,56 @@ pub fn ray_cast_scene(ox: f32, oy: f32, tx: f32, ty: f32) -> Vec<f32> {
     out
 }
 
+/// Contact manifold between a fixed unit box at the origin and a moving shape,
+/// using the ported b2Collide* functions. `kind`: 0 = box, 1 = circle,
+/// 2 = capsule. The moving shape sits at (bx, by) rotated by `angle`.
+/// Returns [nx, ny, pointCount, p0x, p0y, sep0, p1x, p1y, sep1].
+#[wasm_bindgen]
+pub fn collide_with_box(kind: u32, bx: f32, by: f32, angle: f32) -> Vec<f32> {
+    use box2d_rust::collision::Capsule;
+    use box2d_rust::geometry::make_box;
+    use box2d_rust::manifold::{
+        collide_polygon_and_capsule, collide_polygon_and_circle, collide_polygons,
+    };
+    use box2d_rust::math_functions::{make_rot, Transform};
+
+    let box_a = make_box(1.0, 1.0);
+    let xf = Transform {
+        p: Vec2 { x: bx, y: by },
+        q: make_rot(angle),
+    };
+
+    let m = match kind {
+        1 => {
+            let circle = box2d_rust::collision::Circle {
+                center: Vec2 { x: 0.0, y: 0.0 },
+                radius: 0.6,
+            };
+            collide_polygon_and_circle(&box_a, &circle, xf)
+        }
+        2 => {
+            let capsule = Capsule {
+                center1: Vec2 { x: -0.6, y: 0.0 },
+                center2: Vec2 { x: 0.6, y: 0.0 },
+                radius: 0.35,
+            };
+            collide_polygon_and_capsule(&box_a, &capsule, xf)
+        }
+        _ => {
+            let box_b = make_box(0.7, 0.7);
+            collide_polygons(&box_a, &box_b, xf)
+        }
+    };
+
+    let mut out = vec![m.normal.x, m.normal.y, m.point_count as f32];
+    for i in 0..2 {
+        out.push(m.points[i].point.x);
+        out.push(m.points[i].point.y);
+        out.push(m.points[i].separation);
+    }
+    out
+}
+
 /// GJK closest points between the scene polygon and a probe triangle centered
 /// at (bx, by), using the ported b2ShapeDistance.
 /// Returns [pax, pay, pbx, pby, distance, iterations].

@@ -49,6 +49,19 @@
       <p class="readout" id="geometry-readout"></p>
     </section>
 
+    <section class="live-demo">
+      <h2>Contact manifolds <span class="live-pill">live wasm</span></h2>
+      <p>
+        Drag your mouse to move the rotating shape against the fixed box. Contact points and the
+        manifold normal come from the ported <code>b2CollidePolygons</code> /
+        <code>b2CollidePolygonAndCircle</code> / <code>b2CollidePolygonAndCapsule</code>. Red
+        points are penetrating (negative separation); green are speculative contacts. Click the
+        canvas to cycle the shape.
+      </p>
+      <canvas id="manifold-canvas" width="900" height="420"></canvas>
+      <p class="readout" id="manifold-readout"></p>
+    </section>
+
     <section>
       <h2>Demo roadmap</h2>
       <p>

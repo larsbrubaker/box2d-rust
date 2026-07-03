@@ -10,6 +10,7 @@ export interface Box2dWasm {
   scene_shape(index: number): Float32Array;
   ray_cast_scene(ox: number, oy: number, tx: number, ty: number): Float32Array;
   closest_points(bx: number, by: number): Float32Array;
+  collide_with_box(kind: number, bx: number, by: number, angle: number): Float32Array;
 }
 
 let wasmModule: Box2dWasm | null = null;
