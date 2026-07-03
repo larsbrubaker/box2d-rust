@@ -21,8 +21,8 @@ submodule.
 | aabb (perimeter, enlarge, offset, ray cast) | ✅ | ✅ (test_collision.c AABB subtests) |
 | distance (GJK, shape cast, TOI, segment distance) | ✅ | ✅ (test_distance.c) |
 | hull (quickhull convex hull) | ✅ | ✅ |
-| geometry (shapes, mass, AABB) | — | — |
-| distance, manifold | — | — |
+| geometry (shapes, mass, AABB, point tests, ray/shape casts) | ✅ | ✅ (test_shape.c) |
+| manifold | — | — |
 | dynamic_tree, broad_phase | — | — |
 | body, shape, sensor | — | — |
 | contact, solver, constraint_graph | — | — |

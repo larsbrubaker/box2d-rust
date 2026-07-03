@@ -10,6 +10,7 @@ pub mod collision;
 pub mod constants;
 pub mod core;
 pub mod distance;
+pub mod geometry;
 pub mod hull;
 pub mod id;
 pub mod math_functions;
@@ -21,6 +22,8 @@ mod aabb_tests;
 mod bitset_tests;
 #[cfg(test)]
 mod distance_tests;
+#[cfg(test)]
+mod geometry_tests;
 #[cfg(test)]
 mod hull_tests;
 #[cfg(test)]
