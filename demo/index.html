@@ -36,6 +36,19 @@
       <p class="readout" id="math-readout"></p>
     </section>
 
+    <section class="live-demo">
+      <h2>Geometry queries <span class="live-pill">live wasm</span></h2>
+      <p>
+        Move your mouse over the canvas. A ray from the left edge tracks the cursor and is cast
+        against every shape with the ported <code>b2RayCastPolygon</code> /
+        <code>b2RayCastCircle</code> / <code>b2RayCastCapsule</code> / <code>b2RayCastSegment</code>
+        — the pentagon comes from <code>b2ComputeHull</code>. The probe triangle follows the cursor
+        and reports GJK closest points from <code>b2ShapeDistance</code>.
+      </p>
+      <canvas id="geometry-canvas" width="900" height="420"></canvas>
+      <p class="readout" id="geometry-readout"></p>
+    </section>
+
     <section>
       <h2>Demo roadmap</h2>
       <p>

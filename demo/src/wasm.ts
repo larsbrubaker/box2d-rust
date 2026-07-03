@@ -7,6 +7,9 @@ export interface Box2dWasm {
   compute_cos_sin(radians: number): Float32Array;
   atan2(y: number, x: number): number;
   polygon_points(sides: number, radius: number, angle: number, cx: number, cy: number): Float32Array;
+  scene_shape(index: number): Float32Array;
+  ray_cast_scene(ox: number, oy: number, tx: number, ty: number): Float32Array;
+  closest_points(bx: number, by: number): Float32Array;
 }
 
 let wasmModule: Box2dWasm | null = null;
