@@ -465,6 +465,168 @@ impl JointSim {
     pub fn joint_type(&self) -> JointType {
         self.payload.joint_type()
     }
+
+    /// (C: &base->distanceJoint — union access checked by the payload tag)
+    pub fn distance(&self) -> &DistanceJoint {
+        match &self.payload {
+            JointPayload::Distance(joint) => joint,
+            _ => unreachable!("joint payload is not a distance joint"),
+        }
+    }
+
+    pub fn distance_mut(&mut self) -> &mut DistanceJoint {
+        match &mut self.payload {
+            JointPayload::Distance(joint) => joint,
+            _ => unreachable!("joint payload is not a distance joint"),
+        }
+    }
+
+    /// (C: &base->motorJoint)
+    pub fn motor(&self) -> &MotorJoint {
+        match &self.payload {
+            JointPayload::Motor(joint) => joint,
+            _ => unreachable!("joint payload is not a motor joint"),
+        }
+    }
+
+    pub fn motor_mut(&mut self) -> &mut MotorJoint {
+        match &mut self.payload {
+            JointPayload::Motor(joint) => joint,
+            _ => unreachable!("joint payload is not a motor joint"),
+        }
+    }
+
+    /// (C: &base->prismaticJoint)
+    pub fn prismatic(&self) -> &PrismaticJoint {
+        match &self.payload {
+            JointPayload::Prismatic(joint) => joint,
+            _ => unreachable!("joint payload is not a prismatic joint"),
+        }
+    }
+
+    pub fn prismatic_mut(&mut self) -> &mut PrismaticJoint {
+        match &mut self.payload {
+            JointPayload::Prismatic(joint) => joint,
+            _ => unreachable!("joint payload is not a prismatic joint"),
+        }
+    }
+
+    /// (C: &base->revoluteJoint)
+    pub fn revolute(&self) -> &RevoluteJoint {
+        match &self.payload {
+            JointPayload::Revolute(joint) => joint,
+            _ => unreachable!("joint payload is not a revolute joint"),
+        }
+    }
+
+    pub fn revolute_mut(&mut self) -> &mut RevoluteJoint {
+        match &mut self.payload {
+            JointPayload::Revolute(joint) => joint,
+            _ => unreachable!("joint payload is not a revolute joint"),
+        }
+    }
+
+    /// (C: &base->weldJoint)
+    pub fn weld(&self) -> &WeldJoint {
+        match &self.payload {
+            JointPayload::Weld(joint) => joint,
+            _ => unreachable!("joint payload is not a weld joint"),
+        }
+    }
+
+    pub fn weld_mut(&mut self) -> &mut WeldJoint {
+        match &mut self.payload {
+            JointPayload::Weld(joint) => joint,
+            _ => unreachable!("joint payload is not a weld joint"),
+        }
+    }
+
+    /// (C: &base->wheelJoint)
+    pub fn wheel(&self) -> &WheelJoint {
+        match &self.payload {
+            JointPayload::Wheel(joint) => joint,
+            _ => unreachable!("joint payload is not a wheel joint"),
+        }
+    }
+
+    pub fn wheel_mut(&mut self) -> &mut WheelJoint {
+        match &mut self.payload {
+            JointPayload::Wheel(joint) => joint,
+            _ => unreachable!("joint payload is not a wheel joint"),
+        }
+    }
+}
+
+/// Validate a JointId and return the raw joint index. (b2GetJointFullId — C
+/// returns a pointer; Rust returns the index into `world.joints`)
+pub fn get_joint_full_id(world: &crate::world::World, joint_id: crate::id::JointId) -> i32 {
+    let id = joint_id.index1 - 1;
+    debug_assert!((id as usize) < world.joints.len());
+    let joint = &world.joints[id as usize];
+    debug_assert!(joint.joint_id == id && joint.generation == joint_id.generation);
+    id
+}
+
+/// Borrow a joint's sim data mutably: constraint graph color for awake
+/// joints, otherwise the owning solver set. (b2GetJointSim)
+pub fn get_joint_sim(world: &mut crate::world::World, joint_id: i32) -> &mut JointSim {
+    use crate::constants::GRAPH_COLOR_COUNT;
+    use crate::solver_set::AWAKE_SET;
+
+    let (set_index, color_index, local_index) = {
+        let joint = &world.joints[joint_id as usize];
+        (joint.set_index, joint.color_index, joint.local_index)
+    };
+
+    if set_index == AWAKE_SET {
+        debug_assert!((0..GRAPH_COLOR_COUNT).contains(&color_index));
+        &mut world.constraint_graph.colors[color_index as usize].joint_sims[local_index as usize]
+    } else {
+        &mut world.solver_sets[set_index as usize].joint_sims[local_index as usize]
+    }
+}
+
+/// Shared-reference variant of get_joint_sim for read-only accessors. (The C
+/// b2GetJointSim is used for both; Rust needs the split.)
+pub fn get_joint_sim_ref(world: &crate::world::World, joint_id: i32) -> &JointSim {
+    use crate::constants::GRAPH_COLOR_COUNT;
+    use crate::solver_set::AWAKE_SET;
+
+    let joint = &world.joints[joint_id as usize];
+
+    if joint.set_index == AWAKE_SET {
+        debug_assert!(0 <= joint.color_index && joint.color_index < GRAPH_COLOR_COUNT);
+        &world.constraint_graph.colors[joint.color_index as usize].joint_sims
+            [joint.local_index as usize]
+    } else {
+        &world.solver_sets[joint.set_index as usize].joint_sims[joint.local_index as usize]
+    }
+}
+
+/// Shared-reference variant of get_joint_sim_check_type.
+pub fn get_joint_sim_check_type_ref(
+    world: &crate::world::World,
+    joint_id: crate::id::JointId,
+    joint_type: JointType,
+) -> &JointSim {
+    let id = get_joint_full_id(world, joint_id);
+    debug_assert!(world.joints[id as usize].type_ == joint_type);
+    let joint_sim = get_joint_sim_ref(world, id);
+    debug_assert!(joint_sim.joint_type() == joint_type);
+    joint_sim
+}
+
+/// (b2GetJointSimCheckType)
+pub fn get_joint_sim_check_type(
+    world: &mut crate::world::World,
+    joint_id: crate::id::JointId,
+    joint_type: JointType,
+) -> &mut JointSim {
+    let id = get_joint_full_id(world, joint_id);
+    debug_assert!(world.joints[id as usize].type_ == joint_type);
+    let joint_sim = get_joint_sim(world, id);
+    debug_assert!(joint_sim.joint_type() == joint_type);
+    joint_sim
 }
 
 impl Default for JointSim {

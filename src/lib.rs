@@ -14,6 +14,7 @@ pub mod constraint_graph;
 pub mod contact;
 pub mod core;
 pub mod distance;
+pub mod distance_joint;
 pub mod dynamic_tree;
 pub mod events;
 pub mod geometry;
