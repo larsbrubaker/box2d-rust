@@ -18,6 +18,7 @@ pub mod id_pool;
 pub mod manifold;
 pub mod math_functions;
 pub mod table;
+pub mod types;
 
 #[cfg(test)]
 mod aabb_tests;
@@ -39,6 +40,8 @@ mod manifold_tests;
 mod math_functions_tests;
 #[cfg(test)]
 mod table_tests;
+#[cfg(test)]
+mod types_tests;
 
 pub use collision::CastOutput;
 pub use core::{get_version, is_double_precision, Version};
