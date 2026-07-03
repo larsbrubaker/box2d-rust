@@ -238,3 +238,214 @@ pub struct World {
     pub enable_speculative: bool,
     pub in_use: bool,
 }
+
+/// Default friction mixing: `sqrt(frictionA * frictionB)`.
+/// (static b2DefaultFrictionCallback)
+pub fn default_friction_callback(
+    friction_a: f32,
+    _material_a: u64,
+    friction_b: f32,
+    _material_b: u64,
+) -> f32 {
+    (friction_a * friction_b).sqrt()
+}
+
+/// Default restitution mixing: `max(restitutionA, restitutionB)`.
+/// (static b2DefaultRestitutionCallback)
+pub fn default_restitution_callback(
+    restitution_a: f32,
+    _material_a: u64,
+    restitution_b: f32,
+    _material_b: u64,
+) -> f32 {
+    crate::math_functions::max_float(restitution_a, restitution_b)
+}
+
+impl World {
+    /// Create a world. (b2CreateWorld)
+    ///
+    /// Differences from C, all documented in the module header: there is no
+    /// global world registry (the returned World is owned; `world_id` stays 0
+    /// unless the embedder assigns one), no arena stack, and the serial task
+    /// path is always used (worker_count = 1 with one task context), which is
+    /// the C fallback when no task system is supplied.
+    pub fn new(def: &crate::types::WorldDef) -> World {
+        use crate::constants::contact_recycle_distance;
+        use crate::constraint_graph::ConstraintGraph;
+        use crate::math_functions::max_int;
+
+        debug_assert!(def.internal_value == crate::core::SECRET_COOKIE);
+
+        let body_capacity = max_int(
+            16,
+            def.capacity.static_body_count + def.capacity.dynamic_body_count,
+        ) as usize;
+        let shape_capacity = max_int(
+            16,
+            def.capacity.static_shape_count + def.capacity.dynamic_shape_count,
+        ) as usize;
+        let contact_capacity = max_int(16, def.capacity.contact_count) as usize;
+
+        let mut solver_set_id_pool = IdPool::new();
+        let mut solver_sets: Vec<SolverSet> = Vec::with_capacity(8);
+
+        // add empty static, disabled, and awake body sets
+        // static set
+        let mut set = SolverSet {
+            set_index: solver_set_id_pool.alloc_id(),
+            ..Default::default()
+        };
+        set.body_sims
+            .reserve(max_int(16, def.capacity.static_body_count) as usize);
+        solver_sets.push(set);
+        debug_assert!(
+            solver_sets[crate::solver_set::STATIC_SET as usize].set_index
+                == crate::solver_set::STATIC_SET
+        );
+
+        // disabled set
+        solver_sets.push(SolverSet {
+            set_index: solver_set_id_pool.alloc_id(),
+            ..Default::default()
+        });
+        debug_assert!(
+            solver_sets[crate::solver_set::DISABLED_SET as usize].set_index
+                == crate::solver_set::DISABLED_SET
+        );
+
+        // awake set
+        let mut awake = SolverSet {
+            set_index: solver_set_id_pool.alloc_id(),
+            ..Default::default()
+        };
+        awake
+            .body_sims
+            .reserve(max_int(16, def.capacity.dynamic_body_count) as usize);
+        awake
+            .body_states
+            .reserve(max_int(16, def.capacity.dynamic_body_count) as usize);
+        awake.contact_sims.reserve(contact_capacity);
+        solver_sets.push(awake);
+        debug_assert!(
+            solver_sets[crate::solver_set::AWAKE_SET as usize].set_index
+                == crate::solver_set::AWAKE_SET
+        );
+
+        World {
+            broad_phase: BroadPhase::new(&def.capacity),
+            constraint_graph: ConstraintGraph::default(),
+            body_id_pool: IdPool::new(),
+            bodies: Vec::with_capacity(body_capacity),
+            solver_set_id_pool,
+            solver_sets,
+            joint_id_pool: IdPool::new(),
+            joints: Vec::with_capacity(16),
+            contact_id_pool: IdPool::new(),
+            contacts: Vec::with_capacity(contact_capacity),
+            island_id_pool: IdPool::new(),
+            islands: Vec::with_capacity(max_int(16, def.capacity.dynamic_body_count) as usize),
+            shape_id_pool: IdPool::new(),
+            chain_id_pool: IdPool::new(),
+            shapes: Vec::with_capacity(shape_capacity),
+            chain_shapes: Vec::with_capacity(4),
+            sensors: Vec::with_capacity(4),
+            // Serial fallback: one worker context. (b2CreateWorkerContexts)
+            task_contexts: vec![TaskContext::default()],
+            sensor_task_contexts: vec![SensorTaskContext::default()],
+            body_move_events: Vec::with_capacity(4),
+            sensor_begin_events: Vec::with_capacity(4),
+            contact_begin_events: Vec::with_capacity(4),
+            sensor_end_events: [Vec::with_capacity(4), Vec::with_capacity(4)],
+            contact_end_events: [Vec::with_capacity(4), Vec::with_capacity(4)],
+            end_event_array_index: 0,
+            contact_hit_events: Vec::with_capacity(4),
+            joint_events: Vec::with_capacity(4),
+            debug_body_set: BitSet::new(256),
+            debug_joint_set: BitSet::new(256),
+            debug_contact_set: BitSet::new(256),
+            debug_island_set: BitSet::new(256),
+            step_index: 0,
+            split_island_id: crate::core::NULL_INDEX,
+            gravity: def.gravity,
+            hit_event_threshold: def.hit_event_threshold,
+            restitution_threshold: def.restitution_threshold,
+            max_linear_speed: def.maximum_linear_speed,
+            contact_speed: def.contact_speed,
+            contact_hertz: def.contact_hertz,
+            contact_damping_ratio: def.contact_damping_ratio,
+            contact_recycle_distance: contact_recycle_distance(),
+            friction_callback: Some(def.friction_callback.unwrap_or(default_friction_callback)),
+            restitution_callback: Some(
+                def.restitution_callback
+                    .unwrap_or(default_restitution_callback),
+            ),
+            generation: 0,
+            profile: Profile::default(),
+            max_capacity: def.capacity,
+            pre_solve_fcn: None,
+            pre_solve_context: 0,
+            custom_filter_fcn: None,
+            custom_filter_context: 0,
+            worker_count: 1,
+            user_data: def.user_data,
+            inv_h: 0.0,
+            inv_dt: 0.0,
+            world_id: 0,
+            enable_sleep: def.enable_sleep,
+            locked: false,
+            enable_warm_starting: true,
+            enable_contact_softening: def.enable_contact_softening,
+            enable_continuous: def.enable_continuous,
+            enable_speculative: true,
+            in_use: true,
+        }
+    }
+
+    /// Validate the solver-set bookkeeping. (b2ValidateSolverSets)
+    ///
+    /// bring-up: the C version (physics_world.c, compiled only with
+    /// B2_ENABLE_VALIDATION) also cross-checks contacts, joints, and graph
+    /// colors; those checks are added as their slices land. This subset
+    /// validates the body <-> sim <-> set <-> island mapping.
+    pub fn validate_solver_sets(&self) {
+        use crate::core::NULL_INDEX;
+
+        let mut active_body_count = 0;
+        for (set_index, set) in self.solver_sets.iter().enumerate() {
+            if set.set_index == NULL_INDEX {
+                // free slot
+                debug_assert!(set.body_sims.is_empty());
+                debug_assert!(set.body_states.is_empty());
+                debug_assert!(set.island_sims.is_empty());
+                continue;
+            }
+
+            debug_assert!(set.set_index == set_index as i32);
+
+            if set_index == crate::solver_set::AWAKE_SET as usize {
+                debug_assert!(set.body_sims.len() == set.body_states.len());
+            } else {
+                debug_assert!(set.body_states.is_empty());
+            }
+
+            for (local_index, sim) in set.body_sims.iter().enumerate() {
+                let body = &self.bodies[sim.body_id as usize];
+                debug_assert!(body.set_index == set_index as i32);
+                debug_assert!(body.local_index == local_index as i32);
+                debug_assert!(body.id == sim.body_id);
+                let _ = (body, local_index);
+            }
+            active_body_count += set.body_sims.len() as i32;
+
+            for (local_index, island_sim) in set.island_sims.iter().enumerate() {
+                let island = &self.islands[island_sim.island_id as usize];
+                debug_assert!(island.set_index == set_index as i32);
+                debug_assert!(island.local_index == local_index as i32);
+                let _ = (island, local_index);
+            }
+        }
+
+        debug_assert!(active_body_count == self.body_id_pool.id_count());
+        let _ = active_body_count;
+    }
+}
