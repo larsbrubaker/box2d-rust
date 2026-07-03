@@ -33,6 +33,7 @@ pub mod solver;
 pub mod solver_set;
 pub mod table;
 pub mod types;
+pub mod weld_joint;
 pub mod world;
 
 #[cfg(test)]
