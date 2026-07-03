@@ -23,7 +23,8 @@ submodule.
 | hull (quickhull convex hull) | ✅ | ✅ |
 | geometry (shapes, mass, AABB, point tests, ray/shape casts) | ✅ | ✅ (test_shape.c) |
 | manifold (contact generation, all shape pairs) | ✅ | ✅ (test_collision.c manifold subtests) |
-| dynamic_tree, broad_phase | — | — |
+| dynamic_tree (AABB tree: insert, rotate, query, ray/box cast, rebuild) | ✅ | ✅ (test_dynamic_tree.c) |
+| broad_phase | — | — |
 | body, shape, sensor | — | — |
 | contact, solver, constraint_graph | — | — |
 | joints (distance, motor, mover, prismatic, revolute, weld, wheel) | — | — |

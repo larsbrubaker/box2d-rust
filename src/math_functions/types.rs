@@ -64,7 +64,7 @@ pub struct Mat22 {
 }
 
 /// Axis-aligned bounding box
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Aabb {
     pub lower_bound: Vec2,
     pub upper_bound: Vec2,

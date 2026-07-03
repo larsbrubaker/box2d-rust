@@ -10,6 +10,7 @@ pub mod collision;
 pub mod constants;
 pub mod core;
 pub mod distance;
+pub mod dynamic_tree;
 pub mod geometry;
 pub mod hull;
 pub mod id;
@@ -23,6 +24,8 @@ mod aabb_tests;
 mod bitset_tests;
 #[cfg(test)]
 mod distance_tests;
+#[cfg(test)]
+mod dynamic_tree_tests;
 #[cfg(test)]
 mod geometry_tests;
 #[cfg(test)]
