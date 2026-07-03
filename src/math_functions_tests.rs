@@ -8,9 +8,11 @@ use crate::math_functions::*;
 const ATAN_TOL: f32 = 0.00004;
 
 fn ensure_small(value: f32, tolerance: f32) {
+    // Matches the C ENSURE_SMALL macro, which is inclusive: pass when
+    // -tol <= value <= tol.
     assert!(
-        value.abs() < tolerance,
-        "|{value}| >= tolerance {tolerance}"
+        !(value < -tolerance || tolerance < value),
+        "|{value}| > tolerance {tolerance}"
     );
 }
 
