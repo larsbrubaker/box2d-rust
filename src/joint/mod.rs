@@ -557,204 +557,133 @@ impl JointSim {
     }
 }
 
-/// Validate a JointId and return the raw joint index. (b2GetJointFullId — C
-/// returns a pointer; Rust returns the index into `world.joints`)
-pub fn get_joint_full_id(world: &crate::world::World, joint_id: crate::id::JointId) -> i32 {
-    let id = joint_id.index1 - 1;
-    debug_assert!((id as usize) < world.joints.len());
-    let joint = &world.joints[id as usize];
-    debug_assert!(joint.joint_id == id && joint.generation == joint_id.generation);
-    id
-}
+mod api;
+mod lifecycle;
+mod plumbing;
+mod solve;
 
-/// Borrow a joint's sim data mutably: constraint graph color for awake
-/// joints, otherwise the owning solver set. (b2GetJointSim)
-pub fn get_joint_sim(world: &mut crate::world::World, joint_id: i32) -> &mut JointSim {
-    use crate::constants::GRAPH_COLOR_COUNT;
+pub use api::*;
+pub use lifecycle::*;
+pub use plumbing::*;
+pub use solve::*;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::body::{create_body, destroy_body, get_body_full_id};
+    use crate::broad_phase::update_broad_phase_pairs;
+    use crate::constraint_graph::OVERFLOW_INDEX;
+    use crate::core::NULL_INDEX;
+    use crate::geometry::make_box;
+    use crate::shape::create_polygon_shape;
     use crate::solver_set::AWAKE_SET;
-
-    let (set_index, color_index, local_index) = {
-        let joint = &world.joints[joint_id as usize];
-        (joint.set_index, joint.color_index, joint.local_index)
+    use crate::types::{
+        default_body_def, default_distance_joint_def, default_revolute_joint_def,
+        default_shape_def, default_world_def, BodyType,
     };
+    use crate::world::World;
 
-    if set_index == AWAKE_SET {
-        debug_assert!((0..GRAPH_COLOR_COUNT).contains(&color_index));
-        &mut world.constraint_graph.colors[color_index as usize].joint_sims[local_index as usize]
-    } else {
-        &mut world.solver_sets[set_index as usize].joint_sims[local_index as usize]
-    }
-}
+    // Joint slice test: creation places joints in the constraint graph, links
+    // islands, and filters contacts; collide_connected toggling and
+    // destruction restore the previous state.
+    #[test]
+    fn create_and_destroy_joints() {
+        let mut world = World::new(&default_world_def());
 
-/// Shared-reference variant of get_joint_sim for read-only accessors. (The C
-/// b2GetJointSim is used for both; Rust needs the split.)
-pub fn get_joint_sim_ref(world: &crate::world::World, joint_id: i32) -> &JointSim {
-    use crate::constants::GRAPH_COLOR_COUNT;
-    use crate::solver_set::AWAKE_SET;
+        let mut body_def = default_body_def();
+        body_def.type_ = BodyType::Dynamic;
+        let body_a = create_body(&mut world, &body_def);
+        let body_b = create_body(&mut world, &body_def);
+        let a_index = get_body_full_id(&world, body_a);
+        let b_index = get_body_full_id(&world, body_b);
 
-    let joint = &world.joints[joint_id as usize];
+        let box_poly = make_box(0.5, 0.5);
+        let shape_def = default_shape_def();
+        let _sa = create_polygon_shape(&mut world, body_a, &shape_def, &box_poly);
+        let _sb = create_polygon_shape(&mut world, body_b, &shape_def, &box_poly);
 
-    if joint.set_index == AWAKE_SET {
-        debug_assert!(0 <= joint.color_index && joint.color_index < GRAPH_COLOR_COUNT);
-        &world.constraint_graph.colors[joint.color_index as usize].joint_sims
-            [joint.local_index as usize]
-    } else {
-        &world.solver_sets[joint.set_index as usize].joint_sims[joint.local_index as usize]
-    }
-}
+        update_broad_phase_pairs(&mut world);
+        assert_eq!(world.contact_id_pool.id_count(), 1);
 
-/// Shared-reference variant of get_joint_sim_check_type.
-pub fn get_joint_sim_check_type_ref(
-    world: &crate::world::World,
-    joint_id: crate::id::JointId,
-    joint_type: JointType,
-) -> &JointSim {
-    let id = get_joint_full_id(world, joint_id);
-    debug_assert!(world.joints[id as usize].type_ == joint_type);
-    let joint_sim = get_joint_sim_ref(world, id);
-    debug_assert!(joint_sim.joint_type() == joint_type);
-    joint_sim
-}
-
-/// (b2GetJointSimCheckType)
-pub fn get_joint_sim_check_type(
-    world: &mut crate::world::World,
-    joint_id: crate::id::JointId,
-    joint_type: JointType,
-) -> &mut JointSim {
-    let id = get_joint_full_id(world, joint_id);
-    debug_assert!(world.joints[id as usize].type_ == joint_type);
-    let joint_sim = get_joint_sim(world, id);
-    debug_assert!(joint_sim.joint_type() == joint_type);
-    joint_sim
-}
-
-impl Default for JointSim {
-    fn default() -> Self {
-        JointSim {
-            joint_id: NULL_INDEX,
-            body_id_a: NULL_INDEX,
-            body_id_b: NULL_INDEX,
-            local_frame_a: TRANSFORM_IDENTITY,
-            local_frame_b: TRANSFORM_IDENTITY,
-            inv_mass_a: 0.0,
-            inv_mass_b: 0.0,
-            inv_i_a: 0.0,
-            inv_i_b: 0.0,
-            constraint_hertz: 0.0,
-            constraint_damping_ratio: 0.0,
-            constraint_softness: Softness::default(),
-            force_threshold: 0.0,
-            torque_threshold: 0.0,
-            payload: JointPayload::Distance(DistanceJoint::default()),
-        }
-    }
-}
-
-/// Destroy a joint: unlink it from both bodies' joint lists, the island
-/// graph, and the solver set or constraint graph that owns its sim, then free
-/// the id. (b2DestroyJointInternal — C takes the joint pointer; the Rust port
-/// takes the id.)
-pub fn destroy_joint_internal(world: &mut crate::world::World, joint_id: i32, wake_bodies: bool) {
-    use crate::solver_set::{AWAKE_SET, DISABLED_SET};
-
-    let (edge_a, edge_b) = {
-        let joint = &world.joints[joint_id as usize];
-        (joint.edges[0], joint.edges[1])
-    };
-
-    let id_a = edge_a.body_id;
-    let id_b = edge_b.body_id;
-
-    // Remove from body A
-    if edge_a.prev_key != NULL_INDEX {
-        let prev_joint = &mut world.joints[(edge_a.prev_key >> 1) as usize];
-        prev_joint.edges[(edge_a.prev_key & 1) as usize].next_key = edge_a.next_key;
-    }
-
-    if edge_a.next_key != NULL_INDEX {
-        let next_joint = &mut world.joints[(edge_a.next_key >> 1) as usize];
-        next_joint.edges[(edge_a.next_key & 1) as usize].prev_key = edge_a.prev_key;
-    }
-
-    let edge_key_a = joint_id << 1;
-    {
-        let body_a = &mut world.bodies[id_a as usize];
-        if body_a.head_joint_key == edge_key_a {
-            body_a.head_joint_key = edge_a.next_key;
-        }
-        body_a.joint_count -= 1;
-    }
-
-    // Remove from body B
-    if edge_b.prev_key != NULL_INDEX {
-        let prev_joint = &mut world.joints[(edge_b.prev_key >> 1) as usize];
-        prev_joint.edges[(edge_b.prev_key & 1) as usize].next_key = edge_b.next_key;
-    }
-
-    if edge_b.next_key != NULL_INDEX {
-        let next_joint = &mut world.joints[(edge_b.next_key >> 1) as usize];
-        next_joint.edges[(edge_b.next_key & 1) as usize].prev_key = edge_b.prev_key;
-    }
-
-    let edge_key_b = (joint_id << 1) | 1;
-    {
-        let body_b = &mut world.bodies[id_b as usize];
-        if body_b.head_joint_key == edge_key_b {
-            body_b.head_joint_key = edge_b.next_key;
-        }
-        body_b.joint_count -= 1;
-    }
-
-    if world.joints[joint_id as usize].island_id != NULL_INDEX {
-        debug_assert!(world.joints[joint_id as usize].set_index > DISABLED_SET);
-        crate::island::unlink_joint(world, joint_id);
-    } else {
-        debug_assert!(world.joints[joint_id as usize].set_index <= DISABLED_SET);
-    }
-
-    // Remove joint from solver set that owns it
-    let (set_index, local_index, color_index) = {
-        let joint = &world.joints[joint_id as usize];
-        (joint.set_index, joint.local_index, joint.color_index)
-    };
-
-    if set_index == AWAKE_SET {
-        crate::constraint_graph::remove_joint_from_graph(
-            world,
-            id_a,
-            id_b,
-            color_index,
-            local_index,
+        // The two dynamic bodies start in separate islands.
+        assert_ne!(
+            world.bodies[a_index as usize].island_id,
+            world.bodies[b_index as usize].island_id
         );
-    } else {
-        let set = &mut world.solver_sets[set_index as usize];
-        let moved_index = set.joint_sims.len() as i32 - 1;
-        set.joint_sims.swap_remove(local_index as usize);
-        if moved_index != local_index {
-            // Fix moved joint
-            let moved_id =
-                world.solver_sets[set_index as usize].joint_sims[local_index as usize].joint_id;
-            let moved_joint = &mut world.joints[moved_id as usize];
-            debug_assert!(moved_joint.local_index == moved_index);
-            moved_joint.local_index = local_index;
+
+        // A revolute joint with collideConnected=false destroys the contact
+        // and merges the islands.
+        let mut revolute_def = default_revolute_joint_def();
+        revolute_def.base.body_id_a = body_a;
+        revolute_def.base.body_id_b = body_b;
+        let revolute_id = create_revolute_joint(&mut world, &revolute_def);
+
+        assert_eq!(world.contact_id_pool.id_count(), 0);
+        assert_eq!(world.joint_id_pool.id_count(), 1);
+        assert_eq!(world.bodies[a_index as usize].joint_count, 1);
+        assert_eq!(world.bodies[b_index as usize].joint_count, 1);
+        assert_eq!(
+            world.bodies[a_index as usize].island_id,
+            world.bodies[b_index as usize].island_id
+        );
+
+        let raw_revolute = get_joint_full_id(&world, revolute_id);
+        {
+            let joint = &world.joints[raw_revolute as usize];
+            assert_eq!(joint.set_index, AWAKE_SET);
+            assert!(joint.color_index != NULL_INDEX);
+            assert!(joint.island_id != NULL_INDEX);
+            assert_eq!(joint.type_, JointType::Revolute);
         }
-    }
+        assert_eq!(joint_get_type(&world, revolute_id), JointType::Revolute);
+        assert!(!joint_get_collide_connected(&world, revolute_id));
 
-    // Free joint and id (preserve joint generation)
-    {
-        let joint = &mut world.joints[joint_id as usize];
-        joint.set_index = NULL_INDEX;
-        joint.local_index = NULL_INDEX;
-        joint.color_index = NULL_INDEX;
-        joint.joint_id = NULL_INDEX;
-    }
-    world.joint_id_pool.free_id(joint_id);
+        // Broad-phase pair update does not recreate the filtered contact.
+        update_broad_phase_pairs(&mut world);
+        assert_eq!(world.contact_id_pool.id_count(), 0);
 
-    if wake_bodies {
-        crate::body::wake_body(world, id_a);
-        crate::body::wake_body(world, id_b);
-    }
+        // A distance joint between a static body and a dynamic body goes in
+        // the awake graph with a static-priority color.
+        let ground = create_body(&mut world, &default_body_def());
+        let mut distance_def = default_distance_joint_def();
+        distance_def.base.body_id_a = ground;
+        distance_def.base.body_id_b = body_a;
+        distance_def.length = 2.0;
+        let distance_id = create_distance_joint(&mut world, &distance_def);
 
-    world.validate_solver_sets();
+        assert_eq!(world.joint_id_pool.id_count(), 2);
+        let raw_distance = get_joint_full_id(&world, distance_id);
+        {
+            let joint = &world.joints[raw_distance as usize];
+            assert_eq!(joint.set_index, AWAKE_SET);
+            assert!(joint.color_index != NULL_INDEX && joint.color_index <= OVERFLOW_INDEX);
+        }
+        assert_eq!(
+            crate::distance_joint::distance_joint_get_length(&world, distance_id),
+            2.0
+        );
+        assert_eq!(joint_get_body_a(&world, distance_id), ground);
+        assert_eq!(joint_get_body_b(&world, distance_id), body_a);
+
+        // Enabling collision on the revolute joint re-buffers the shapes so
+        // the broad phase can recreate the contact.
+        joint_set_collide_connected(&mut world, revolute_id, true);
+        assert!(joint_get_collide_connected(&world, revolute_id));
+        update_broad_phase_pairs(&mut world);
+        assert_eq!(world.contact_id_pool.id_count(), 1);
+
+        // Destroying the revolute joint unlinks bodies but keeps the contact.
+        destroy_joint(&mut world, revolute_id, true);
+        assert_eq!(world.joint_id_pool.id_count(), 1);
+        assert_eq!(world.bodies[a_index as usize].joint_count, 1); // distance joint remains
+        assert_eq!(world.bodies[b_index as usize].joint_count, 0);
+        assert_eq!(world.contact_id_pool.id_count(), 1);
+
+        // Destroying body A destroys the distance joint too.
+        destroy_body(&mut world, body_a);
+        assert_eq!(world.joint_id_pool.id_count(), 0);
+        assert_eq!(world.contact_id_pool.id_count(), 0);
+
+        world.validate_solver_sets();
+    }
 }

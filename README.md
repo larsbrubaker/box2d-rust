@@ -31,8 +31,8 @@ submodule.
 | body lifecycle (create/destroy), shape lifecycle (create/destroy), mass data | 🟡 | ✅ |
 | contact (create/destroy/narrow-phase update), constraint_graph, solver_set, island linking | 🟡 | ✅ |
 | sensor (destroy; overlap update pending), solver (step) | — | — |
-| joints (distance, motor, mover, prismatic, revolute, weld, wheel) | — | — |
-| world | — | — |
+| joints (distance, motor, filter, prismatic, revolute, weld, wheel + joint core) | ✅ | ✅ |
+| solver (step), world | — | — |
 
 ## Porting principles
 
