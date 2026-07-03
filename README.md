@@ -30,9 +30,10 @@ submodule.
 | dynamics core data model (body/shape/contact/joint/island/solver_set/graph/world) | 🟡 | — |
 | body lifecycle (create/destroy), shape lifecycle (create/destroy), mass data | 🟡 | ✅ |
 | contact (create/destroy/narrow-phase update), constraint_graph, solver_set, island linking | 🟡 | ✅ |
-| sensor (destroy; overlap update pending), solver (step) | — | — |
 | joints (distance, motor, filter, prismatic, revolute, weld, wheel + joint core) | ✅ | ✅ |
-| solver (step), world | — | — |
+| contact_solver + solver (serial step pipeline) | ✅ | ✅ |
+| sensor overlap, world step (b2World_Step, HelloWorld passing) | ✅ | ✅ (test_world.c: HelloWorld, EmptyWorld) |
+| world public API (queries, casts, explosions, setters) | — | — |
 
 ## Porting principles
 
