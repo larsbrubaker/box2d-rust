@@ -1,0 +1,40 @@
+[workspace]
+members = [".", "demo/wasm"]
+
+[package]
+name = "box2d-rust"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+authors = ["Lars Brubaker <larsbrubaker@matterhackers.com>"]
+description = "Pure Rust port of the Box2D v3 2D physics engine"
+license = "MIT"
+repository = "https://github.com/larsbrubaker/box2d-rust"
+homepage = "https://larsbrubaker.github.io/box2d-rust/"
+documentation = "https://docs.rs/box2d-rust/"
+readme = "README.md"
+keywords = ["physics", "box2d", "2d", "simulation", "gamedev"]
+categories = ["simulation", "game-development", "algorithms"]
+exclude = [
+    "box2d-cpp-reference/",
+    "demo/",
+    "docs/",
+    "Tests/",
+    ".github/",
+    ".claude/",
+    "benches/",
+    "scripts/",
+    "CLAUDE.md",
+]
+
+[lib]
+name = "box2d_rust"
+path = "src/lib.rs"
+
+[features]
+# Mirrors BOX2D_DOUBLE_PRECISION: double precision world positions for large worlds.
+double-precision = []
+
+[dependencies]
+
+[dev-dependencies]

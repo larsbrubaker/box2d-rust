@@ -1,0 +1,112 @@
+:root {
+  --bg: #14181d;
+  --panel: #1c2229;
+  --border: #2c3540;
+  --text: #dde4ec;
+  --muted: #8b98a7;
+  --accent: #4fb3ff;
+  --accent2: #7ee787;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  max-width: 960px;
+  padding: 2rem 1.25rem 4rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.55;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+
+header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 2.4rem;
+  letter-spacing: -0.02em;
+}
+
+.tagline { color: var(--muted); max-width: 46rem; margin-top: 0; }
+
+.badge {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--accent2);
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  margin-left: 0.75rem;
+  padding: 0.15rem 0.7rem;
+}
+
+h2 { margin: 2.5rem 0 0.5rem; font-size: 1.35rem; }
+
+.live-pill {
+  background: rgba(126, 231, 135, 0.12);
+  border: 1px solid rgba(126, 231, 135, 0.4);
+  border-radius: 999px;
+  color: var(--accent2);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.6rem;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+canvas {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: block;
+  margin-top: 0.75rem;
+  max-width: 100%;
+}
+
+.readout {
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  min-height: 1.2em;
+}
+
+.grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  margin-top: 1rem;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+
+.card h3 { margin: 0 0 0.3rem; font-size: 1rem; }
+.card p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+
+.card.soon { opacity: 0.55; }
+.card.soon h3::after {
+  content: "planned";
+  color: var(--muted);
+  float: right;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; margin-top: 3rem; padding-top: 1rem; }

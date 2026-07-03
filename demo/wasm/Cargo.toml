@@ -1,0 +1,13 @@
+[package]
+name = "box2d-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WASM bindings for the Box2D Rust physics engine demos"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+box2d-rust = { path = "../.." }
+wasm-bindgen = "0.2"

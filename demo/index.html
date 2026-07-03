@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>box2d-rust — Box2D v3 ported to Rust</title>
+  <link rel="stylesheet" href="./styles/main.css" />
+</head>
+<body>
+  <header>
+    <h1>box2d-rust</h1>
+    <p class="tagline">
+      A pure Rust port of <a href="https://github.com/erincatto/box2d">Box2D v3</a>, Erin Catto's 2D
+      physics engine — exact behavioral match, including cross-platform deterministic math.
+    </p>
+    <p class="links">
+      <a href="https://github.com/larsbrubaker/box2d-rust">GitHub</a>
+      <span id="version-badge" class="badge">loading…</span>
+    </p>
+  </header>
+
+  <main>
+    <section class="live-demo">
+      <h2>Deterministic math <span class="live-pill">live wasm</span></h2>
+      <p>
+        The polygons below are rotated with the ported <code>b2MakeRot</code> /
+        <code>b2TransformPoint</code>, using Box2D's hand-rolled deterministic
+        cosine/sine — running in your browser as WebAssembly compiled from the Rust port.
+      </p>
+      <canvas id="math-canvas" width="900" height="360"></canvas>
+      <p class="readout" id="math-readout"></p>
+    </section>
+
+    <section>
+      <h2>Demo roadmap</h2>
+      <p>
+        Each category of the upstream <code>samples</code> app becomes an interactive browser demo
+        as its module of the engine is ported.
+      </p>
+      <div id="demo-grid" class="grid"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      Box2D © Erin Catto (MIT). Rust port © Lars Brubaker / MatterHackers (MIT).
+    </p>
+  </footer>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
