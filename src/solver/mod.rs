@@ -86,3 +86,9 @@ pub struct StepContext {
 
     pub enable_warm_starting: bool,
 }
+
+mod continuous;
+mod integrate;
+mod solve;
+
+pub use solve::*;

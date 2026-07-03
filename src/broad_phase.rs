@@ -191,6 +191,22 @@ impl BroadPhase {
         crate::math_functions::aabb_overlaps(aabb_a, aabb_b)
     }
 
+    /// (b2ValidateBroadphase)
+    pub fn validate(&self) {
+        self.trees[BodyType::Dynamic as usize].validate();
+        self.trees[BodyType::Kinematic as usize].validate();
+    }
+
+    /// (b2ValidateNoEnlarged — C compiles the body under B2_ENABLE_VALIDATION;
+    /// here the check runs in debug builds only)
+    pub fn validate_no_enlarged(&self) {
+        if cfg!(debug_assertions) {
+            for tree in &self.trees {
+                tree.validate_no_enlarged();
+            }
+        }
+    }
+
     /// (b2ValidateMovedProxies — C compiles the body under
     /// B2_ENABLE_VALIDATION; here the whole check runs in debug builds only)
     pub fn validate_moved_proxies(&self) {

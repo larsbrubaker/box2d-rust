@@ -131,4 +131,16 @@ impl BitSet {
     pub fn bytes(&self) -> i32 {
         self.block_capacity() as i32 * core::mem::size_of::<u64>() as i32
     }
+
+    /// Number of active 64-bit blocks (`blockCount` in C). Used together with
+    /// [`BitSet::block`] to port the C word/CTZ set-bit iteration loops.
+    pub fn block_count(&self) -> u32 {
+        self.block_count
+    }
+
+    /// The k-th active 64-bit block (`bits[k]` in C).
+    pub fn block(&self, block_index: u32) -> u64 {
+        debug_assert!(block_index < self.block_count);
+        self.blocks[block_index as usize]
+    }
 }
