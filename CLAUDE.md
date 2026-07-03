@@ -83,13 +83,21 @@ Before implementing any function:
 2. Verify all dependencies are already implemented and tested in the Rust codebase
 3. If any dependency is incomplete, implement dependencies first
 
-Port phase-by-phase in complete, testable modules (this worked for clipper2-rust; function-by-function tracking did not). A sensible order follows the C file dependency graph: math_functions → core/constants → geometry primitives (aabb, hull, geometry) → distance/manifold → dynamic_tree/broad_phase → id_pool/solver_set/body/shape → contact → solver/constraint_graph → joints → world.
+Port phase-by-phase in complete, testable modules (this worked for clipper2-rust; function-by-function tracking did not). The collision layer (math_functions → core/constants → aabb/hull/geometry → distance/manifold → dynamic_tree → id_pool/types) was ported this way, one green module per commit.
+
+### The Dynamics Core (body/shape/contact/joint/island/solver_set/constraint_graph/solver/world)
+These C files are mutually recursive — every function takes `b2World*` and the Sim/State structs reference each other — so the module-per-commit rule cannot apply. For this unit the rules are:
+
+1. **Data model first.** Land the complete internal data model (all structs/enums for the whole unit, including `World`) in one commit. Structs carry no logic yet; that is not a "stub" — functions are where the stub rule applies.
+2. **Logic in complete C-file slices.** Port one C file's functions per commit, each function complete (no `todo!()`, no placeholder bodies). A ported function may call a function from a C file not yet ported **only if** that callee is ported in the same commit or the call is behind the not-yet-reachable public API. Every commit must compile (`cargo build`) and keep all existing tests green.
+3. **Unreachable is acceptable, incomplete is not.** During bring-up, complete functions that nothing calls yet are expected (`#[allow(dead_code)]` at the module level with a `// bring-up:` note, removed when the world API lands).
+4. **World tests gate completion.** `test_world.c` and `test_determinism.c` are the acceptance tests for the whole unit. The unit is not "done" until they pass; the demo site gets the Bodies/Stacking samples only after that.
 
 ### Forbidden Patterns
 - `todo!()` or `unimplemented!()` macros
 - `panic!()` for missing functionality
 - Stub functions or placeholder implementations
-- Implementing without dependencies ready
+- Implementing without dependencies ready (outside the dynamics-core bring-up rules above)
 - Marking functions complete prematurely
 - "Close enough" or "good enough for now" implementations
 - Guessing at divergences — when Rust and C disagree, instrument both and diff the traces

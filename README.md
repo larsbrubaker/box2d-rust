@@ -26,7 +26,8 @@ submodule.
 | geometry (shapes, mass, AABB, point tests, ray/shape casts) | ✅ | ✅ (test_shape.c) |
 | manifold (contact generation, all shape pairs) | ✅ | ✅ (test_collision.c manifold subtests) |
 | dynamic_tree (AABB tree: insert, rotate, query, ray/box cast, rebuild) | ✅ | ✅ (test_dynamic_tree.c) |
-| broad_phase | — | — |
+| broad_phase (proxy ops, move buffer, overlap; pair update pending) | 🟡 | ✅ |
+| dynamics core data model (body/shape/contact/joint/island/solver_set/graph/world) | 🟡 | — |
 | body, shape, sensor | — | — |
 | contact, solver, constraint_graph | — | — |
 | joints (distance, motor, mover, prismatic, revolute, weld, wheel) | — | — |

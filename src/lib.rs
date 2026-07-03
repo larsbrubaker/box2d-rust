@@ -6,19 +6,31 @@
 
 pub mod aabb;
 pub mod bitset;
+pub mod body;
+pub mod broad_phase;
 pub mod collision;
 pub mod constants;
+pub mod constraint_graph;
+pub mod contact;
 pub mod core;
 pub mod distance;
 pub mod dynamic_tree;
+pub mod events;
 pub mod geometry;
 pub mod hull;
 pub mod id;
 pub mod id_pool;
+pub mod island;
+pub mod joint;
 pub mod manifold;
 pub mod math_functions;
+pub mod sensor;
+pub mod shape;
+pub mod solver;
+pub mod solver_set;
 pub mod table;
 pub mod types;
+pub mod world;
 
 #[cfg(test)]
 mod aabb_tests;
