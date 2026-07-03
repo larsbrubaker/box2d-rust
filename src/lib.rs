@@ -25,6 +25,7 @@ pub mod island;
 pub mod joint;
 pub mod manifold;
 pub mod math_functions;
+pub mod motor_joint;
 pub mod sensor;
 pub mod shape;
 pub mod solver;
