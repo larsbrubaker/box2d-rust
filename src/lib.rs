@@ -7,14 +7,18 @@
 pub mod bitset;
 pub mod constants;
 pub mod core;
+pub mod id;
 pub mod math_functions;
 
 #[cfg(test)]
 mod bitset_tests;
 #[cfg(test)]
+mod id_tests;
+#[cfg(test)]
 mod math_functions_tests;
 
 pub use core::{get_version, is_double_precision, Version};
+pub use id::{BodyId, ChainId, ContactId, JointId, ShapeId, WorldId};
 pub use math_functions::{Aabb, CosSin, Mat22, Plane, Pos, Rot, Transform, Vec2, WorldTransform};
 
 /// Library version, kept in sync with Cargo.toml.

@@ -14,7 +14,9 @@ submodule.
 | Module | Ported | Tests |
 |---|---|---|
 | math_functions | ✅ | ✅ (test_math.c) |
-| core / constants | — | — |
+| core / constants | ✅ | ✅ |
+| id (handles) | ✅ | ✅ (test_id.c) |
+| bitset | ✅ | ✅ (test_bitset.c) |
 | geometry, hull, aabb | — | — |
 | distance, manifold | — | — |
 | dynamic_tree, broad_phase | — | — |
