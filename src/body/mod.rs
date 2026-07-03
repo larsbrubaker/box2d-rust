@@ -362,4 +362,80 @@ mod tests {
             crate::constants::NAME_LENGTH as usize
         );
     }
+
+    // Slice-5 test: destroy_shape removes the contact it participates in;
+    // destroy_body tears down shapes, islands, and solver set slots.
+    #[test]
+    fn destroy_shape_and_body_lifecycle() {
+        use crate::broad_phase::update_broad_phase_pairs;
+        use crate::geometry::make_box;
+        use crate::shape::{create_polygon_shape, destroy_shape};
+        use crate::table::shape_pair_key;
+        use crate::types::default_shape_def;
+
+        let mut world = World::new(&default_world_def());
+
+        let mut def = default_body_def();
+        def.type_ = BodyType::Dynamic;
+        let body_a = create_body(&mut world, &def);
+        let body_b = create_body(&mut world, &def);
+        let a_index = get_body_full_id(&world, body_a);
+        let b_index = get_body_full_id(&world, body_b);
+
+        let box_poly = make_box(0.5, 0.5);
+        let shape_def = default_shape_def();
+        let sa = create_polygon_shape(&mut world, body_a, &shape_def, &box_poly);
+        let sb = create_polygon_shape(&mut world, body_b, &shape_def, &box_poly);
+
+        update_broad_phase_pairs(&mut world);
+        assert_eq!(world.contact_id_pool.id_count(), 1);
+
+        // Destroying shape B destroys the contact and unlinks both bodies.
+        destroy_shape(&mut world, sb, true);
+        assert_eq!(world.contact_id_pool.id_count(), 0);
+        assert_eq!(world.shape_id_pool.id_count(), 1);
+        assert_eq!(world.bodies[a_index as usize].contact_count, 0);
+        assert_eq!(world.bodies[b_index as usize].contact_count, 0);
+        assert_eq!(world.bodies[b_index as usize].shape_count, 0);
+        assert_eq!(world.bodies[b_index as usize].head_shape_id, NULL_INDEX);
+        assert_eq!(world.shapes[(sb.index1 - 1) as usize].id, NULL_INDEX);
+        assert!(!world
+            .broad_phase
+            .pair_set
+            .contains_key(shape_pair_key(sa.index1 - 1, sb.index1 - 1)));
+
+        // Destroying body A destroys its shape and empties its island.
+        let island_a = world.bodies[a_index as usize].island_id;
+        assert!(island_a != NULL_INDEX);
+        destroy_body(&mut world, body_a);
+        assert_eq!(world.body_id_pool.id_count(), 1);
+        assert_eq!(world.shape_id_pool.id_count(), 0);
+        assert_eq!(world.bodies[a_index as usize].id, NULL_INDEX);
+        assert_eq!(world.bodies[a_index as usize].set_index, NULL_INDEX);
+        assert_eq!(world.islands[island_a as usize].island_id, NULL_INDEX);
+        assert_eq!(
+            world.solver_sets[AWAKE_SET as usize].body_sims.len(),
+            1,
+            "only body B remains awake"
+        );
+        // The remaining sim belongs to body B with a fixed-up local index.
+        assert_eq!(
+            world.solver_sets[AWAKE_SET as usize].body_sims[0].body_id,
+            b_index
+        );
+        assert_eq!(world.bodies[b_index as usize].local_index, 0);
+
+        destroy_body(&mut world, body_b);
+        assert_eq!(world.body_id_pool.id_count(), 0);
+        assert!(world.solver_sets[AWAKE_SET as usize].body_sims.is_empty());
+        assert!(world.solver_sets[AWAKE_SET as usize].island_sims.is_empty());
+
+        world.validate_solver_sets();
+
+        // Slot reuse: a new body recycles the freed slot with a bumped
+        // generation.
+        let reborn = create_body(&mut world, &def);
+        assert_eq!(get_body_full_id(&world, reborn), 1);
+        assert!(reborn.generation > body_b.generation);
+    }
 }

@@ -334,3 +334,118 @@ pub fn update_body_mass_data(world: &mut World, body_id: i32) {
         sim.max_extent = max_float(sim.max_extent, extent.max_extent);
     }
 }
+
+/// Destroy the attached contacts. (static b2DestroyBodyContacts)
+pub(crate) fn destroy_body_contacts(world: &mut World, body_id: i32, wake_bodies: bool) {
+    let mut edge_key = world.bodies[body_id as usize].head_contact_key;
+    while edge_key != NULL_INDEX {
+        let contact_id = edge_key >> 1;
+        let edge_index = edge_key & 1;
+
+        edge_key = world.contacts[contact_id as usize].edges[edge_index as usize].next_key;
+        crate::contact::destroy_contact(world, contact_id, wake_bodies);
+    }
+
+    world.validate_solver_sets();
+}
+
+/// Destroy a rigid body and everything attached to it: joints, contacts,
+/// shapes, and chains. (b2DestroyBody)
+pub fn destroy_body(world: &mut World, body_id: BodyId) {
+    use super::{remove_body_from_island, remove_body_sim};
+    use crate::body::get_body_full_id;
+    use crate::solver_set::FIRST_SLEEPING_SET;
+
+    let body_index = get_body_full_id(world, body_id);
+
+    // Wake bodies attached to this body, even if this body is static.
+    let wake_bodies = true;
+
+    // Destroy the attached joints
+    let mut edge_key = world.bodies[body_index as usize].head_joint_key;
+    while edge_key != NULL_INDEX {
+        let joint_id = edge_key >> 1;
+        let edge_index = edge_key & 1;
+
+        edge_key = world.joints[joint_id as usize].edges[edge_index as usize].next_key;
+
+        // Careful because this modifies the list being traversed
+        crate::joint::destroy_joint_internal(world, joint_id, wake_bodies);
+    }
+
+    // Destroy all contacts attached to this body.
+    destroy_body_contacts(world, body_index, wake_bodies);
+
+    // Destroy the attached shapes and their broad-phase proxies.
+    let mut shape_id = world.bodies[body_index as usize].head_shape_id;
+    while shape_id != NULL_INDEX {
+        if world.shapes[shape_id as usize].sensor_index != NULL_INDEX {
+            crate::sensor::destroy_sensor(world, shape_id);
+        }
+
+        {
+            let (shapes, broad_phase) = (&mut world.shapes, &mut world.broad_phase);
+            crate::shape::destroy_shape_proxy(&mut shapes[shape_id as usize], broad_phase);
+        }
+
+        // Return shape to free list.
+        world.shape_id_pool.free_id(shape_id);
+        world.shapes[shape_id as usize].id = NULL_INDEX;
+
+        shape_id = world.shapes[shape_id as usize].next_shape_id;
+    }
+
+    // Destroy the attached chains. The associated shapes have already been
+    // destroyed above.
+    let mut chain_id = world.bodies[body_index as usize].head_chain_id;
+    while chain_id != NULL_INDEX {
+        // Free the chain data. (b2FreeChainData)
+        {
+            let chain = &mut world.chain_shapes[chain_id as usize];
+            chain.shape_indices = Vec::new();
+            chain.materials = Vec::new();
+        }
+
+        // Return chain to free list.
+        world.chain_id_pool.free_id(chain_id);
+        world.chain_shapes[chain_id as usize].id = NULL_INDEX;
+
+        chain_id = world.chain_shapes[chain_id as usize].next_chain_id;
+    }
+
+    remove_body_from_island(world, body_index);
+
+    // Remove body sim from solver set that owns it
+    let (set_index, local_index) = {
+        let body = &world.bodies[body_index as usize];
+        (body.set_index, body.local_index)
+    };
+    remove_body_sim(
+        &mut world.solver_sets[set_index as usize].body_sims,
+        &mut world.bodies,
+        local_index,
+    );
+
+    // Remove body state from awake set
+    if set_index == AWAKE_SET {
+        world.solver_sets[set_index as usize]
+            .body_states
+            .swap_remove(local_index as usize);
+    } else if set_index >= FIRST_SLEEPING_SET
+        && world.solver_sets[set_index as usize].body_sims.is_empty()
+    {
+        // Remove solver set if it is empty
+        crate::solver_set::destroy_solver_set(world, set_index);
+    }
+
+    // Free body and id (preserve body generation)
+    let raw_id = world.bodies[body_index as usize].id;
+    world.body_id_pool.free_id(raw_id);
+
+    let body = &mut world.bodies[body_index as usize];
+    body.set_index = NULL_INDEX;
+    body.local_index = NULL_INDEX;
+    body.id = NULL_INDEX;
+
+    world.validate_solver_sets();
+}

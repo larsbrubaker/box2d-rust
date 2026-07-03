@@ -122,23 +122,29 @@ impl BroadPhase {
         proxy_key_
     }
 
+    /// (static inline b2UnBufferMove)
+    fn unbuffer_move(&mut self, proxy_key: i32) {
+        let proxy_type_ = proxy_type(proxy_key);
+        let proxy_id_ = proxy_id(proxy_key);
+        let set = &mut self.moved_proxies[proxy_type_ as usize];
+
+        if set.get_bit(proxy_id_ as u32) {
+            set.clear_bit(proxy_id_ as u32);
+
+            // Purge from move buffer. Linear search.
+            if let Some(index) = self.move_array.iter().position(|&k| k == proxy_key) {
+                // C: b2Array_RemoveSwap
+                self.move_array.swap_remove(index);
+            }
+        }
+    }
+
     /// (b2BroadPhase_DestroyProxy)
     pub fn destroy_proxy(&mut self, proxy_key: i32) {
-        debug_assert!(!self.move_array.is_empty());
-
-        // Purge from move buffer. Linear search.
-        // This is done for clarity/simplicity to match the C implementation:
-        // the moved bit alone is not enough because the moveArray preserves
-        // deterministic order.
-        if let Some(index) = self.move_array.iter().position(|&k| k == proxy_key) {
-            // C: b2Array_RemoveSwap
-            self.move_array.swap_remove(index);
-        }
+        self.unbuffer_move(proxy_key);
 
         let proxy_type_ = proxy_type(proxy_key);
         let proxy_id_ = proxy_id(proxy_key);
-
-        self.moved_proxies[proxy_type_ as usize].clear_bit(proxy_id_ as u32);
 
         self.trees[proxy_type_ as usize].destroy_proxy(proxy_id_);
     }

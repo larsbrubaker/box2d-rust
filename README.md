@@ -28,9 +28,9 @@ submodule.
 | dynamic_tree (AABB tree: insert, rotate, query, ray/box cast, rebuild) | ✅ | ✅ (test_dynamic_tree.c) |
 | broad_phase (proxy ops, move buffer, overlap, pair update → contact creation) | ✅ | ✅ |
 | dynamics core data model (body/shape/contact/joint/island/solver_set/graph/world) | 🟡 | — |
-| body storage + creation, shape creation, mass data | 🟡 | ✅ |
+| body lifecycle (create/destroy), shape lifecycle (create/destroy), mass data | 🟡 | ✅ |
 | contact (create/destroy/narrow-phase update), constraint_graph, solver_set, island linking | 🟡 | ✅ |
-| sensor, solver (step) | — | — |
+| sensor (destroy; overlap update pending), solver (step) | — | — |
 | joints (distance, motor, mover, prismatic, revolute, weld, wheel) | — | — |
 | world | — | — |
 

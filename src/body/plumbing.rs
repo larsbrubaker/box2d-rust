@@ -175,8 +175,6 @@ pub(crate) fn create_island_for_body(world: &mut World, set_index: i32, body_id:
 }
 
 /// (static b2RemoveBodyFromIsland)
-// bring-up: called by destroy_body when the joint/contact slices land.
-#[allow(dead_code)]
 pub(crate) fn remove_body_from_island(world: &mut World, body_id: i32) {
     let (island_id, island_index) = {
         let body = &world.bodies[body_id as usize];

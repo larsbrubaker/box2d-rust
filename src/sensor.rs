@@ -1,5 +1,6 @@
-// Port of the sensor data model from box2d-cpp-reference/src/sensor.h.
-// Logic from sensor.c lands in a later bring-up commit.
+// Port of the sensor data model from box2d-cpp-reference/src/sensor.h plus
+// sensor destruction from sensor.c. The overlap update logic lands in a later
+// bring-up commit.
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
@@ -62,5 +63,43 @@ impl Default for SensorHit {
             sensor_id: NULL_INDEX,
             visitor_id: NULL_INDEX,
         }
+    }
+}
+
+/// Destroy the sensor record for a sensor shape, emitting end-touch events for
+/// its active overlaps. (b2DestroySensor — C takes the shape pointer; the Rust
+/// port takes the shape id.)
+pub fn destroy_sensor(world: &mut crate::world::World, sensor_shape_id: i32) {
+    use crate::events::SensorEndTouchEvent;
+    use crate::id::ShapeId;
+
+    let sensor_index = world.shapes[sensor_shape_id as usize].sensor_index;
+    let sensor_generation = world.shapes[sensor_shape_id as usize].generation;
+
+    let overlaps2 = std::mem::take(&mut world.sensors[sensor_index as usize].overlaps2);
+    for visitor in &overlaps2 {
+        let event = SensorEndTouchEvent {
+            sensor_shape_id: ShapeId {
+                index1: sensor_shape_id + 1,
+                world0: world.world_id,
+                generation: sensor_generation,
+            },
+            visitor_shape_id: ShapeId {
+                index1: visitor.shape_id + 1,
+                world0: world.world_id,
+                generation: visitor.generation,
+            },
+        };
+
+        world.sensor_end_events[world.end_event_array_index as usize].push(event);
+    }
+
+    // Destroy sensor (the C b2Array_Destroy calls drop with the Sensor)
+    let moved_index = world.sensors.len() as i32 - 1;
+    world.sensors.swap_remove(sensor_index as usize);
+    if moved_index != sensor_index {
+        // Fixup moved sensor
+        let moved_shape_id = world.sensors[sensor_index as usize].shape_id;
+        world.shapes[moved_shape_id as usize].sensor_index = sensor_index;
     }
 }

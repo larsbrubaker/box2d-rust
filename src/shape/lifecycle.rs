@@ -241,3 +241,107 @@ pub fn create_chain_segment_shape(
 
     create_shape(world, body_id, def, ShapeGeometry::ChainSegment(local))
 }
+
+/// Validate a ShapeId and return the raw shape index. (b2GetShape — C returns
+/// a pointer; Rust returns the index into `world.shapes`)
+pub fn get_shape_index(world: &crate::world::World, shape_id: crate::id::ShapeId) -> i32 {
+    let index = shape_id.index1 - 1;
+    debug_assert!((index as usize) < world.shapes.len());
+    let shape = &world.shapes[index as usize];
+    debug_assert!(shape.id == index && shape.generation == shape_id.generation);
+    index
+}
+
+/// (static b2DestroyShapeInternal — C takes shape/body pointers; the Rust
+/// port takes ids)
+pub(crate) fn destroy_shape_internal(
+    world: &mut crate::world::World,
+    shape_id: i32,
+    body_id: i32,
+    wake_bodies: bool,
+) {
+    // Remove the shape from the body's doubly linked list.
+    let (prev_shape_id, next_shape_id) = {
+        let shape = &world.shapes[shape_id as usize];
+        (shape.prev_shape_id, shape.next_shape_id)
+    };
+
+    if prev_shape_id != NULL_INDEX {
+        world.shapes[prev_shape_id as usize].next_shape_id = next_shape_id;
+    }
+
+    if next_shape_id != NULL_INDEX {
+        world.shapes[next_shape_id as usize].prev_shape_id = prev_shape_id;
+    }
+
+    {
+        let body = &mut world.bodies[body_id as usize];
+        if shape_id == body.head_shape_id {
+            body.head_shape_id = next_shape_id;
+        }
+        body.shape_count -= 1;
+    }
+
+    // Remove from broad-phase.
+    {
+        let (shapes, broad_phase) = (&mut world.shapes, &mut world.broad_phase);
+        super::destroy_shape_proxy(&mut shapes[shape_id as usize], broad_phase);
+    }
+
+    // Destroy any contacts associated with the shape.
+    let mut contact_key = world.bodies[body_id as usize].head_contact_key;
+    while contact_key != NULL_INDEX {
+        let contact_id = contact_key >> 1;
+        let edge_index = contact_key & 1;
+
+        contact_key = world.contacts[contact_id as usize].edges[edge_index as usize].next_key;
+
+        let (contact_shape_a, contact_shape_b) = {
+            let contact = &world.contacts[contact_id as usize];
+            (contact.shape_id_a, contact.shape_id_b)
+        };
+        if contact_shape_a == shape_id || contact_shape_b == shape_id {
+            crate::contact::destroy_contact(world, contact_id, wake_bodies);
+        }
+    }
+
+    if world.shapes[shape_id as usize].sensor_index != NULL_INDEX {
+        // The C code inlines a copy of b2DestroySensor here (end-touch events
+        // for active overlaps, swap-remove with sensorIndex fixup).
+        crate::sensor::destroy_sensor(world, shape_id);
+    }
+
+    // Return shape to free list.
+    world.shape_id_pool.free_id(shape_id);
+    world.shapes[shape_id as usize].id = NULL_INDEX;
+
+    world.validate_solver_sets();
+}
+
+/// Destroy a shape by id, optionally updating the body mass.
+/// (b2DestroyShape)
+pub fn destroy_shape(
+    world: &mut crate::world::World,
+    shape_id: crate::id::ShapeId,
+    update_body_mass: bool,
+) {
+    let shape_index = get_shape_index(world, shape_id);
+
+    // Cannot destroy a chain segment that has a parent chain shape
+    if let ShapeGeometry::ChainSegment(chain_segment) = &world.shapes[shape_index as usize].geometry
+    {
+        if chain_segment.chain_id != NULL_INDEX {
+            debug_assert!(false, "cannot destroy a chain segment owned by a chain");
+            return;
+        }
+    }
+
+    // need to wake bodies because this might be a static body
+    let wake_bodies = true;
+    let body_id = world.shapes[shape_index as usize].body_id;
+    destroy_shape_internal(world, shape_index, body_id, wake_bodies);
+
+    if update_body_mass {
+        crate::body::update_body_mass_data(world, body_id);
+    }
+}
