@@ -176,11 +176,7 @@ fn test_project_structure_health() {
         }
     }
 
-    let average_lines = if file_count > 0 {
-        total_lines / file_count
-    } else {
-        0
-    };
+    let average_lines = total_lines.checked_div(file_count).unwrap_or(0);
 
     println!("📊 Box2D Rust Project Statistics:");
     println!("  - Total files analyzed: {}", file_count);
