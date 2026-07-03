@@ -22,7 +22,7 @@ submodule.
 | distance (GJK, shape cast, TOI, segment distance) | ✅ | ✅ (test_distance.c) |
 | hull (quickhull convex hull) | ✅ | ✅ |
 | geometry (shapes, mass, AABB, point tests, ray/shape casts) | ✅ | ✅ (test_shape.c) |
-| manifold | — | — |
+| manifold (contact generation, all shape pairs) | ✅ | ✅ (test_collision.c manifold subtests) |
 | dynamic_tree, broad_phase | — | — |
 | body, shape, sensor | — | — |
 | contact, solver, constraint_graph | — | — |

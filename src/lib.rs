@@ -13,6 +13,7 @@ pub mod distance;
 pub mod geometry;
 pub mod hull;
 pub mod id;
+pub mod manifold;
 pub mod math_functions;
 pub mod table;
 
@@ -28,6 +29,8 @@ mod geometry_tests;
 mod hull_tests;
 #[cfg(test)]
 mod id_tests;
+#[cfg(test)]
+mod manifold_tests;
 #[cfg(test)]
 mod math_functions_tests;
 #[cfg(test)]

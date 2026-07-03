@@ -187,6 +187,73 @@ impl ShapeGeometry {
     }
 }
 
+/// A manifold point is a contact point belonging to a contact manifold. It
+/// holds details related to the geometry and dynamics of the contact points.
+/// Box2D uses speculative collision so some contact points may be separated.
+/// (b2ManifoldPoint)
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ManifoldPoint {
+    /// Location of the contact point relative to body A's center of mass in
+    /// world space.
+    pub anchor_a: Vec2,
+    /// Location of the contact point relative to body B's center of mass in
+    /// world space.
+    pub anchor_b: Vec2,
+    /// The separation of the contact point, negative if penetrating
+    pub separation: f32,
+    /// Cached separation used for contact recycling
+    pub base_separation: f32,
+    /// The impulse along the manifold normal vector
+    pub normal_impulse: f32,
+    /// The friction impulse
+    pub tangent_impulse: f32,
+    /// The total normal impulse applied across sub-stepping and restitution
+    pub total_normal_impulse: f32,
+    /// Relative normal velocity pre-solve. Used for hit events.
+    pub normal_velocity: f32,
+    /// Uniquely identifies a contact point between two shapes
+    pub id: u16,
+    /// Did this contact point exist the previous step?
+    pub persisted: bool,
+}
+
+/// A contact manifold describes the contact points between colliding shapes.
+/// (b2Manifold)
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Manifold {
+    /// The unit normal vector in world space, points from shape A to body B
+    pub normal: Vec2,
+    /// Angular impulse applied for rolling resistance
+    pub rolling_impulse: f32,
+    /// The manifold points, up to two are possible in 2D
+    pub points: [ManifoldPoint; 2],
+    /// The number of contact points, will be 0, 1, or 2
+    pub point_count: i32,
+}
+
+/// Contact manifold point in local coordinates (frame A).
+/// (b2LocalManifoldPoint)
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct LocalManifoldPoint {
+    /// Contact point in frame A
+    pub point: Vec2,
+    /// The separation of the contact point, negative if penetrating
+    pub separation: f32,
+    /// Uniquely identifies a contact point between two shapes
+    pub id: u16,
+}
+
+/// Contact manifold in local coordinates (frame A). (b2LocalManifold)
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct LocalManifold {
+    /// The unit normal vector in frame A, points from shape A to shape B
+    pub normal: Vec2,
+    /// The manifold points, up to two are possible in 2D
+    pub points: [LocalManifoldPoint; 2],
+    /// The number of contact points, will be 0, 1, or 2
+    pub point_count: i32,
+}
+
 /// These are the collision planes returned from b2World_CollideMover.
 /// The plane and point are relative to the query origin, matching the mover
 /// capsule. (b2PlaneResult)
