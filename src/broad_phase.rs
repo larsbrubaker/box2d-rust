@@ -1,20 +1,24 @@
-// Port of box2d-cpp-reference/src/broad_phase.h and the world-independent
-// parts of broad_phase.c: the b2BroadPhase storage, proxy operations, move
-// buffering, and overlap testing.
+// Port of box2d-cpp-reference/src/broad_phase.h and broad_phase.c: the
+// b2BroadPhase storage, proxy operations, move buffering, overlap testing,
+// and the pair update that drives contact creation.
 //
-// b2UpdateBroadPhasePairs takes b2World* and drives contact creation through
-// shape/contact/arena/parallel_for; it lands with the contact bring-up commit.
-// The transient pair-query scratch (b2MoveResult*/b2MovePair* into arena
-// memory) is owned by that phase too.
+// The single-threaded port turns the C parallel find-pairs task into a serial
+// loop and the arena b2MoveResult/b2MovePair scratch (a prepended linked list
+// per moved proxy) into a Vec of shape-id pairs per moved proxy. The C list
+// is iterated head-first, i.e. reverse discovery order, so contact creation
+// iterates each Vec in reverse to preserve the exact contact creation order.
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
 
 use crate::bitset::BitSet;
-use crate::dynamic_tree::DynamicTree;
+use crate::core::NULL_INDEX;
+use crate::dynamic_tree::{DynamicTree, DEFAULT_MASK_BITS};
+use crate::id::ShapeId;
 use crate::math_functions::Aabb;
-use crate::table::HashSet;
+use crate::table::{shape_pair_key, HashSet};
 use crate::types::{BodyType, Capacity, BODY_TYPE_COUNT};
+use crate::world::World;
 
 // Store the proxy type in the lower 2 bits of the proxy key. This leaves 30
 // bits for the id.
@@ -180,6 +184,244 @@ impl BroadPhase {
         let aabb_b = self.trees[type_b as usize].aabb(id_b);
         crate::math_functions::aabb_overlaps(aabb_a, aabb_b)
     }
+
+    /// (b2ValidateMovedProxies — C compiles the body under
+    /// B2_ENABLE_VALIDATION; here the whole check runs in debug builds only)
+    pub fn validate_moved_proxies(&self) {
+        if cfg!(debug_assertions) {
+            // Invariant: bit set in movedProxies[type] iff proxyKey is present
+            // in moveArray.
+            for &proxy_key_ in &self.move_array {
+                let proxy_type_ = proxy_type(proxy_key_);
+                let proxy_id_ = proxy_id(proxy_key_);
+                debug_assert!(self.moved_proxies[proxy_type_ as usize].get_bit(proxy_id_ as u32));
+            }
+
+            let mut total_set_bits = 0;
+            for i in 0..BODY_TYPE_COUNT {
+                total_set_bits += self.moved_proxies[i].count_set_bits();
+            }
+            debug_assert!(total_set_bits == self.move_array.len() as i32);
+        }
+    }
+}
+
+/// Query one tree for new pairs against a moved proxy, appending them to
+/// `pair_list` in discovery order. (b2PairQueryCallback — the C callback
+/// context struct becomes closure captures)
+fn query_tree_for_pairs(
+    world: &World,
+    tree_type: BodyType,
+    query_proxy_key: i32,
+    query_shape_index: i32,
+    fat_aabb: Aabb,
+    pair_list: &mut Vec<(i32, i32)>,
+) {
+    let bp = &world.broad_phase;
+    let query_proxy_type = proxy_type(query_proxy_key);
+
+    bp.trees[tree_type as usize].query(fat_aabb, DEFAULT_MASK_BITS, |tree_proxy_id, user_data| {
+        let shape_id = user_data as i32;
+        let proxy_key_ = proxy_key(tree_proxy_id, tree_type);
+
+        // A proxy cannot form a pair with itself.
+        if proxy_key_ == query_proxy_key {
+            return true;
+        }
+
+        // De-duplication
+        // It is important to prevent duplicate contacts from being created.
+        // Ideally I can prevent duplicates early and in the worker. Most of
+        // the time the movedProxies bit sets contain dynamic and kinematic
+        // proxies, but sometimes static proxies are in there too
+        // (b2ShapeDef::invokeContactCreation or a modified static shape), so
+        // we always have to check.
+
+        // Is this proxy also moving?
+        if query_proxy_type == BodyType::Dynamic {
+            if tree_type == BodyType::Dynamic && proxy_key_ < query_proxy_key {
+                let moved = bp.moved_proxies[tree_type as usize].get_bit(tree_proxy_id as u32);
+                if moved {
+                    // Both proxies are moving. Avoid duplicate pairs.
+                    return true;
+                }
+            }
+        } else {
+            debug_assert!(tree_type == BodyType::Dynamic);
+            let moved = bp.moved_proxies[tree_type as usize].get_bit(tree_proxy_id as u32);
+            if moved {
+                // Both proxies are moving. Avoid duplicate pairs.
+                return true;
+            }
+        }
+
+        let pair_key = shape_pair_key(shape_id, query_shape_index);
+        if bp.pair_set.contains_key(pair_key) {
+            // contact exists
+            return true;
+        }
+
+        let (shape_id_a, shape_id_b) = if proxy_key_ < query_proxy_key {
+            (shape_id, query_shape_index)
+        } else {
+            (query_shape_index, shape_id)
+        };
+
+        let shape_a = &world.shapes[shape_id_a as usize];
+        let shape_b = &world.shapes[shape_id_b as usize];
+
+        let body_id_a = shape_a.body_id;
+        let body_id_b = shape_b.body_id;
+
+        // Are the shapes on the same body?
+        if body_id_a == body_id_b {
+            return true;
+        }
+
+        // Sensors are handled elsewhere
+        if shape_a.sensor_index != NULL_INDEX || shape_b.sensor_index != NULL_INDEX {
+            return true;
+        }
+
+        if !crate::shape::should_shapes_collide(shape_a.filter, shape_b.filter) {
+            return true;
+        }
+
+        if !crate::contact::can_collide(shape_a.shape_type(), shape_b.shape_type()) {
+            // For example, no segment vs segment collision
+            return true;
+        }
+
+        // Does a joint override collision?
+        if !crate::body::should_bodies_collide(world, body_id_a, body_id_b) {
+            return true;
+        }
+
+        // Custom user filter
+        if shape_a.enable_custom_filtering || shape_b.enable_custom_filtering {
+            if let Some(custom_filter_fcn) = world.custom_filter_fcn {
+                let id_a = ShapeId {
+                    index1: shape_id_a + 1,
+                    world0: world.world_id,
+                    generation: shape_a.generation,
+                };
+                let id_b = ShapeId {
+                    index1: shape_id_b + 1,
+                    world0: world.world_id,
+                    generation: shape_b.generation,
+                };
+                let should_collide = custom_filter_fcn(id_a, id_b, world.custom_filter_context);
+                if !should_collide {
+                    return true;
+                }
+            }
+        }
+
+        pair_list.push((shape_id_a, shape_id_b));
+
+        // continue the query
+        true
+    });
+}
+
+/// Find new proxy pairs for everything in the move buffer and create their
+/// contacts, in deterministic move-array order. Also rebuilds the dynamic and
+/// kinematic trees and clears the move buffer. (b2UpdateBroadPhasePairs —
+/// serial port of b2FindPairsTask/b2UpdateTreesTask)
+pub fn update_broad_phase_pairs(world: &mut World) {
+    world.broad_phase.validate_moved_proxies();
+
+    let move_count = world.broad_phase.move_array.len();
+
+    if move_count == 0 {
+        return;
+    }
+
+    // Find pairs. (b2FindPairsTask over [0, moveCount) on one worker)
+    let mut move_results: Vec<Vec<(i32, i32)>> = Vec::with_capacity(move_count);
+    for i in 0..move_count {
+        let mut pair_list: Vec<(i32, i32)> = Vec::new();
+
+        let proxy_key_ = world.broad_phase.move_array[i];
+        if proxy_key_ == NULL_INDEX {
+            // proxy was destroyed after it moved
+            move_results.push(pair_list);
+            continue;
+        }
+
+        let proxy_type_ = proxy_type(proxy_key_);
+        let proxy_id_ = proxy_id(proxy_key_);
+
+        // We have to query the tree with the fat AABB so that
+        // we don't fail to create a contact that may touch later.
+        let base_tree = &world.broad_phase.trees[proxy_type_ as usize];
+        let fat_aabb = base_tree.aabb(proxy_id_);
+        let query_shape_index = base_tree.user_data(proxy_id_) as i32;
+
+        // Query trees. Only dynamic proxies collide with kinematic and static
+        // proxies. Using B2_DEFAULT_MASK_BITS so that b2Filter::groupIndex
+        // works.
+        if proxy_type_ == BodyType::Dynamic {
+            query_tree_for_pairs(
+                world,
+                BodyType::Kinematic,
+                proxy_key_,
+                query_shape_index,
+                fat_aabb,
+                &mut pair_list,
+            );
+            query_tree_for_pairs(
+                world,
+                BodyType::Static,
+                proxy_key_,
+                query_shape_index,
+                fat_aabb,
+                &mut pair_list,
+            );
+        }
+
+        // All proxies collide with dynamic proxies
+        query_tree_for_pairs(
+            world,
+            BodyType::Dynamic,
+            proxy_key_,
+            query_shape_index,
+            fat_aabb,
+            &mut pair_list,
+        );
+
+        move_results.push(pair_list);
+    }
+
+    // Rebuild the collision tree for dynamic and kinematic bodies to keep
+    // their query performance good. In C this runs as a task in parallel with
+    // the narrow-phase; the serial fallback runs it here. (b2UpdateTreesTask)
+    world.broad_phase.trees[BodyType::Dynamic as usize].rebuild(false);
+    world.broad_phase.trees[BodyType::Kinematic as usize].rebuild(false);
+
+    // Single-threaded work
+    // - Create contacts in deterministic order
+    // This is deterministic because the results follow the order of
+    // b2BroadPhase::moveArray. Each C pair list is iterated head-first, which
+    // is reverse discovery order, hence .rev().
+    for pair_list in &move_results {
+        for &(shape_id_a, shape_id_b) in pair_list.iter().rev() {
+            crate::contact::create_contact(world, shape_id_a, shape_id_b);
+        }
+    }
+
+    // Reset move buffer: clear only the bits that were set this step.
+    // Invariant: bit set in movedProxies[type] iff proxyKey is present in
+    // moveArray.
+    for i in 0..world.broad_phase.move_array.len() {
+        let proxy_key_ = world.broad_phase.move_array[i];
+        let proxy_type_ = proxy_type(proxy_key_);
+        let proxy_id_ = proxy_id(proxy_key_);
+        world.broad_phase.moved_proxies[proxy_type_ as usize].clear_bit(proxy_id_ as u32);
+    }
+    world.broad_phase.move_array.clear();
+
+    world.validate_solver_sets();
 }
 
 #[cfg(test)]

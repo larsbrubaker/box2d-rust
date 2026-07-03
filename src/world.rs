@@ -333,7 +333,7 @@ impl World {
 
         World {
             broad_phase: BroadPhase::new(&def.capacity),
-            constraint_graph: ConstraintGraph::default(),
+            constraint_graph: ConstraintGraph::new(&def.capacity),
             body_id_pool: IdPool::new(),
             bodies: Vec::with_capacity(body_capacity),
             solver_set_id_pool,

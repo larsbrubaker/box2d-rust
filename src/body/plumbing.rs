@@ -111,6 +111,55 @@ pub fn sync_body_flags(world: &mut World, body_id: i32) {
     }
 }
 
+/// Wake a body's solver set if it is sleeping. Returns true if the set was
+/// woken. (b2WakeBody)
+pub fn wake_body(world: &mut World, body_id: i32) -> bool {
+    let set_index = world.bodies[body_id as usize].set_index;
+    if set_index >= crate::solver_set::FIRST_SLEEPING_SET {
+        crate::solver_set::wake_solver_set(world, set_index);
+        world.validate_solver_sets();
+        return true;
+    }
+
+    false
+}
+
+/// (b2ShouldBodiesCollide)
+pub fn should_bodies_collide(world: &World, body_id_a: i32, body_id_b: i32) -> bool {
+    let body_a = &world.bodies[body_id_a as usize];
+    let body_b = &world.bodies[body_id_b as usize];
+
+    if body_a.type_ != crate::types::BodyType::Dynamic
+        && body_b.type_ != crate::types::BodyType::Dynamic
+    {
+        return false;
+    }
+
+    // Walk the smaller joint list
+    let (mut joint_key, other_body_id) = if body_a.joint_count < body_b.joint_count {
+        (body_a.head_joint_key, body_b.id)
+    } else {
+        (body_b.head_joint_key, body_a.id)
+    };
+
+    while joint_key != NULL_INDEX {
+        let joint_id = joint_key >> 1;
+        let edge_index = joint_key & 1;
+        let other_edge_index = edge_index ^ 1;
+
+        let joint = &world.joints[joint_id as usize];
+        if !joint.collide_connected
+            && joint.edges[other_edge_index as usize].body_id == other_body_id
+        {
+            return false;
+        }
+
+        joint_key = joint.edges[edge_index as usize].next_key;
+    }
+
+    true
+}
+
 /// (static b2CreateIslandForBody)
 pub(crate) fn create_island_for_body(world: &mut World, set_index: i32, body_id: i32) {
     debug_assert!(world.bodies[body_id as usize].island_id == NULL_INDEX);
