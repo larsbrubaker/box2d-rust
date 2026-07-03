@@ -24,8 +24,14 @@ if not exist node_modules (
   call bun install || (echo [run_demo] bun install failed. & pause & exit /b 1)
 )
 
+REM Call wasm-pack directly rather than "bun run build:wasm", which shells out to
+REM PowerShell and trips over a restrictive script execution policy.
 echo [run_demo] Building WASM from the Rust port...
-call bun run build:wasm || (echo [run_demo] WASM build failed. & pause & exit /b 1)
+pushd wasm
+call wasm-pack build --target web --out-dir ../public/pkg --no-typescript
+set "BUILD_ERR=%ERRORLEVEL%"
+popd
+if not "%BUILD_ERR%"=="0" (echo [run_demo] WASM build failed. & pause & exit /b 1)
 
 REM Open the browser shortly after the server has had time to start.
 start "" cmd /c "timeout /t 2 >nul & start "" http://localhost:3000"
