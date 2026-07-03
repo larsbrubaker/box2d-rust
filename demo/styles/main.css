@@ -1,112 +1,299 @@
+/* ============================================================================
+   box2d-rust Demo — Light Professional Theme
+   Shared visual language with the other rust-apps demos (clipper2-rust, etc.)
+   ============================================================================ */
+
 :root {
-  --bg: #14181d;
-  --panel: #1c2229;
-  --border: #2c3540;
-  --text: #dde4ec;
-  --muted: #8b98a7;
-  --accent: #4fb3ff;
-  --accent2: #7ee787;
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --surface-alt: #f0f2f5;
+  --border: #e2e5ea;
+  --border-light: #eef0f3;
+  --text: #1a1d23;
+  --text-secondary: #5a6170;
+  --text-muted: #8b92a0;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-light: #eff4ff;
+  --good: #15803d;
+  --radius: 8px;
+  --radius-sm: 4px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  --transition: 150ms ease;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  overflow-x: hidden;
+}
 
 body {
-  margin: 0 auto;
-  max-width: 960px;
-  padding: 2rem 1.25rem 4rem;
+  font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  margin: 0 auto;
+  max-width: 1000px;
+  padding: 48px 40px 64px;
+  line-height: 1.6;
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
 
 code {
-  background: var(--panel);
+  background: var(--surface-alt);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 0.1em 0.35em;
-  font-size: 0.9em;
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: var(--text-secondary);
+}
+
+/* ============================================================================
+   Header / hero
+   ============================================================================ */
+
+header {
+  margin-bottom: 40px;
 }
 
 header h1 {
-  margin: 0 0 0.25rem;
-  font-size: 2.4rem;
-  letter-spacing: -0.02em;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.1;
 }
 
-.tagline { color: var(--muted); max-width: 46rem; margin-top: 0; }
+header h1 span {
+  color: var(--accent);
+}
+
+.tagline {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-top: 12px;
+  max-width: 640px;
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.github-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: #24292f;
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.github-badge:hover {
+  background: #1b1f23;
+  text-decoration: none;
+}
 
 .badge {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--accent-light);
+  border: 1px solid #d0dcf5;
   border-radius: 999px;
-  color: var(--accent2);
-  font-family: ui-monospace, monospace;
-  font-size: 0.8rem;
-  margin-left: 0.75rem;
-  padding: 0.15rem 0.7rem;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
 }
 
-h2 { margin: 2.5rem 0 0.5rem; font-size: 1.35rem; }
+/* ============================================================================
+   Sections
+   ============================================================================ */
+
+section {
+  margin-top: 44px;
+}
+
+h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+section > p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 700px;
+  margin-bottom: 16px;
+}
 
 .live-pill {
-  background: rgba(126, 231, 135, 0.12);
-  border: 1px solid rgba(126, 231, 135, 0.4);
+  background: rgba(21, 128, 61, 0.1);
+  border: 1px solid rgba(21, 128, 61, 0.35);
   border-radius: 999px;
-  color: var(--accent2);
-  font-size: 0.7rem;
-  font-weight: 600;
+  color: var(--good);
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.06em;
-  padding: 0.2rem 0.6rem;
+  padding: 3px 9px;
   text-transform: uppercase;
-  vertical-align: middle;
 }
 
-canvas {
-  background: var(--panel);
+/* ============================================================================
+   Live demo canvas
+   ============================================================================ */
+
+.live-demo canvas {
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   display: block;
-  margin-top: 0.75rem;
-  max-width: 100%;
+  width: 100%;
+  height: auto;
+  margin-top: 4px;
 }
 
 .readout {
-  color: var(--muted);
-  font-family: ui-monospace, monospace;
-  font-size: 0.85rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin-top: 12px;
+  padding: 10px 14px;
   min-height: 1.2em;
+  word-break: break-word;
 }
+
+/* ============================================================================
+   Roadmap grid — feature cards
+   ============================================================================ */
 
 .grid {
   display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  margin-top: 1rem;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  margin-top: 20px;
 }
 
 .card {
-  background: var(--panel);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.9rem 1rem;
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: all var(--transition);
 }
 
-.card h3 { margin: 0 0 0.3rem; font-size: 1rem; }
-.card p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.card h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
 
-.card.soon { opacity: 0.55; }
-.card.soon h3::after {
-  content: "planned";
-  color: var(--muted);
-  float: right;
-  font-size: 0.7rem;
-  font-weight: 400;
-  letter-spacing: 0.05em;
+.card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.card .status {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; margin-top: 3rem; padding-top: 1rem; }
+.card.done {
+  border-color: rgba(21, 128, 61, 0.35);
+}
+.card.done .status {
+  color: var(--good);
+  background: rgba(21, 128, 61, 0.1);
+}
+
+.card.soon {
+  opacity: 0.85;
+}
+.card.soon .status {
+  color: var(--text-muted);
+  background: var(--surface-alt);
+}
+
+/* ============================================================================
+   Footer
+   ============================================================================ */
+
+footer {
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 56px;
+  padding-top: 20px;
+}
+
+/* ============================================================================
+   Scrollbar
+   ============================================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ============================================================================
+   Responsive
+   ============================================================================ */
+
+@media (max-width: 640px) {
+  body {
+    padding: 32px 20px 48px;
+  }
+  header h1 {
+    font-size: 30px;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

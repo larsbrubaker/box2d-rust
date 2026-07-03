@@ -23,7 +23,9 @@ function buildGrid() {
   for (const cat of CATEGORIES) {
     const card = document.createElement("div");
     card.className = "card soon";
-    card.innerHTML = `<h3>${cat.name}</h3><p>${cat.blurb}</p>`;
+    card.innerHTML =
+      `<h3><span>${cat.name}</span><span class="status">planned</span></h3>` +
+      `<p>${cat.blurb}</p>`;
     grid.appendChild(card);
   }
 }
@@ -59,11 +61,11 @@ async function runMathDemo() {
         ctx.lineTo(pts[2 * k], pts[2 * k + 1]);
       }
       ctx.closePath();
-      ctx.strokeStyle = "#4fb3ff";
+      ctx.fillStyle = "rgba(37, 99, 235, 0.10)";
+      ctx.fill();
+      ctx.strokeStyle = "#2563eb";
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.fillStyle = "rgba(79, 179, 255, 0.08)";
-      ctx.fill();
     }
 
     const cs = wasm.compute_cos_sin(t);
