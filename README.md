@@ -17,6 +17,7 @@ submodule.
 | core / constants | ✅ | ✅ |
 | id (handles) | ✅ | ✅ (test_id.c) |
 | bitset | ✅ | ✅ (test_bitset.c) |
+| id_pool (index allocator) | ✅ | ✅ |
 | table (open-addressing hash set) | ✅ | ✅ (test_table.c) |
 | aabb (perimeter, enlarge, offset, ray cast) | ✅ | ✅ (test_collision.c AABB subtests) |
 | distance (GJK, shape cast, TOI, segment distance) | ✅ | ✅ (test_distance.c) |

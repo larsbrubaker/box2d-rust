@@ -14,6 +14,7 @@ pub mod dynamic_tree;
 pub mod geometry;
 pub mod hull;
 pub mod id;
+pub mod id_pool;
 pub mod manifold;
 pub mod math_functions;
 pub mod table;
