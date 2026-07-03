@@ -58,6 +58,16 @@ cargo test --features double-precision
 
 The demo site (`demo/`) mirrors the upstream `samples` app in the browser via WebAssembly.
 
+The quickest way to see it — builds the wasm and serves the demo at
+`http://localhost:3000`, opening your browser:
+
+```
+run_demo.cmd      # Windows (double-click or run from a terminal)
+./run_demo.sh     # Linux / macOS
+```
+
+Or drive the steps yourself:
+
 ```bash
 cd demo
 bun install
