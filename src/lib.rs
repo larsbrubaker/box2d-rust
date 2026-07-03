@@ -12,6 +12,7 @@ pub mod collision;
 pub mod constants;
 pub mod constraint_graph;
 pub mod contact;
+pub mod contact_solver;
 pub mod core;
 pub mod distance;
 pub mod distance_joint;

@@ -80,5 +80,9 @@ pub struct StepContext {
     pub restitution_threshold: f32,
     pub max_linear_velocity: f32,
 
+    /// Copied from World::contact_speed (the C reads it through
+    /// context->world).
+    pub contact_speed: f32,
+
     pub enable_warm_starting: bool,
 }
