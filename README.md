@@ -18,7 +18,8 @@ submodule.
 | id (handles) | ✅ | ✅ (test_id.c) |
 | bitset | ✅ | ✅ (test_bitset.c) |
 | aabb (perimeter, enlarge, offset, ray cast) | ✅ | ✅ (test_collision.c AABB subtests) |
-| geometry, hull | — | — |
+| hull (quickhull convex hull) | ✅ | ✅ |
+| geometry (shapes, mass, AABB) | — | — |
 | distance, manifold | — | — |
 | dynamic_tree, broad_phase | — | — |
 | body, shape, sensor | — | — |

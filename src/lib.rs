@@ -9,6 +9,7 @@ pub mod bitset;
 pub mod collision;
 pub mod constants;
 pub mod core;
+pub mod hull;
 pub mod id;
 pub mod math_functions;
 
@@ -16,6 +17,8 @@ pub mod math_functions;
 mod aabb_tests;
 #[cfg(test)]
 mod bitset_tests;
+#[cfg(test)]
+mod hull_tests;
 #[cfg(test)]
 mod id_tests;
 #[cfg(test)]
