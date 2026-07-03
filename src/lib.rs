@@ -12,6 +12,7 @@ pub mod core;
 pub mod hull;
 pub mod id;
 pub mod math_functions;
+pub mod table;
 
 #[cfg(test)]
 mod aabb_tests;
@@ -23,6 +24,8 @@ mod hull_tests;
 mod id_tests;
 #[cfg(test)]
 mod math_functions_tests;
+#[cfg(test)]
+mod table_tests;
 
 pub use collision::CastOutput;
 pub use core::{get_version, is_double_precision, Version};

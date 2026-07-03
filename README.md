@@ -17,6 +17,7 @@ submodule.
 | core / constants | ✅ | ✅ |
 | id (handles) | ✅ | ✅ (test_id.c) |
 | bitset | ✅ | ✅ (test_bitset.c) |
+| table (open-addressing hash set) | ✅ | ✅ (test_table.c) |
 | aabb (perimeter, enlarge, offset, ray cast) | ✅ | ✅ (test_collision.c AABB subtests) |
 | hull (quickhull convex hull) | ✅ | ✅ |
 | geometry (shapes, mass, AABB) | — | — |
