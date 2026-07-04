@@ -14,7 +14,10 @@ use crate::collision::{Capsule, Circle};
 use crate::distance::make_proxy;
 use crate::geometry::make_box;
 use crate::id::BodyId;
-use crate::math_functions::{offset_pos, sub_pos, to_pos, Pos, Vec2, POS_ZERO};
+use crate::math_functions::{offset_pos, sub_pos, Pos, Vec2, POS_ZERO};
+// The 1e7 base only exists in the double-precision branches.
+#[cfg(feature = "double-precision")]
+use crate::math_functions::to_pos;
 use crate::shape::{
     create_circle_shape, create_polygon_shape, shape_ray_cast, shape_test_point,
 };
@@ -48,6 +51,8 @@ const PYRAMID_BODY_COUNT: usize = 9;
 
 struct PyramidResult {
     sleep_step: i32,
+    // Only compared in the double-precision branch of the test.
+    #[cfg_attr(not(feature = "double-precision"), allow(dead_code))]
     rel: [Vec2; PYRAMID_BODY_COUNT],
 }
 
