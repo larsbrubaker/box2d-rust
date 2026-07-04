@@ -29,6 +29,7 @@ pub mod math_functions;
 pub mod motor_joint;
 pub mod mover;
 pub mod prismatic_joint;
+pub mod recording;
 pub mod revolute_joint;
 pub mod sensor;
 pub mod shape;
