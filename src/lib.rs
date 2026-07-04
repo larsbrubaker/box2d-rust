@@ -27,6 +27,7 @@ pub mod joint;
 pub mod manifold;
 pub mod math_functions;
 pub mod motor_joint;
+pub mod mover;
 pub mod prismatic_joint;
 pub mod revolute_joint;
 pub mod sensor;

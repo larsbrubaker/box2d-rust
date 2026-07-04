@@ -9,7 +9,7 @@ const CATEGORIES: Array<{ name: string; blurb: string; route?: string }> = [
   { name: "Joints", blurb: "Revolute, prismatic, wheel, weld…", route: "joints" },
   { name: "Continuous", blurb: "Fast bodies without tunneling", route: "continuous" },
   { name: "Events", blurb: "Contacts, sensors, hit events", route: "events" },
-  { name: "Character", blurb: "Movers and platforming" },
+  { name: "Character", blurb: "Movers and platforming", route: "character" },
   { name: "World", blurb: "Gravity, explosions, large worlds" },
   { name: "Determinism", blurb: "Cross-platform reproducibility" },
   { name: "Robustness", blurb: "Degenerate input, overlap recovery" },

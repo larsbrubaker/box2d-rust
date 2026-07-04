@@ -18,6 +18,8 @@ export interface SimWorld {
   hit_events(): Float32Array;
   add_bullet(x: number, y: number, radius: number, vx: number, vy: number): number;
   set_continuous(flag: boolean): void;
+  mover_spawn(x: number, y: number): void;
+  mover_update(dt: number, moveX: number, jump: boolean): Float32Array;
   step(dt: number, subStepCount: number): void;
   positions(): Float32Array;
   awake_body_count(): number;

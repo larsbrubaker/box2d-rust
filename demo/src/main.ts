@@ -11,6 +11,7 @@ const demoModules: Record<string, () => Promise<{ init: DemoInit }>> = {
   joints: () => import("./demos/joints.ts"),
   events: () => import("./demos/events.ts"),
   continuous: () => import("./demos/continuous.ts"),
+  character: () => import("./demos/character.ts"),
   geometry: () => import("./demos/geometry.ts"),
   manifolds: () => import("./demos/manifolds.ts"),
   math: () => import("./demos/math.ts"),

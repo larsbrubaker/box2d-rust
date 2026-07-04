@@ -256,7 +256,8 @@ use box2d_rust::types::{
 };
 use box2d_rust::shape::{create_circle_shape, create_polygon_shape};
 use box2d_rust::world::{
-    world_enable_continuous, world_get_contact_events, world_get_sensor_events, world_step, World,
+    world_cast_mover, world_collide_mover, world_enable_continuous, world_get_contact_events,
+    world_get_sensor_events, world_step, World,
 };
 
 /// A live physics world for the Bodies/Stacking demos. Every step runs the
@@ -269,6 +270,9 @@ pub struct SimWorld {
     bodies: Vec<i32>,
     /// Joint ids in creation order; joint_anchors() reports in this order.
     joints: Vec<JointId>,
+    /// Character mover state (not a body; driven by the mover queries).
+    mover_position: m::Pos,
+    mover_velocity: m::Vec2,
 }
 
 #[wasm_bindgen]
@@ -284,6 +288,8 @@ impl SimWorld {
             world: World::new(&world_def),
             bodies: Vec::new(),
             joints: Vec::new(),
+            mover_position: m::POS_ZERO,
+            mover_velocity: m::VEC2_ZERO,
         }
     }
 
@@ -590,5 +596,78 @@ impl SimWorld {
     /// (b2World_EnableContinuous)
     pub fn set_continuous(&mut self, flag: bool) {
         world_enable_continuous(&mut self.world, flag);
+    }
+
+    /// Place the capsule character mover.
+    pub fn mover_spawn(&mut self, x: f32, y: f32) {
+        self.mover_position = m::to_pos(m::Vec2 { x, y });
+        self.mover_velocity = m::VEC2_ZERO;
+    }
+
+    /// One character-controller step built entirely from the ported mover
+    /// queries: gather planes (b2World_CollideMover), resolve them
+    /// (b2SolvePlanes), sweep the move (b2World_CastMover), and clip the
+    /// velocity (b2ClipVector). Returns [x, y, grounded, planeCount].
+    pub fn mover_update(&mut self, dt: f32, move_x: f32, jump: bool) -> Vec<f32> {
+        use box2d_rust::mover::{clip_vector, solve_planes, CollisionPlane};
+
+        let capsule = mover_capsule();
+        let filter = box2d_rust::types::default_query_filter();
+
+        // Gather contact planes at the current position.
+        let mut planes: Vec<CollisionPlane> = Vec::new();
+        world_collide_mover(&self.world, self.mover_position, &capsule, filter, |_, hit| {
+            if planes.len() < 8 {
+                planes.push(CollisionPlane {
+                    plane: hit.plane,
+                    push_limit: f32::MAX,
+                    push: 0.0,
+                    clip_velocity: true,
+                });
+            }
+            true
+        });
+        let grounded = planes.iter().any(|p| p.plane.normal.y > 0.7);
+
+        // Input: horizontal approach, jump only from the ground, gravity.
+        let v = &mut self.mover_velocity;
+        v.x += (6.0 * move_x - v.x) * (10.0 * dt).min(1.0);
+        if jump && grounded {
+            v.y = 8.0;
+        }
+        v.y -= 10.0 * dt;
+
+        // Resolve the desired motion against the planes, then sweep it so a
+        // fast fall cannot skip a thin ledge.
+        let target = m::mul_sv(dt, *v);
+        let result = solve_planes(target, &mut planes);
+        let fraction = world_cast_mover(
+            &self.world,
+            self.mover_position,
+            &capsule,
+            result.translation,
+            filter,
+        );
+        self.mover_position = m::offset_pos(
+            self.mover_position,
+            m::mul_sv(fraction, result.translation),
+        );
+        self.mover_velocity = clip_vector(self.mover_velocity, &planes);
+
+        vec![
+            self.mover_position.x as f32,
+            self.mover_position.y as f32,
+            if grounded { 1.0 } else { 0.0 },
+            planes.len() as f32,
+        ]
+    }
+}
+
+/// The character capsule, in mover-local space.
+fn mover_capsule() -> Capsule {
+    Capsule {
+        center1: m::Vec2 { x: 0.0, y: -0.25 },
+        center2: m::Vec2 { x: 0.0, y: 0.25 },
+        radius: 0.3,
     }
 }
