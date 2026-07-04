@@ -241,3 +241,120 @@ pub fn closest_points(bx: f32, by: f32) -> Vec<f32> {
         output.iterations as f32,
     ]
 }
+
+use box2d_rust::body::{create_body, get_body_full_id, get_body_transform};
+use box2d_rust::geometry::make_box;
+use box2d_rust::shape::{create_circle_shape, create_polygon_shape};
+use box2d_rust::types::{default_body_def, default_shape_def, default_world_def, BodyType};
+use box2d_rust::world::{world_step, World};
+
+/// A live physics world for the Bodies/Stacking demos. Every step runs the
+/// ported b2World_Step pipeline: broad phase, narrow phase, graph-colored
+/// soft-constraint solver, restitution, and sleeping.
+#[wasm_bindgen]
+pub struct SimWorld {
+    world: World,
+    /// Raw body indices in creation order; positions() reports in this order.
+    bodies: Vec<i32>,
+}
+
+#[wasm_bindgen]
+impl SimWorld {
+    #[wasm_bindgen(constructor)]
+    pub fn new(gravity_y: f32) -> SimWorld {
+        let mut world_def = default_world_def();
+        world_def.gravity = m::Vec2 {
+            x: 0.0,
+            y: gravity_y,
+        };
+        SimWorld {
+            world: World::new(&world_def),
+            bodies: Vec::new(),
+        }
+    }
+
+    /// Static box (the ground or a wall). Returns the demo body index.
+    pub fn add_static_box(&mut self, x: f32, y: f32, hx: f32, hy: f32) -> usize {
+        let mut body_def = default_body_def();
+        body_def.position = m::to_pos(m::Vec2 { x, y });
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let shape_def = default_shape_def();
+        let polygon = make_box(hx, hy);
+        create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Dynamic box. Returns the demo body index.
+    pub fn add_box(&mut self, x: f32, y: f32, hx: f32, hy: f32, density: f32) -> usize {
+        let mut body_def = default_body_def();
+        body_def.type_ = BodyType::Dynamic;
+        body_def.position = m::to_pos(m::Vec2 { x, y });
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = 0.3;
+        let polygon = make_box(hx, hy);
+        create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Dynamic circle. Returns the demo body index.
+    pub fn add_circle(&mut self, x: f32, y: f32, radius: f32, density: f32) -> usize {
+        let mut body_def = default_body_def();
+        body_def.type_ = BodyType::Dynamic;
+        body_def.position = m::to_pos(m::Vec2 { x, y });
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = 0.3;
+        shape_def.material.restitution = 0.2;
+        let circle = box2d_rust::collision::Circle {
+            center: m::VEC2_ZERO,
+            radius,
+        };
+        create_circle_shape(&mut self.world, body_id, &shape_def, &circle);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Advance the simulation. (b2World_Step)
+    pub fn step(&mut self, dt: f32, sub_step_count: i32) {
+        world_step(&mut self.world, dt, sub_step_count);
+    }
+
+    /// Interleaved [x, y, angle] for every demo body, in creation order.
+    pub fn positions(&self) -> Vec<f32> {
+        let mut out = Vec::with_capacity(3 * self.bodies.len());
+        for &body_index in &self.bodies {
+            let transform = get_body_transform(&self.world, body_index);
+            out.push(transform.p.x as f32);
+            out.push(transform.p.y as f32);
+            out.push(m::rot_get_angle(transform.q));
+        }
+        out
+    }
+
+    /// Number of awake bodies (sleeping islands leave this count).
+    pub fn awake_body_count(&self) -> i32 {
+        self.world.solver_sets[box2d_rust::solver_set::AWAKE_SET as usize]
+            .body_sims
+            .len() as i32
+    }
+
+    /// Live contact count.
+    pub fn contact_count(&self) -> i32 {
+        self.world.contact_id_pool.id_count()
+    }
+
+    pub fn body_count(&self) -> usize {
+        self.bodies.len()
+    }
+}

@@ -2,6 +2,18 @@
 // box2d_wasm_bg.wasm URL resolves relative to public/pkg/ in both the dev
 // server and the static GitHub Pages deployment.
 
+export interface SimWorld {
+  add_static_box(x: number, y: number, hx: number, hy: number): number;
+  add_box(x: number, y: number, hx: number, hy: number, density: number): number;
+  add_circle(x: number, y: number, radius: number, density: number): number;
+  step(dt: number, subStepCount: number): void;
+  positions(): Float32Array;
+  awake_body_count(): number;
+  contact_count(): number;
+  body_count(): number;
+  free(): void;
+}
+
 export interface Box2dWasm {
   version(): string;
   compute_cos_sin(radians: number): Float32Array;
@@ -11,6 +23,7 @@ export interface Box2dWasm {
   ray_cast_scene(ox: number, oy: number, tx: number, ty: number): Float32Array;
   closest_points(bx: number, by: number): Float32Array;
   collide_with_box(kind: number, bx: number, by: number, angle: number): Float32Array;
+  SimWorld: new (gravityY: number) => SimWorld;
 }
 
 let wasmModule: Box2dWasm | null = null;

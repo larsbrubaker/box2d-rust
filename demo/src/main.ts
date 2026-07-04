@@ -3,11 +3,11 @@ import { loadWasm } from "./wasm.ts";
 // One card per category of the upstream samples app (box2d-cpp-reference/samples).
 // Cards flip from "planned" to live as engine modules are ported.
 const CATEGORIES: Array<{ name: string; blurb: string; live?: string }> = [
-  { name: "Bodies", blurb: "Body types, sleeping, user data" },
+  { name: "Bodies", blurb: "Body types, sleeping, user data", live: "bodies-canvas" },
   { name: "Shapes", blurb: "Circles, capsules, polygons, chains" },
   { name: "Geometry", blurb: "Hulls, rays, and shape queries", live: "geometry-canvas" },
   { name: "Collision", blurb: "Manifolds, distance, casting", live: "manifold-canvas" },
-  { name: "Stacking", blurb: "Pyramids, towers, and piles" },
+  { name: "Stacking", blurb: "Pyramids, towers, and piles", live: "stacking-canvas" },
   { name: "Joints", blurb: "Revolute, prismatic, wheel, weld…" },
   { name: "Continuous", blurb: "Fast bodies without tunneling" },
   { name: "Events", blurb: "Contacts, sensors, hit events" },
@@ -379,6 +379,178 @@ async function runMathDemo() {
   requestAnimationFrame(frame);
 }
 
+// Shared renderer for the simulation demos. Bodies are tracked JS-side as
+// parallel shape descriptors; positions come from the ported engine.
+type SimShape =
+  | { kind: "box"; hx: number; hy: number; color: string }
+  | { kind: "circle"; r: number; color: string };
+
+function drawSimBodies(
+  canvas: HTMLCanvasElement,
+  scale: number,
+  originY: number,
+  shapes: SimShape[],
+  positions: Float32Array,
+) {
+  const ctx = canvas.getContext("2d")!;
+  const toPx = (x: number, y: number): [number, number] => [
+    canvas.width / 2 + x * scale,
+    canvas.height - originY - y * scale,
+  ];
+
+  for (let i = 0; i < shapes.length; i++) {
+    const shape = shapes[i];
+    const x = positions[3 * i];
+    const y = positions[3 * i + 1];
+    const angle = positions[3 * i + 2];
+    const [px, py] = toPx(x, y);
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(-angle);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = shape.color;
+    ctx.fillStyle = shape.color + "1a"; // 10% alpha
+    ctx.beginPath();
+    if (shape.kind === "box") {
+      ctx.rect(-shape.hx * scale, -shape.hy * scale, 2 * shape.hx * scale, 2 * shape.hy * scale);
+    } else {
+      ctx.arc(0, 0, shape.r * scale, 0, 2 * Math.PI);
+      // radius line so rotation is visible
+      ctx.moveTo(0, 0);
+      ctx.lineTo(shape.r * scale, 0);
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+async function runBodiesDemo() {
+  const wasm = await loadWasm();
+
+  const canvas = document.getElementById("bodies-canvas") as HTMLCanvasElement;
+  const ctx = canvas.getContext("2d")!;
+  const readout = document.getElementById("bodies-readout")!;
+
+  const SCALE = 36;
+  const ORIGIN_Y = 40; // px from canvas bottom to world y=0
+
+  const sim = new wasm.SimWorld(-10.0);
+  const shapes: SimShape[] = [];
+
+  const GROUND = "#5a6170";
+  const BOX = "#2563eb";
+  const BALL = "#15803d";
+
+  // Ground and two containment walls.
+  sim.add_static_box(0.0, -0.5, 13.0, 0.5);
+  shapes.push({ kind: "box", hx: 13.0, hy: 0.5, color: GROUND });
+  sim.add_static_box(-12.2, 2.0, 0.3, 2.0);
+  shapes.push({ kind: "box", hx: 0.3, hy: 2.0, color: GROUND });
+  sim.add_static_box(12.2, 2.0, 0.3, 2.0);
+  shapes.push({ kind: "box", hx: 0.3, hy: 2.0, color: GROUND });
+
+  function spawn(x: number, y: number, index: number) {
+    if (index % 2 === 0) {
+      const hx = 0.25 + 0.2 * ((index * 7) % 3) * 0.5;
+      sim.add_box(x, y, hx, hx, 1.0);
+      shapes.push({ kind: "box", hx, hy: hx, color: BOX });
+    } else {
+      const r = 0.22 + 0.16 * ((index * 5) % 3) * 0.5;
+      sim.add_circle(x, y, r, 1.0);
+      shapes.push({ kind: "circle", r, color: BALL });
+    }
+  }
+
+  // Initial shower of bodies.
+  let spawned = 0;
+  for (let i = 0; i < 24; i++) {
+    const x = -6.0 + (i % 8) * 1.7 + 0.13 * (i % 3);
+    const y = 5.0 + Math.floor(i / 8) * 1.6;
+    spawn(x, y, spawned++);
+  }
+
+  canvas.addEventListener("click", (e) => {
+    if (sim.body_count() > 140) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const x = (px - canvas.width / 2) / SCALE;
+    spawn(Math.max(-11, Math.min(11, x)), 10.5, spawned++);
+  });
+
+  function frame() {
+    // Fixed timestep like the C samples app.
+    sim.step(1 / 60, 4);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawSimBodies(canvas, SCALE, ORIGIN_Y, shapes, sim.positions());
+
+    readout.textContent =
+      `bodies: ${sim.body_count()}   contacts: ${sim.contact_count()}   ` +
+      `awake: ${sim.awake_body_count()}   (click to drop more)`;
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+async function runStackingDemo() {
+  const wasm = await loadWasm();
+
+  const canvas = document.getElementById("stacking-canvas") as HTMLCanvasElement;
+  const ctx = canvas.getContext("2d")!;
+  const readout = document.getElementById("stacking-readout")!;
+
+  const SCALE = 42;
+  const ORIGIN_Y = 40;
+
+  const sim = new wasm.SimWorld(-10.0);
+  const shapes: SimShape[] = [];
+
+  sim.add_static_box(0.0, -0.5, 11.0, 0.5);
+  shapes.push({ kind: "box", hx: 11.0, hy: 0.5, color: "#5a6170" });
+
+  // Pyramid of boxes (base 9), like the upstream Stacking sample.
+  const H = 0.4;
+  const BASE = 9;
+  for (let row = 0; row < BASE; row++) {
+    const count = BASE - row;
+    const y = H + row * 2 * H;
+    for (let i = 0; i < count; i++) {
+      const x = (i - (count - 1) / 2) * 2.05 * H;
+      sim.add_box(x, y, H, H, 1.0);
+      shapes.push({ kind: "box", hx: H, hy: H, color: "#2563eb" });
+    }
+  }
+
+  canvas.addEventListener("click", (e) => {
+    if (sim.body_count() > 120) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const x = (px - canvas.width / 2) / SCALE;
+    sim.add_circle(Math.max(-10, Math.min(10, x)), 9.0, 0.5, 4.0);
+    shapes.push({ kind: "circle", r: 0.5, color: "#dc2626" });
+  });
+
+  function frame() {
+    sim.step(1 / 60, 4);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawSimBodies(canvas, SCALE, ORIGIN_Y, shapes, sim.positions());
+
+    const awake = sim.awake_body_count();
+    readout.textContent =
+      `bodies: ${sim.body_count()}   contacts: ${sim.contact_count()}   awake: ${awake}` +
+      (awake === 0 ? "   — island asleep, click to wake it" : "   (click to drop a heavy ball)");
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
 buildGrid();
 runMathDemo().catch((e) => {
   document.getElementById("math-readout")!.textContent = `Failed to load WASM: ${e}`;
@@ -390,5 +562,13 @@ runGeometryDemo().catch((e) => {
 });
 runManifoldDemo().catch((e) => {
   document.getElementById("manifold-readout")!.textContent = `Failed to load WASM: ${e}`;
+  console.error(e);
+});
+runBodiesDemo().catch((e) => {
+  document.getElementById("bodies-readout")!.textContent = `Failed to load WASM: ${e}`;
+  console.error(e);
+});
+runStackingDemo().catch((e) => {
+  document.getElementById("stacking-readout")!.textContent = `Failed to load WASM: ${e}`;
   console.error(e);
 });
