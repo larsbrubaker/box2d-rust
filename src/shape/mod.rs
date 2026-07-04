@@ -133,10 +133,16 @@ pub fn should_query_collide(shape_filter: Filter, query_filter: QueryFilter) -> 
         && (shape_filter.mask_bits & query_filter.category_bits) != 0
 }
 
+mod api;
+mod chain;
 mod dispatch;
+mod geometry_api;
 mod lifecycle;
 
+pub use api::*;
+pub use chain::*;
 pub use dispatch::*;
+pub use geometry_api::*;
 pub use lifecycle::*;
 
 #[cfg(test)]

@@ -55,6 +55,24 @@ pub struct CastOutput {
     pub hit: bool,
 }
 
+/// Ray cast or shape cast output with the hit point lifted back to a world
+/// position. In the C single-precision build this is an alias of b2CastOutput;
+/// the double-precision build widens `point` to b2Pos, which is what the
+/// unconditional `Pos` here does in both modes. (b2WorldCastOutput)
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct WorldCastOutput {
+    /// The surface normal at the hit point
+    pub normal: Vec2,
+    /// The surface hit point in world space
+    pub point: crate::math_functions::Pos,
+    /// The fraction of the input translation at collision
+    pub fraction: f32,
+    /// The number of iterations used
+    pub iterations: i32,
+    /// Did the cast hit?
+    pub hit: bool,
+}
+
 /// This holds the mass data computed for a shape. (b2MassData)
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct MassData {

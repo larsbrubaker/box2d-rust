@@ -62,6 +62,8 @@ mod manifold_tests;
 #[cfg(test)]
 mod math_functions_tests;
 #[cfg(test)]
+mod shape_api_tests;
+#[cfg(test)]
 mod table_tests;
 #[cfg(test)]
 mod types_tests;
