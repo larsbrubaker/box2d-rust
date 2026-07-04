@@ -686,7 +686,7 @@ body {
 
 .canvas-hint {
   position: absolute;
-  bottom: 36px;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--surface);
@@ -1099,7 +1099,7 @@ body {
 
   .canvas-hint {
     font-size: 10px;
-    bottom: 44px;
+    top: 8px;
   }
 
   /* Fill rules: keep compact 2x2 grid on mobile */
