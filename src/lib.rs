@@ -44,6 +44,8 @@ mod aabb_tests;
 #[cfg(test)]
 mod bitset_tests;
 #[cfg(test)]
+mod body_api_tests;
+#[cfg(test)]
 mod distance_tests;
 #[cfg(test)]
 mod dynamic_tree_tests;

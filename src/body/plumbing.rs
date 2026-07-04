@@ -17,8 +17,6 @@ use crate::solver_set::{AWAKE_SET, DISABLED_SET};
 use crate::world::World;
 
 /// (static b2LimitVelocity)
-// bring-up: called by the solver slice.
-#[allow(dead_code)]
 pub(crate) fn limit_velocity(state: &mut BodyState, max_linear_speed: f32) {
     let v2 = length_squared(state.linear_velocity);
     if v2 > max_linear_speed * max_linear_speed {

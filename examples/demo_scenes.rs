@@ -39,7 +39,10 @@ fn add_circle(world: &mut World, x: f32, y: f32, r: f32, density: f32) -> i32 {
     def.density = density;
     def.material.friction = 0.3;
     def.material.restitution = 0.2;
-    let circle = box2d_rust::collision::Circle { center: m::VEC2_ZERO, radius: r };
+    let circle = box2d_rust::collision::Circle {
+        center: m::VEC2_ZERO,
+        radius: r,
+    };
     create_circle_shape(world, id, &def, &circle);
     get_body_full_id(world, id)
 }
@@ -55,18 +58,16 @@ fn main() {
     add_static_box(&mut world, 12.2, 2.0, 0.3, 2.0);
 
     let mut tracked = Vec::new();
-    let mut spawned = 0usize;
-    for i in 0..24 {
+    for i in 0..24usize {
         let x = -6.0 + (i % 8) as f32 * 1.7 + 0.13 * (i % 3) as f32;
         let y = 5.0 + (i / 8) as f32 * 1.6;
-        if spawned % 2 == 0 {
-            let hx = 0.25 + 0.2 * ((spawned * 7) % 3) as f32 * 0.5;
+        if i % 2 == 0 {
+            let hx = 0.25 + 0.2 * ((i * 7) % 3) as f32 * 0.5;
             tracked.push(add_box(&mut world, x, y, hx, hx));
         } else {
-            let r = 0.22 + 0.16 * ((spawned * 5) % 3) as f32 * 0.5;
+            let r = 0.22 + 0.16 * ((i * 5) % 3) as f32 * 0.5;
             tracked.push(add_circle(&mut world, x, y, r, 1.0));
         }
-        spawned += 1;
     }
 
     for step in 0..600 {
@@ -75,7 +76,9 @@ fn main() {
             let t = get_body_transform(&world, tracked[0]);
             println!(
                 "bodies step {step}: body0 = ({:.3}, {:.3}), contacts = {}",
-                t.p.x, t.p.y, world.contact_id_pool.id_count()
+                t.p.x,
+                t.p.y,
+                world.contact_id_pool.id_count()
             );
         }
     }
@@ -99,7 +102,9 @@ fn main() {
     }
     println!(
         "stacking settled: awake = {}",
-        world.solver_sets[box2d_rust::solver_set::AWAKE_SET as usize].body_sims.len()
+        world.solver_sets[box2d_rust::solver_set::AWAKE_SET as usize]
+            .body_sims
+            .len()
     );
     // Drop the heavy ball
     add_circle(&mut world, 0.3, 9.0, 0.5, 4.0);

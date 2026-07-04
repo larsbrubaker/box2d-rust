@@ -248,11 +248,17 @@ pub fn make_relative_sweep(body_sim: &BodySim, base: Pos) -> Sweep {
     }
 }
 
+mod access;
+mod api;
 mod lifecycle;
 mod plumbing;
+mod state;
 
+pub use access::*;
+pub use api::*;
 pub use lifecycle::*;
 pub use plumbing::*;
+pub use state::*;
 
 #[cfg(test)]
 mod tests {
