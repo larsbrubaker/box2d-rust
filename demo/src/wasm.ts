@@ -38,3 +38,10 @@ export async function loadWasm(): Promise<Box2dWasm> {
   }
   return wasmModule;
 }
+
+/// Synchronous access for demo pages; the router awaits loadWasm() before
+/// initializing any page.
+export function getWasm(): Box2dWasm {
+  if (!wasmModule) throw new Error("WASM not loaded yet");
+  return wasmModule;
+}

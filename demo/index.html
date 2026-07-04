@@ -1,104 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>box2d-rust — Box2D v3 ported to Rust</title>
-  <link rel="stylesheet" href="./styles/main.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Box2D for Rust — Interactive Physics Demos</title>
+  <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
-  <header>
-    <h1>box2d<span>-rust</span></h1>
-    <p class="tagline">
-      A pure Rust port of <a href="https://github.com/erincatto/box2d">Box2D v3</a>, Erin Catto's 2D
-      physics engine — exact behavioral match, including cross-platform deterministic math.
-    </p>
-    <div class="links">
-      <a class="github-badge" href="https://github.com/larsbrubaker/box2d-rust">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-        GitHub
-      </a>
-      <span id="version-badge" class="badge">loading…</span>
+  <button id="menu-toggle" class="menu-toggle" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">Box2D<span class="logo-accent">.rs</span></h1>
+      <p class="tagline">Interactive 2D Physics Demos</p>
     </div>
-  </header>
+    <ul class="nav-list">
+      <li><a href="#/" class="nav-link active" data-route="home">
+        <span class="nav-icon">&#9670;</span> Home
+      </a></li>
+      <li class="nav-section">Simulation</li>
+      <li><a href="#/bodies" class="nav-link" data-route="bodies">
+        <span class="nav-icon">&#9660;</span> Falling Bodies
+      </a></li>
+      <li><a href="#/stacking" class="nav-link" data-route="stacking">
+        <span class="nav-icon">&#9650;</span> Stacking
+      </a></li>
+      <li class="nav-section">Collision</li>
+      <li><a href="#/geometry" class="nav-link" data-route="geometry">
+        <span class="nav-icon">&#10140;</span> Geometry Queries
+      </a></li>
+      <li><a href="#/manifolds" class="nav-link" data-route="manifolds">
+        <span class="nav-icon">&#9649;</span> Contact Manifolds
+      </a></li>
+      <li><a href="#/math" class="nav-link" data-route="math">
+        <span class="nav-icon">&#9881;</span> Deterministic Math
+      </a></li>
+      <li class="nav-section">About</li>
+      <li><a href="#/roadmap" class="nav-link" data-route="roadmap">
+        <span class="nav-icon">&#9776;</span> Demo Roadmap
+      </a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <p><a href="https://github.com/larsbrubaker/box2d-rust" target="_blank">Source on GitHub</a></p>
+      <p>Rust port of <a href="https://github.com/erincatto/box2d" target="_blank">Box2D v3</a></p>
+      <p class="license">MIT License</p>
+    </div>
+  </nav>
 
-  <main>
-    <section class="live-demo">
-      <h2>Deterministic math <span class="live-pill">live wasm</span></h2>
-      <p>
-        The polygons below are rotated with the ported <code>b2MakeRot</code> /
-        <code>b2TransformPoint</code>, using Box2D's hand-rolled deterministic
-        cosine/sine — running in your browser as WebAssembly compiled from the Rust port.
-      </p>
-      <canvas id="math-canvas" width="900" height="360"></canvas>
-      <p class="readout" id="math-readout"></p>
-    </section>
-
-    <section class="live-demo">
-      <h2>Geometry queries <span class="live-pill">live wasm</span></h2>
-      <p>
-        Move your mouse over the canvas. A ray from the left edge tracks the cursor and is cast
-        against every shape with the ported <code>b2RayCastPolygon</code> /
-        <code>b2RayCastCircle</code> / <code>b2RayCastCapsule</code> / <code>b2RayCastSegment</code>
-        — the pentagon comes from <code>b2ComputeHull</code>. The probe triangle follows the cursor
-        and reports GJK closest points from <code>b2ShapeDistance</code>.
-      </p>
-      <canvas id="geometry-canvas" width="900" height="420"></canvas>
-      <p class="readout" id="geometry-readout"></p>
-    </section>
-
-    <section class="live-demo">
-      <h2>Contact manifolds <span class="live-pill">live wasm</span></h2>
-      <p>
-        Drag your mouse to move the rotating shape against the fixed box. Contact points and the
-        manifold normal come from the ported <code>b2CollidePolygons</code> /
-        <code>b2CollidePolygonAndCircle</code> / <code>b2CollidePolygonAndCapsule</code>. Red
-        points are penetrating (negative separation); green are speculative contacts. Click the
-        canvas to cycle the shape.
-      </p>
-      <canvas id="manifold-canvas" width="900" height="420"></canvas>
-      <p class="readout" id="manifold-readout"></p>
-    </section>
-
-    <section class="live-demo">
-      <h2>Falling bodies <span class="live-pill">live wasm</span></h2>
-      <p>
-        A full simulation driven by the ported <code>b2World_Step</code>: broad-phase pairs,
-        narrow-phase manifolds, graph-colored soft-constraint solving with sub-stepping,
-        restitution, and island sleeping. Click anywhere to drop more boxes and balls.
-      </p>
-      <canvas id="bodies-canvas" width="900" height="420"></canvas>
-      <p class="readout" id="bodies-readout"></p>
-    </section>
-
-    <section class="live-demo">
-      <h2>Stacking <span class="live-pill">live wasm</span></h2>
-      <p>
-        A box pyramid solved by the ported engine. Watch the island fall asleep once it settles
-        (the readout shows the awake body count reaching zero). Click to drop a heavy ball on it
-        and wake everything back up.
-      </p>
-      <canvas id="stacking-canvas" width="900" height="420"></canvas>
-      <p class="readout" id="stacking-readout"></p>
-    </section>
-
-    <section>
-      <h2>Demo roadmap</h2>
-      <p>
-        Each category of the upstream <code>samples</code> app becomes an interactive browser demo
-        as its module of the engine is ported.
-      </p>
-      <div id="demo-grid" class="grid"></div>
-    </section>
+  <main id="main-content">
+    <!-- Content dynamically injected by router -->
   </main>
-
-  <footer>
-    <p>
-      Box2D © Erin Catto (MIT). Rust port © Lars Brubaker / MatterHackers (MIT).
-    </p>
-  </footer>
 
   <script type="module" src="./src/main.ts"></script>
 </body>
