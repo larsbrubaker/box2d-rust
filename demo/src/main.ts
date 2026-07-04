@@ -8,6 +8,9 @@ type DemoInit = (container: HTMLElement) => (() => void) | void;
 const demoModules: Record<string, () => Promise<{ init: DemoInit }>> = {
   bodies: () => import("./demos/bodies.ts"),
   stacking: () => import("./demos/stacking.ts"),
+  joints: () => import("./demos/joints.ts"),
+  events: () => import("./demos/events.ts"),
+  continuous: () => import("./demos/continuous.ts"),
   geometry: () => import("./demos/geometry.ts"),
   manifolds: () => import("./demos/manifolds.ts"),
   math: () => import("./demos/math.ts"),
@@ -89,6 +92,21 @@ function renderHome(container: HTMLElement) {
           <h3>Stacking</h3>
           <p>A box pyramid settles until its island falls asleep. Drop a heavy ball to wake everything back up.</p>
         </a>
+        <a href="#/joints" class="feature-card">
+          <span class="card-icon">&#9903;</span>
+          <h3>Joints</h3>
+          <p>Falling hinge chains with limits, springs, and motors &mdash; the exact scene the determinism test hashes bit-for-bit against C.</p>
+        </a>
+        <a href="#/events" class="feature-card">
+          <span class="card-icon">&#9889;</span>
+          <h3>Events</h3>
+          <p>Contact begin/end, impact hit events, and sensor overlaps streamed from the engine's double-buffered event arrays.</p>
+        </a>
+        <a href="#/continuous" class="feature-card">
+          <span class="card-icon">&#10148;</span>
+          <h3>Continuous</h3>
+          <p>Bullets vs a thin wall. Toggle continuous collision and watch the same shot tunnel straight through.</p>
+        </a>
         <a href="#/geometry" class="feature-card">
           <span class="card-icon">&#10140;</span>
           <h3>Geometry Queries</h3>
@@ -131,7 +149,7 @@ function renderHome(container: HTMLElement) {
             <div class="stat-label">On crates.io</div>
           </div>
           <div class="stat">
-            <div class="stat-value">86</div>
+            <div class="stat-value">107</div>
             <div class="stat-label">Tests Passing</div>
           </div>
           <div class="stat">

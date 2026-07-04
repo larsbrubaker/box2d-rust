@@ -5,7 +5,19 @@
 export interface SimWorld {
   add_static_box(x: number, y: number, hx: number, hy: number): number;
   add_box(x: number, y: number, hx: number, hy: number, density: number): number;
+  add_box_rotated(x: number, y: number, hx: number, hy: number, density: number, angle: number): number;
   add_circle(x: number, y: number, radius: number, density: number): number;
+  add_hinge_joint(indexA: number, indexB: number, px: number, py: number): number;
+  add_distance_joint(indexA: number, indexB: number, ax: number, ay: number, bx: number, by: number): number;
+  joint_count(): number;
+  joint_anchors(): Float32Array;
+  add_bouncy_ball(x: number, y: number, radius: number, restitution: number): number;
+  add_sensor_box(x: number, y: number, hx: number, hy: number): number;
+  enable_sensor_visitor(index: number): void;
+  event_counts(): Uint32Array;
+  hit_events(): Float32Array;
+  add_bullet(x: number, y: number, radius: number, vx: number, vy: number): number;
+  set_continuous(flag: boolean): void;
   step(dt: number, subStepCount: number): void;
   positions(): Float32Array;
   awake_body_count(): number;

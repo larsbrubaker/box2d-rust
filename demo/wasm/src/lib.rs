@@ -242,11 +242,22 @@ pub fn closest_points(bx: f32, by: f32) -> Vec<f32> {
     ]
 }
 
-use box2d_rust::body::{create_body, get_body_full_id, get_body_transform};
+use box2d_rust::body::{create_body, get_body_full_id, get_body_transform, make_body_id};
 use box2d_rust::geometry::make_box;
+use box2d_rust::id::JointId;
+use box2d_rust::joint::{
+    create_distance_joint, create_revolute_joint, joint_get_body_a, joint_get_body_b,
+    joint_get_local_frame_a, joint_get_local_frame_b,
+};
+use box2d_rust::math_functions::{inv_transform_world_point, transform_world_point};
+use box2d_rust::types::{
+    default_body_def, default_distance_joint_def, default_revolute_joint_def, default_shape_def,
+    default_world_def, BodyType,
+};
 use box2d_rust::shape::{create_circle_shape, create_polygon_shape};
-use box2d_rust::types::{default_body_def, default_shape_def, default_world_def, BodyType};
-use box2d_rust::world::{world_step, World};
+use box2d_rust::world::{
+    world_enable_continuous, world_get_contact_events, world_get_sensor_events, world_step, World,
+};
 
 /// A live physics world for the Bodies/Stacking demos. Every step runs the
 /// ported b2World_Step pipeline: broad phase, narrow phase, graph-colored
@@ -256,6 +267,8 @@ pub struct SimWorld {
     world: World,
     /// Raw body indices in creation order; positions() reports in this order.
     bodies: Vec<i32>,
+    /// Joint ids in creation order; joint_anchors() reports in this order.
+    joints: Vec<JointId>,
 }
 
 #[wasm_bindgen]
@@ -270,6 +283,7 @@ impl SimWorld {
         SimWorld {
             world: World::new(&world_def),
             bodies: Vec::new(),
+            joints: Vec::new(),
         }
     }
 
@@ -356,5 +370,225 @@ impl SimWorld {
 
     pub fn body_count(&self) -> usize {
         self.bodies.len()
+    }
+
+    /// Dynamic box with an initial rotation, for hinge chains. Returns the
+    /// demo body index.
+    pub fn add_box_rotated(
+        &mut self,
+        x: f32,
+        y: f32,
+        hx: f32,
+        hy: f32,
+        density: f32,
+        angle: f32,
+    ) -> usize {
+        let mut body_def = default_body_def();
+        body_def.type_ = BodyType::Dynamic;
+        body_def.position = m::to_pos(m::Vec2 { x, y });
+        body_def.rotation = m::make_rot(angle);
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = 0.3;
+        let polygon = make_box(hx, hy);
+        create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Hinge two demo bodies at a world-space pivot with the falling-hinges
+    /// tuning: limited, sprung, and motorized. (b2CreateRevoluteJoint)
+    pub fn add_hinge_joint(&mut self, index_a: usize, index_b: usize, px: f32, py: f32) -> usize {
+        let pivot = m::to_pos(m::Vec2 { x: px, y: py });
+        let body_a = self.bodies[index_a];
+        let body_b = self.bodies[index_b];
+        let xf_a = get_body_transform(&self.world, body_a);
+        let xf_b = get_body_transform(&self.world, body_b);
+
+        let mut joint_def = default_revolute_joint_def();
+        joint_def.base.body_id_a = make_body_id(&self.world, body_a);
+        joint_def.base.body_id_b = make_body_id(&self.world, body_b);
+        joint_def.base.local_frame_a.p = inv_transform_world_point(xf_a, pivot);
+        joint_def.base.local_frame_b.p = inv_transform_world_point(xf_b, pivot);
+        joint_def.enable_limit = true;
+        joint_def.lower_angle = -0.1 * m::PI;
+        joint_def.upper_angle = 0.2 * m::PI;
+        joint_def.enable_spring = true;
+        joint_def.hertz = 1.0;
+        joint_def.damping_ratio = 1.0;
+        joint_def.enable_motor = true;
+        joint_def.max_motor_torque = 0.25;
+        joint_def.base.constraint_hertz = 60.0;
+        joint_def.base.constraint_damping_ratio = 0.0;
+
+        let joint_id = create_revolute_joint(&mut self.world, &joint_def);
+        self.joints.push(joint_id);
+        self.joints.len() - 1
+    }
+
+    /// Connect two demo bodies with a rigid distance joint between world-space
+    /// anchors. (b2CreateDistanceJoint)
+    pub fn add_distance_joint(
+        &mut self,
+        index_a: usize,
+        index_b: usize,
+        ax: f32,
+        ay: f32,
+        bx: f32,
+        by: f32,
+    ) -> usize {
+        let anchor_a = m::to_pos(m::Vec2 { x: ax, y: ay });
+        let anchor_b = m::to_pos(m::Vec2 { x: bx, y: by });
+        let body_a = self.bodies[index_a];
+        let body_b = self.bodies[index_b];
+        let xf_a = get_body_transform(&self.world, body_a);
+        let xf_b = get_body_transform(&self.world, body_b);
+
+        let mut joint_def = default_distance_joint_def();
+        joint_def.base.body_id_a = make_body_id(&self.world, body_a);
+        joint_def.base.body_id_b = make_body_id(&self.world, body_b);
+        joint_def.base.local_frame_a.p = inv_transform_world_point(xf_a, anchor_a);
+        joint_def.base.local_frame_b.p = inv_transform_world_point(xf_b, anchor_b);
+        joint_def.length = m::length(m::sub_pos(anchor_b, anchor_a));
+
+        let joint_id = create_distance_joint(&mut self.world, &joint_def);
+        self.joints.push(joint_id);
+        self.joints.len() - 1
+    }
+
+    pub fn joint_count(&self) -> usize {
+        self.joints.len()
+    }
+
+    /// Interleaved world anchors [ax, ay, bx, by] for every joint, in
+    /// creation order, for drawing noodles.
+    pub fn joint_anchors(&self) -> Vec<f32> {
+        let mut out = Vec::with_capacity(4 * self.joints.len());
+        for &joint_id in &self.joints {
+            let body_a = joint_get_body_a(&self.world, joint_id);
+            let body_b = joint_get_body_b(&self.world, joint_id);
+            let index_a = get_body_full_id(&self.world, body_a);
+            let index_b = get_body_full_id(&self.world, body_b);
+            let xf_a = get_body_transform(&self.world, index_a);
+            let xf_b = get_body_transform(&self.world, index_b);
+            let frame_a = joint_get_local_frame_a(&self.world, joint_id);
+            let frame_b = joint_get_local_frame_b(&self.world, joint_id);
+            let world_a = transform_world_point(xf_a, frame_a.p);
+            let world_b = transform_world_point(xf_b, frame_b.p);
+            out.push(world_a.x as f32);
+            out.push(world_a.y as f32);
+            out.push(world_b.x as f32);
+            out.push(world_b.y as f32);
+        }
+        out
+    }
+
+    /// Dynamic circle with hit events enabled and lively restitution, for the
+    /// Events demo.
+    pub fn add_bouncy_ball(&mut self, x: f32, y: f32, radius: f32, restitution: f32) -> usize {
+        let mut body_def = default_body_def();
+        body_def.type_ = BodyType::Dynamic;
+        body_def.position = m::to_pos(m::Vec2 { x, y });
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let mut shape_def = default_shape_def();
+        shape_def.density = 1.0;
+        shape_def.material.friction = 0.3;
+        shape_def.material.restitution = restitution;
+        shape_def.enable_hit_events = true;
+        let circle = box2d_rust::collision::Circle {
+            center: m::VEC2_ZERO,
+            radius,
+        };
+        create_circle_shape(&mut self.world, body_id, &shape_def, &circle);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Static sensor box that reports begin/end overlap events.
+    pub fn add_sensor_box(&mut self, x: f32, y: f32, hx: f32, hy: f32) -> usize {
+        let mut body_def = default_body_def();
+        body_def.position = m::to_pos(m::Vec2 { x, y });
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let mut shape_def = default_shape_def();
+        shape_def.is_sensor = true;
+        shape_def.enable_sensor_events = true;
+        let polygon = make_box(hx, hy);
+        create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Enable sensor events on the most recently added body's shape so
+    /// dynamic bodies can visit sensors.
+    pub fn enable_sensor_visitor(&mut self, index: usize) {
+        let body_index = self.bodies[index];
+        let mut shape_id = self.world.bodies[body_index as usize].head_shape_id;
+        while shape_id != box2d_rust::core::NULL_INDEX {
+            self.world.shapes[shape_id as usize].enable_sensor_events = true;
+            shape_id = self.world.shapes[shape_id as usize].next_shape_id;
+        }
+    }
+
+    /// Contact/sensor event counts for the last step:
+    /// [contactBegin, contactEnd, hit, sensorBegin, sensorEnd].
+    pub fn event_counts(&self) -> Vec<u32> {
+        let contact_events = world_get_contact_events(&self.world);
+        let sensor_events = world_get_sensor_events(&self.world);
+        vec![
+            contact_events.begin_events.len() as u32,
+            contact_events.end_events.len() as u32,
+            contact_events.hit_events.len() as u32,
+            sensor_events.begin_events.len() as u32,
+            sensor_events.end_events.len() as u32,
+        ]
+    }
+
+    /// Hit events from the last step as [x, y, approachSpeed]*.
+    pub fn hit_events(&self) -> Vec<f32> {
+        let contact_events = world_get_contact_events(&self.world);
+        let mut out = Vec::with_capacity(3 * contact_events.hit_events.len());
+        for hit in contact_events.hit_events {
+            out.push(hit.point.x as f32);
+            out.push(hit.point.y as f32);
+            out.push(hit.approach_speed);
+        }
+        out
+    }
+
+    /// Fast dynamic circle bullet for the Continuous demo. Continuous
+    /// collision (TOI) keeps it from tunneling through thin walls.
+    pub fn add_bullet(&mut self, x: f32, y: f32, radius: f32, vx: f32, vy: f32) -> usize {
+        let mut body_def = default_body_def();
+        body_def.type_ = BodyType::Dynamic;
+        body_def.is_bullet = true;
+        body_def.gravity_scale = 0.0;
+        body_def.position = m::to_pos(m::Vec2 { x, y });
+        body_def.linear_velocity = m::Vec2 { x: vx, y: vy };
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let mut shape_def = default_shape_def();
+        shape_def.density = 1.0;
+        shape_def.material.restitution = 0.1;
+        let circle = box2d_rust::collision::Circle {
+            center: m::VEC2_ZERO,
+            radius,
+        };
+        create_circle_shape(&mut self.world, body_id, &shape_def, &circle);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Toggle continuous collision to demonstrate tunneling.
+    /// (b2World_EnableContinuous)
+    pub fn set_continuous(&mut self, flag: bool) {
+        world_enable_continuous(&mut self.world, flag);
     }
 }
