@@ -4,7 +4,9 @@ import type { SimWorld } from "../wasm.ts";
 
 export type SimShape =
   | { kind: "box"; hx: number; hy: number; color: string }
-  | { kind: "circle"; r: number; color: string };
+  | { kind: "circle"; r: number; color: string }
+  | { kind: "capsule"; hl: number; r: number; color: string }
+  | { kind: "chain"; points: number[]; loop: boolean; color: string };
 
 export const COLORS = {
   ground: "#5a6170",
@@ -52,11 +54,36 @@ export function drawSimBodies(
     ctx.beginPath();
     if (shape.kind === "box") {
       ctx.rect(-shape.hx * scale, -shape.hy * scale, 2 * shape.hx * scale, 2 * shape.hy * scale);
-    } else {
+    } else if (shape.kind === "circle") {
       ctx.arc(0, 0, shape.r * scale, 0, 2 * Math.PI);
       // radius line so rotation is visible
       ctx.moveTo(0, 0);
       ctx.lineTo(shape.r * scale, 0);
+    } else if (shape.kind === "capsule") {
+      const hl = shape.hl * scale;
+      const r = shape.r * scale;
+      ctx.arc(-hl, 0, r, Math.PI / 2, -Math.PI / 2);
+      ctx.lineTo(hl, -r);
+      ctx.arc(hl, 0, r, -Math.PI / 2, Math.PI / 2);
+      ctx.closePath();
+    } else {
+      // Chain points are world coordinates on a static body at the origin;
+      // the canvas transform above is already at the body position (0, 0
+      // offset), so undo the translate and draw in canvas space.
+      ctx.restore();
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = shape.color;
+      ctx.beginPath();
+      for (let p = 0; p + 1 < shape.points.length; p += 2) {
+        const [cx, cy] = toPx(shape.points[p], shape.points[p + 1]);
+        if (p === 0) ctx.moveTo(cx, cy);
+        else ctx.lineTo(cx, cy);
+      }
+      if (shape.loop) ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+      continue;
     }
     ctx.fill();
     ctx.stroke();

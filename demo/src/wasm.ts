@@ -20,6 +20,10 @@ export interface SimWorld {
   set_continuous(flag: boolean): void;
   mover_spawn(x: number, y: number): void;
   mover_update(dt: number, moveX: number, jump: boolean): Float32Array;
+  add_capsule(x: number, y: number, hl: number, radius: number, density: number, angle: number): number;
+  add_chain(points: Float32Array | number[], isLoop: boolean): number;
+  explode(x: number, y: number, radius: number, falloff: number, impulsePerLength: number): void;
+  set_gravity(x: number, y: number): void;
   step(dt: number, subStepCount: number): void;
   positions(): Float32Array;
   awake_body_count(): number;

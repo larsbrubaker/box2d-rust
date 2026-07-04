@@ -2,7 +2,7 @@
 
 const CATEGORIES: Array<{ name: string; blurb: string; route?: string }> = [
   { name: "Bodies", blurb: "Body types, sleeping, user data", route: "bodies" },
-  { name: "Shapes", blurb: "Circles, capsules, polygons, chains" },
+  { name: "Shapes", blurb: "Circles, capsules, polygons, chains", route: "shapes" },
   { name: "Geometry", blurb: "Hulls, rays, and shape queries", route: "geometry" },
   { name: "Collision", blurb: "Manifolds, distance, casting", route: "manifolds" },
   { name: "Stacking", blurb: "Pyramids, towers, and piles", route: "stacking" },
@@ -10,7 +10,7 @@ const CATEGORIES: Array<{ name: string; blurb: string; route?: string }> = [
   { name: "Continuous", blurb: "Fast bodies without tunneling", route: "continuous" },
   { name: "Events", blurb: "Contacts, sensors, hit events", route: "events" },
   { name: "Character", blurb: "Movers and platforming", route: "character" },
-  { name: "World", blurb: "Gravity, explosions, large worlds" },
+  { name: "World", blurb: "Gravity, explosions, large worlds", route: "world" },
   { name: "Determinism", blurb: "Cross-platform reproducibility" },
   { name: "Robustness", blurb: "Degenerate input, overlap recovery" },
   { name: "Benchmark", blurb: "Performance stress scenes" },

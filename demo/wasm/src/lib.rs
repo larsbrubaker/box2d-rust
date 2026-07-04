@@ -598,6 +598,71 @@ impl SimWorld {
         world_enable_continuous(&mut self.world, flag);
     }
 
+    /// Dynamic capsule (horizontal, half length `hl`), rotated by `angle`.
+    /// Returns the demo body index.
+    pub fn add_capsule(
+        &mut self,
+        x: f32,
+        y: f32,
+        hl: f32,
+        radius: f32,
+        density: f32,
+        angle: f32,
+    ) -> usize {
+        let mut body_def = default_body_def();
+        body_def.type_ = BodyType::Dynamic;
+        body_def.position = m::to_pos(m::Vec2 { x, y });
+        body_def.rotation = m::make_rot(angle);
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = 0.3;
+        let capsule = Capsule {
+            center1: m::Vec2 { x: -hl, y: 0.0 },
+            center2: m::Vec2 { x: hl, y: 0.0 },
+            radius,
+        };
+        box2d_rust::shape::create_capsule_shape(&mut self.world, body_id, &shape_def, &capsule);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Static chain shape from interleaved world points [x, y]*. Chains are
+    /// one-sided: wind right-to-left for a solid-side-up floor.
+    /// (b2CreateChain) Returns the demo body index of the owning body.
+    pub fn add_chain(&mut self, points: &[f32], is_loop: bool) -> usize {
+        let body_def = default_body_def();
+        let body_id = create_body(&mut self.world, &body_def);
+
+        let mut chain_def = box2d_rust::types::default_chain_def();
+        chain_def.is_loop = is_loop;
+        chain_def.points = points
+            .chunks_exact(2)
+            .map(|p| m::Vec2 { x: p[0], y: p[1] })
+            .collect();
+        box2d_rust::shape::create_chain(&mut self.world, body_id, &chain_def);
+
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    /// Radial explosion. (b2World_Explode)
+    pub fn explode(&mut self, x: f32, y: f32, radius: f32, falloff: f32, impulse_per_length: f32) {
+        let mut def = box2d_rust::types::default_explosion_def();
+        def.position = m::to_pos(m::Vec2 { x, y });
+        def.radius = radius;
+        def.falloff = falloff;
+        def.impulse_per_length = impulse_per_length;
+        box2d_rust::world::world_explode(&mut self.world, &def);
+    }
+
+    /// Change gravity at runtime. (b2World_SetGravity)
+    pub fn set_gravity(&mut self, x: f32, y: f32) {
+        box2d_rust::world::world_set_gravity(&mut self.world, m::Vec2 { x, y });
+    }
+
     /// Place the capsule character mover.
     pub fn mover_spawn(&mut self, x: f32, y: f32) {
         self.mover_position = m::to_pos(m::Vec2 { x, y });
