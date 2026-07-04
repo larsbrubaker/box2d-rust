@@ -68,13 +68,20 @@ export function init(container: HTMLElement) {
 
   buildScene();
 
+  // Track physical key codes (layout independent). Space would otherwise
+  // re-activate a focused button (e.g. Reset) and arrows would scroll, so
+  // both are suppressed while this page is up.
   const onKeyDown = (e: KeyboardEvent) => {
-    keys.add(e.key.toLowerCase());
-    if ([" ", "arrowleft", "arrowright", "arrowup"].includes(e.key.toLowerCase())) e.preventDefault();
+    keys.add(e.code);
+    if (["Space", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.code)) {
+      e.preventDefault();
+    }
   };
-  const onKeyUp = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
+  const onKeyUp = (e: KeyboardEvent) => keys.delete(e.code);
+  const onBlur = () => keys.clear();
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("blur", onBlur);
 
   controls.appendChild(
     createInfoBox(
@@ -83,7 +90,13 @@ export function init(container: HTMLElement) {
         "move so nothing is skipped, and <b>ClipVector</b> removes velocity into the planes.",
     ),
   );
-  controls.appendChild(createButton("Reset", () => buildScene()));
+  controls.appendChild(
+    createButton("Reset", () => {
+      buildScene();
+      // Drop focus so Space jumps instead of re-clicking this button.
+      (document.activeElement as HTMLElement | null)?.blur();
+    }),
+  );
   controls.appendChild(createSeparator());
   const readout = createReadout();
   controls.appendChild(readout);
@@ -93,9 +106,9 @@ export function init(container: HTMLElement) {
     sim.step(1 / 60, 4);
 
     let moveX = 0;
-    if (keys.has("a") || keys.has("arrowleft")) moveX -= 1;
-    if (keys.has("d") || keys.has("arrowright")) moveX += 1;
-    const jump = keys.has(" ") || keys.has("w") || keys.has("arrowup");
+    if (keys.has("KeyA") || keys.has("ArrowLeft")) moveX -= 1;
+    if (keys.has("KeyD") || keys.has("ArrowRight")) moveX += 1;
+    const jump = keys.has("Space") || keys.has("KeyW") || keys.has("ArrowUp");
 
     const state = sim.mover_update(1 / 60, moveX, jump);
     moverX = state[0];
@@ -137,6 +150,7 @@ export function init(container: HTMLElement) {
     stop();
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
+    window.removeEventListener("blur", onBlur);
     freeSim(sim);
   };
 }

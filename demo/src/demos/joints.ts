@@ -90,7 +90,9 @@ export function init(container: HTMLElement) {
     createInfoBox(
       "Each hinge is limited to [-18&deg;, 36&deg;], sprung at 1 Hz, and driven by a weak motor " +
         "&mdash; the same tuning whose settled positions hash bit-for-bit against the C engine. " +
-        "The pendulums use rigid distance joints.",
+        "The pendulums use rigid distance joints. Jointed pairs overlap each other freely: " +
+        "collision between connected bodies is disabled by default (collideConnected), " +
+        "exactly like upstream Box2D.",
     ),
   );
   controls.appendChild(
