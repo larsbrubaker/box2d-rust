@@ -58,6 +58,8 @@ mod hull_tests;
 #[cfg(test)]
 mod id_tests;
 #[cfg(test)]
+mod large_world_tests;
+#[cfg(test)]
 mod manifold_tests;
 #[cfg(test)]
 mod math_functions_tests;
