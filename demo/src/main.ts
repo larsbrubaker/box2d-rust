@@ -480,20 +480,28 @@ async function runBodiesDemo() {
   });
 
   function frame() {
-    // Fixed timestep like the C samples app.
-    sim.step(1 / 60, 4);
+    try {
+      // Fixed timestep like the C samples app.
+      sim.step(1 / 60, 4);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawSimBodies(canvas, SCALE, ORIGIN_Y, shapes, sim.positions());
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawSimBodies(canvas, SCALE, ORIGIN_Y, shapes, sim.positions());
 
-    readout.textContent =
-      `bodies: ${sim.body_count()}   contacts: ${sim.contact_count()}   ` +
-      `awake: ${sim.awake_body_count()}   (click to drop more)`;
+      readout.textContent =
+        `bodies: ${sim.body_count()}   contacts: ${sim.contact_count()}   ` +
+        `awake: ${sim.awake_body_count()}   (click to drop more)`;
+    } catch (e) {
+      readout.textContent = `Simulation error: ${e}`;
+      console.error(e);
+      return;
+    }
 
     requestAnimationFrame(frame);
   }
 
-  requestAnimationFrame(frame);
+  // Render immediately so the scene is visible even before the first
+  // animation frame fires (hidden/throttled tabs suspend rAF).
+  frame();
 }
 
 async function runStackingDemo() {
@@ -535,20 +543,26 @@ async function runStackingDemo() {
   });
 
   function frame() {
-    sim.step(1 / 60, 4);
+    try {
+      sim.step(1 / 60, 4);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawSimBodies(canvas, SCALE, ORIGIN_Y, shapes, sim.positions());
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawSimBodies(canvas, SCALE, ORIGIN_Y, shapes, sim.positions());
 
-    const awake = sim.awake_body_count();
-    readout.textContent =
-      `bodies: ${sim.body_count()}   contacts: ${sim.contact_count()}   awake: ${awake}` +
-      (awake === 0 ? "   — island asleep, click to wake it" : "   (click to drop a heavy ball)");
+      const awake = sim.awake_body_count();
+      readout.textContent =
+        `bodies: ${sim.body_count()}   contacts: ${sim.contact_count()}   awake: ${awake}` +
+        (awake === 0 ? "   — island asleep, click to wake it" : "   (click to drop a heavy ball)");
+    } catch (e) {
+      readout.textContent = `Simulation error: ${e}`;
+      console.error(e);
+      return;
+    }
 
     requestAnimationFrame(frame);
   }
 
-  requestAnimationFrame(frame);
+  frame();
 }
 
 buildGrid();
