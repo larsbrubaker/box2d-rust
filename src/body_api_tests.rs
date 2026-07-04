@@ -50,8 +50,8 @@ fn destroy_all_bodies_world() {
         world_step(&mut world, 1.0 / 60.0, 3);
     }
 
-    // (C: b2World_GetCounters().bodyCount == 0)
-    assert_eq!(world.body_id_pool.id_count(), 0);
+    let counters = crate::world::world_get_counters(&world);
+    assert_eq!(counters.body_count, 0);
 }
 
 // (test_world.c TestIsValid)

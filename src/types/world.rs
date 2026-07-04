@@ -58,6 +58,74 @@ pub struct Capacity {
     pub contact_count: i32,
 }
 
+/// Counters that give details of the simulation size. (b2Counters)
+///
+/// `byte_count`, `stack_used`, and `task_count` are always zero in this port:
+/// there is no global allocation tracker, no arena stack allocator, and no
+/// task system in the serial Rust implementation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Counters {
+    pub byte_count: i64,
+    pub body_count: i32,
+    pub shape_count: i32,
+    pub contact_count: i32,
+    pub joint_count: i32,
+    pub island_count: i32,
+    pub stack_used: i32,
+    pub static_tree_height: i32,
+    pub tree_height: i32,
+    pub task_count: i32,
+    pub color_counts: [i32; crate::constants::GRAPH_COLOR_COUNT as usize],
+
+    /// Number of contacts touched by the collide pass (graph contacts +
+    /// awake-set non-touching).
+    pub awake_contact_count: i32,
+
+    /// Number of contacts recycled in the most recent step.
+    pub recycled_contact_count: i32,
+}
+
+/// The explosion definition is used to configure options for explosions.
+/// Explosions consider shape geometry when computing the impulse.
+/// (b2ExplosionDef)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ExplosionDef {
+    /// Mask bits to filter shapes
+    pub mask_bits: u64,
+
+    /// The center of the explosion in world space
+    pub position: Pos,
+
+    /// The radius of the explosion
+    pub radius: f32,
+
+    /// The falloff distance beyond the radius. Impulse is reduced to zero at
+    /// this distance.
+    pub falloff: f32,
+
+    /// Impulse per unit length. This applies an impulse according to the
+    /// shape perimeter that is facing the explosion. Explosions only apply to
+    /// circles, capsules, and polygons. This may be negative for implosions.
+    pub impulse_per_length: f32,
+}
+
+/// Use this to initialize your explosion definition. (b2DefaultExplosionDef)
+pub fn default_explosion_def() -> ExplosionDef {
+    ExplosionDef {
+        mask_bits: crate::dynamic_tree::DEFAULT_MASK_BITS,
+        position: POS_ZERO,
+        radius: 0.0,
+        falloff: 0.0,
+        impulse_per_length: 0.0,
+    }
+}
+
+impl Default for ExplosionDef {
+    fn default() -> Self {
+        default_explosion_def()
+    }
+}
+
 /// World definition used to create a simulation world. Must be initialized
 /// using [`default_world_def`]. (b2WorldDef)
 ///

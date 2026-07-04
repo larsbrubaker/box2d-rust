@@ -450,6 +450,10 @@ impl World {
     }
 }
 
+mod api;
+mod query;
 mod step;
 
+pub use api::*;
+pub use query::*;
 pub use step::*;

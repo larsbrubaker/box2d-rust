@@ -63,6 +63,8 @@ mod math_functions_tests;
 mod table_tests;
 #[cfg(test)]
 mod types_tests;
+#[cfg(test)]
+mod world_api_tests;
 
 pub use collision::CastOutput;
 pub use core::{get_version, is_double_precision, Version};

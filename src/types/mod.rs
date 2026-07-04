@@ -40,7 +40,8 @@ pub use shape::{
     default_surface_material, ChainDef, Filter, QueryFilter, ShapeDef, SurfaceMaterial,
 };
 pub use world::{
-    default_world_def, Capacity, FrictionCallback, RayResult, RestitutionCallback, WorldDef,
+    default_explosion_def, default_world_def, Capacity, Counters, ExplosionDef, FrictionCallback,
+    RayResult, RestitutionCallback, WorldDef,
 };
 
 // types.h: B2_DEFAULT_CATEGORY_BITS / B2_DEFAULT_MASK_BITS. These are the same
