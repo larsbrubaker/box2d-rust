@@ -1,9 +1,25 @@
 # box2d-rust
 
 A pure Rust port of [Box2D v3](https://github.com/erincatto/box2d), Erin Catto's 2D physics
-engine.
+engine — exact behavioral match, including cross-platform deterministic math.
 
-**[Live demos](https://larsbrubaker.github.io/box2d-rust/)** · MIT licensed
+[![crates.io](https://img.shields.io/crates/v/box2d-rust.svg)](https://crates.io/crates/box2d-rust)
+[![docs.rs](https://docs.rs/box2d-rust/badge.svg)](https://docs.rs/box2d-rust)
+[![License](https://img.shields.io/badge/License-MIT-lightblue.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Interactive-blue)](https://larsbrubaker.github.io/box2d-rust/)
+
+## Interactive Demo
+
+**[Try it in your browser — no installation required](https://larsbrubaker.github.io/box2d-rust/)**
+
+[![box2d-rust demo](readme_hero.jpg)](https://larsbrubaker.github.io/box2d-rust/)
+
+Live WebAssembly demos running the ported engine: deterministic math, geometry queries,
+contact manifolds, falling bodies, and stacking — with full `b2World_Step` simulation,
+graph-colored constraint solving, and island sleeping.
+
+> Part of the [rust-apps](https://github.com/larsbrubaker/rust-apps) suite — a collection of
+> Rust graphics and geometry libraries by Lars Brubaker.
 
 ## Status: In progress
 

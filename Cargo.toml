@@ -25,6 +25,8 @@ exclude = [
     "benches/",
     "scripts/",
     "CLAUDE.md",
+    "readme_hero.jpg",
+    "run_demo.cmd",
 ]
 
 [lib]
