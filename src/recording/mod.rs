@@ -21,6 +21,7 @@ use crate::world::World;
 
 mod ops;
 mod ops_body;
+mod ops_shape;
 mod snapshot;
 mod snapshot_joints;
 mod snapshot_structs;
@@ -29,6 +30,7 @@ mod write;
 
 pub use ops::*;
 pub use ops_body::*;
+pub use ops_shape::*;
 pub use snapshot::*;
 pub use snapshot_world::*;
 pub use write::*;

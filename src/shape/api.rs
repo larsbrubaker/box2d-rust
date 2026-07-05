@@ -128,6 +128,9 @@ pub fn shape_set_density(
     density: f32,
     update_body_mass: bool,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_set_density(rec, shape_id, density, update_body_mass)
+    });
     debug_assert!(is_valid_float(density) && density >= 0.0);
 
     debug_assert!(!world.locked);
@@ -158,6 +161,14 @@ pub fn shape_get_density(world: &World, shape_id: ShapeId) -> f32 {
 
 /// Set the friction on a shape. (b2Shape_SetFriction)
 pub fn shape_set_friction(world: &mut World, shape_id: ShapeId, friction: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_f32(
+            rec,
+            crate::recording::OP_SHAPE_SET_FRICTION,
+            shape_id,
+            friction,
+        )
+    });
     debug_assert!(is_valid_float(friction) && friction >= 0.0);
 
     debug_assert!(!world.locked);
@@ -177,6 +188,14 @@ pub fn shape_get_friction(world: &World, shape_id: ShapeId) -> f32 {
 
 /// Set the shape restitution. (b2Shape_SetRestitution)
 pub fn shape_set_restitution(world: &mut World, shape_id: ShapeId, restitution: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_f32(
+            rec,
+            crate::recording::OP_SHAPE_SET_RESTITUTION,
+            shape_id,
+            restitution,
+        )
+    });
     debug_assert!(is_valid_float(restitution) && restitution >= 0.0);
 
     debug_assert!(!world.locked);
@@ -196,6 +215,9 @@ pub fn shape_get_restitution(world: &World, shape_id: ShapeId) -> f32 {
 
 /// Set the shape's user material identifier. (b2Shape_SetUserMaterial)
 pub fn shape_set_user_material(world: &mut World, shape_id: ShapeId, material: u64) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_set_user_material(rec, shape_id, material)
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -223,6 +245,9 @@ pub fn shape_set_surface_material(
     shape_id: ShapeId,
     surface_material: SurfaceMaterial,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_set_surface_material(rec, shape_id, surface_material)
+    });
     let shape_index = get_shape_index(world, shape_id);
     world.shapes[shape_index as usize].material = surface_material;
 }
@@ -305,6 +330,9 @@ pub(crate) fn reset_proxy(
 /// shape. Sensor overlaps are not updated until the next time step.
 /// (b2Shape_SetFilter)
 pub fn shape_set_filter(world: &mut World, shape_id: ShapeId, filter: Filter) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_set_filter(rec, shape_id, filter)
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -338,6 +366,14 @@ pub fn shape_set_filter(world: &mut World, shape_id: ShapeId, filter: Filter) {
 
 /// Enable sensor events for this shape. (b2Shape_EnableSensorEvents)
 pub fn shape_enable_sensor_events(world: &mut World, shape_id: ShapeId, flag: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_bool(
+            rec,
+            crate::recording::OP_SHAPE_ENABLE_SENSOR_EVENTS,
+            shape_id,
+            flag,
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -355,6 +391,14 @@ pub fn shape_are_sensor_events_enabled(world: &World, shape_id: ShapeId) -> bool
 
 /// Enable contact events for this shape. (b2Shape_EnableContactEvents)
 pub fn shape_enable_contact_events(world: &mut World, shape_id: ShapeId, flag: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_bool(
+            rec,
+            crate::recording::OP_SHAPE_ENABLE_CONTACT_EVENTS,
+            shape_id,
+            flag,
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -375,6 +419,14 @@ pub fn shape_are_contact_events_enabled(world: &World, shape_id: ShapeId) -> boo
 /// bodies. These are expensive and must be carefully handled due to
 /// multithreading. (b2Shape_EnablePreSolveEvents)
 pub fn shape_enable_pre_solve_events(world: &mut World, shape_id: ShapeId, flag: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_bool(
+            rec,
+            crate::recording::OP_SHAPE_ENABLE_PRE_SOLVE_EVENTS,
+            shape_id,
+            flag,
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -393,6 +445,14 @@ pub fn shape_are_pre_solve_events_enabled(world: &World, shape_id: ShapeId) -> b
 
 /// Enable contact hit events for this shape. (b2Shape_EnableHitEvents)
 pub fn shape_enable_hit_events(world: &mut World, shape_id: ShapeId, flag: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_bool(
+            rec,
+            crate::recording::OP_SHAPE_ENABLE_HIT_EVENTS,
+            shape_id,
+            flag,
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;

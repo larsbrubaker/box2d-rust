@@ -195,16 +195,26 @@ pub fn create_chain(world: &mut World, body_id: BodyId, def: &ChainDef) -> Chain
 
     world.chain_shapes[chain_id as usize].shape_indices = shape_indices;
 
-    ChainId {
+    let id = ChainId {
         index1: chain_id + 1,
         world0: world.world_id,
         generation: world.chain_shapes[chain_id as usize].generation,
-    }
+    };
+
+    // (B2_REC_CREATE(world, CreateChain, id, bodyId, *def))
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_chain(rec, body_id, def, id)
+    });
+
+    id
 }
 
 /// Destroy a chain shape and all its segments. (b2DestroyChain +
 /// b2FreeChainData)
 pub fn destroy_chain(world: &mut World, chain_id: ChainId) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_destroy_chain(rec, chain_id)
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -302,6 +312,14 @@ pub fn chain_set_surface_material(
     material: SurfaceMaterial,
     material_index: usize,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_chain_set_surface_material(
+            rec,
+            chain_id,
+            material,
+            material_index as i32,
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;

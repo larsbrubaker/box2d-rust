@@ -167,7 +167,18 @@ pub fn create_circle_shape(
     def: &crate::types::ShapeDef,
     circle: &crate::collision::Circle,
 ) -> crate::id::ShapeId {
-    create_shape(world, body_id, def, ShapeGeometry::Circle(*circle))
+    let id = create_shape(world, body_id, def, ShapeGeometry::Circle(*circle));
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_shape(
+            rec,
+            crate::recording::OP_CREATE_CIRCLE_SHAPE,
+            body_id,
+            def,
+            |buf| crate::recording::rec_w_circle(buf, *circle),
+            id,
+        )
+    });
+    id
 }
 
 /// (b2CreateCapsuleShape)
@@ -185,7 +196,18 @@ pub fn create_capsule_shape(
         return crate::id::ShapeId::default();
     }
 
-    create_shape(world, body_id, def, ShapeGeometry::Capsule(*capsule))
+    let id = create_shape(world, body_id, def, ShapeGeometry::Capsule(*capsule));
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_shape(
+            rec,
+            crate::recording::OP_CREATE_CAPSULE_SHAPE,
+            body_id,
+            def,
+            |buf| crate::recording::rec_w_capsule(buf, *capsule),
+            id,
+        )
+    });
+    id
 }
 
 /// (b2CreatePolygonShape)
@@ -197,7 +219,18 @@ pub fn create_polygon_shape(
 ) -> crate::id::ShapeId {
     debug_assert!(crate::math_functions::is_valid_float(polygon.radius) && polygon.radius >= 0.0);
 
-    create_shape(world, body_id, def, ShapeGeometry::Polygon(*polygon))
+    let id = create_shape(world, body_id, def, ShapeGeometry::Polygon(*polygon));
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_shape(
+            rec,
+            crate::recording::OP_CREATE_POLYGON_SHAPE,
+            body_id,
+            def,
+            |buf| crate::recording::rec_w_polygon(buf, polygon),
+            id,
+        )
+    });
+    id
 }
 
 /// (b2CreateSegmentShape)
@@ -216,7 +249,18 @@ pub fn create_segment_shape(
         return crate::id::ShapeId::default();
     }
 
-    create_shape(world, body_id, def, ShapeGeometry::Segment(*segment))
+    let id = create_shape(world, body_id, def, ShapeGeometry::Segment(*segment));
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_shape(
+            rec,
+            crate::recording::OP_CREATE_SEGMENT_SHAPE,
+            body_id,
+            def,
+            |buf| crate::recording::rec_w_segment(buf, *segment),
+            id,
+        )
+    });
+    id
 }
 
 /// (b2CreateChainSegmentShape)
@@ -239,7 +283,19 @@ pub fn create_chain_segment_shape(
     let mut local = *chain_segment;
     local.chain_id = NULL_INDEX;
 
-    create_shape(world, body_id, def, ShapeGeometry::ChainSegment(local))
+    let id = create_shape(world, body_id, def, ShapeGeometry::ChainSegment(local));
+    // C records `local` (parent chain id nulled), not the caller value.
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_shape(
+            rec,
+            crate::recording::OP_CREATE_CHAIN_SEGMENT_SHAPE,
+            body_id,
+            def,
+            |buf| crate::recording::rec_w_chainseg(buf, local),
+            id,
+        )
+    });
+    id
 }
 
 /// Validate a ShapeId and return the raw shape index. (b2GetShape — C returns
@@ -325,6 +381,9 @@ pub fn destroy_shape(
     shape_id: crate::id::ShapeId,
     update_body_mass: bool,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_destroy_shape(rec, shape_id, update_body_mass)
+    });
     let shape_index = get_shape_index(world, shape_id);
 
     // Cannot destroy a chain segment that has a parent chain shape

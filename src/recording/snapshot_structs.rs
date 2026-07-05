@@ -361,7 +361,7 @@ pub(crate) fn r_material(r: &mut SnapReader) -> crate::types::SurfaceMaterial {
     m
 }
 
-fn r_filter(r: &mut SnapReader) -> crate::types::Filter {
+pub(crate) fn r_filter(r: &mut SnapReader) -> crate::types::Filter {
     let mut f = crate::types::default_filter();
     f.category_bits = r.r_u64();
     f.mask_bits = r.r_u64();

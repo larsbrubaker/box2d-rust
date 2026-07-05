@@ -432,9 +432,9 @@ pub fn replay_buffer(data: &[u8]) -> ReplayResult {
                 return result;
             }
             _ => {
-                if let Some(ids_match) =
-                    super::ops_body::dispatch_body_op(opcode, &mut r, &mut world)
-                {
+                let handled = super::ops_body::dispatch_body_op(opcode, &mut r, &mut world)
+                    .or_else(|| super::ops_shape::dispatch_shape_op(opcode, &mut r, &mut world));
+                if let Some(ids_match) = handled {
                     if !ids_match {
                         // A create op returned a different id than recorded:
                         // the replay is not deterministic.

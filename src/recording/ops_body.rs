@@ -492,17 +492,17 @@ mod tests {
             match step {
                 10 => {
                     // Create mid-recording: one plain, one named bullet.
-                    // Shapeless until the shape op family lands — shapeless
-                    // dynamic bodies still fall and feed the state hash.
                     let mut bd = default_body_def();
                     bd.type_ = BodyType::Dynamic;
                     bd.position = to_pos(Vec2 { x: 0.0, y: 6.0 });
                     bd.linear_velocity = Vec2 { x: 0.5, y: 0.0 };
                     let a = create_body(&mut world, &bd);
+                    create_polygon_shape(&mut world, a, &sd, &make_square(0.3));
                     bd.position = to_pos(Vec2 { x: 1.0, y: 7.0 });
                     bd.is_bullet = true;
                     bd.name = "replayed".to_string();
                     let b = create_body(&mut world, &bd);
+                    create_polygon_shape(&mut world, b, &sd, &make_square(0.2));
                     created.push(a);
                     created.push(b);
                 }

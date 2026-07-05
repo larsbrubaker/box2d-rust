@@ -89,6 +89,14 @@ fn set_geometry(world: &mut World, shape_index: i32, geometry: ShapeGeometry) {
 /// Allows you to change a shape to be a circle or update the current circle.
 /// (b2Shape_SetCircle)
 pub fn shape_set_circle(world: &mut World, shape_id: ShapeId, circle: &Circle) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_geometry(
+            rec,
+            crate::recording::OP_SHAPE_SET_CIRCLE,
+            shape_id,
+            |buf| crate::recording::rec_w_circle(buf, *circle),
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -101,6 +109,14 @@ pub fn shape_set_circle(world: &mut World, shape_id: ShapeId, circle: &Circle) {
 /// Allows you to change a shape to be a capsule or update the current capsule.
 /// (b2Shape_SetCapsule)
 pub fn shape_set_capsule(world: &mut World, shape_id: ShapeId, capsule: &Capsule) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_geometry(
+            rec,
+            crate::recording::OP_SHAPE_SET_CAPSULE,
+            shape_id,
+            |buf| crate::recording::rec_w_capsule(buf, *capsule),
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -118,6 +134,14 @@ pub fn shape_set_capsule(world: &mut World, shape_id: ShapeId, capsule: &Capsule
 /// Allows you to change a shape to be a segment or update the current segment.
 /// (b2Shape_SetSegment)
 pub fn shape_set_segment(world: &mut World, shape_id: ShapeId, segment: &Segment) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_geometry(
+            rec,
+            crate::recording::OP_SHAPE_SET_SEGMENT,
+            shape_id,
+            |buf| crate::recording::rec_w_segment(buf, *segment),
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -130,6 +154,14 @@ pub fn shape_set_segment(world: &mut World, shape_id: ShapeId, segment: &Segment
 /// Allows you to change a shape to be a polygon or update the current polygon.
 /// (b2Shape_SetPolygon)
 pub fn shape_set_polygon(world: &mut World, shape_id: ShapeId, polygon: &Polygon) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_geometry(
+            rec,
+            crate::recording::OP_SHAPE_SET_POLYGON,
+            shape_id,
+            |buf| crate::recording::rec_w_polygon(buf, polygon),
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -143,6 +175,14 @@ pub fn shape_set_polygon(world: &mut World, shape_id: ShapeId, polygon: &Polygon
 /// the current one. Cannot be used on a segment owned by a chain shape.
 /// (b2Shape_SetChainSegment)
 pub fn shape_set_chain_segment(world: &mut World, shape_id: ShapeId, chain_segment: &ChainSegment) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_geometry(
+            rec,
+            crate::recording::OP_SHAPE_SET_CHAIN_SEGMENT,
+            shape_id,
+            |buf| crate::recording::rec_w_chainseg(buf, *chain_segment),
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -202,6 +242,9 @@ pub fn shape_apply_wind(
     lift: f32,
     wake: bool,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_shape_apply_wind(rec, shape_id, wind, drag, lift, wake)
+    });
     let shape_index = get_shape_index(world, shape_id);
 
     let shape_type = world.shapes[shape_index as usize].shape_type();
