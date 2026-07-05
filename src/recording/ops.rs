@@ -277,12 +277,32 @@ pub(crate) fn record_step_end(world: &mut World) {
 }
 
 /// Result of a replay pass. (b2RecPlayer diagnostics, condensed)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ReplayResult {
     pub steps: i32,
     pub hash_checks: i32,
     pub diverged: bool,
     pub ok: bool,
+    /// Accumulated session bounds from the RecordingBounds record, for
+    /// framing a viewer. (b2RecPlayer_GetInfo().bounds)
+    pub bounds: Aabb,
+    pub have_bounds: bool,
+}
+
+/// Persist a recording buffer. The library never opens files while
+/// recording; this lets a host save a finished session.
+/// (b2SaveRecordingToFile)
+pub fn save_recording_to_file(recording: &Recording, path: &std::path::Path) -> bool {
+    std::fs::write(path, &recording.buffer).is_ok()
+}
+
+/// Load a recording buffer saved by [`save_recording_to_file`].
+/// (b2LoadRecordingFromFile)
+pub fn load_recording_from_file(path: &std::path::Path) -> Option<Recording> {
+    let buffer = std::fs::read(path).ok()?;
+    let mut recording = Recording::new(0);
+    recording.buffer = buffer;
+    Some(recording)
 }
 
 /// Replay a recording buffer against a world restored from its seed
@@ -424,7 +444,17 @@ pub fn replay_buffer(data: &[u8]) -> ReplayResult {
                 crate::world::world_enable_speculative(&mut world, flag);
             }
             OP_RECORDING_BOUNDS => {
-                // Informational framing bounds; skip
+                result.bounds = Aabb {
+                    lower_bound: crate::math_functions::Vec2 {
+                        x: r.r_f32(),
+                        y: r.r_f32(),
+                    },
+                    upper_bound: crate::math_functions::Vec2 {
+                        x: r.r_f32(),
+                        y: r.r_f32(),
+                    },
+                };
+                result.have_bounds = true;
             }
             OP_DESTROY_WORLD => {
                 // End-of-session marker

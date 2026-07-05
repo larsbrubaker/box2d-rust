@@ -3,8 +3,9 @@
 // identically at the origin and at 1e7 m from it. In the single-precision
 // build only the origin runs execute, same as C.
 //
-// LargeWorldRecordingTest is not ported: the recording/replay subsystem does
-// not exist in the Rust port yet.
+// LargeWorldRecordingTest rides the double-precision wire format: recorded
+// world positions must round trip at full width or a replayed body snaps off
+// the recorded path and the per-step state hash diverges.
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
@@ -377,4 +378,80 @@ fn large_world_origin_query() {
         ensure_small(ray_rel_large.x - ray_rel.x, 1e-3);
         ensure_small(ray_rel_large.y - ray_rel.y, 1e-3);
     }
+}
+
+// (test_large_world.c LargeWorldRecordingTest) — record from before any body
+// exists so world positions ride the op stream (CreateBody, SetTransform),
+// exercising the recorded position wire format rather than the seed snapshot.
+#[test]
+fn large_world_recording() {
+    use crate::body::{body_get_transform, body_set_transform, create_body};
+    use crate::recording::{
+        validate_replay, world_start_recording, world_stop_recording, Recording,
+    };
+
+    let world_def = default_world_def();
+    let mut world = World::new(&world_def);
+
+    // At 1e7 the double-precision wire format keeps the replay on the
+    // recorded path. The float build has no large-world range, so it records
+    // the same scene at the origin: a plain recording round trip.
+    #[cfg(feature = "double-precision")]
+    let base = to_pos(Vec2 { x: 1.0e7, y: 0.0 });
+    #[cfg(not(feature = "double-precision"))]
+    let base = POS_ZERO;
+
+    assert!(world_start_recording(&mut world, Recording::new(0)).is_none());
+
+    let mut ground_def = default_body_def();
+    ground_def.position = base;
+    let ground_id = create_body(&mut world, &ground_def);
+    let ground_shape_def = default_shape_def();
+    create_polygon_shape(
+        &mut world,
+        ground_id,
+        &ground_shape_def,
+        &make_box(20.0, 0.5),
+    );
+
+    // A box settling on the ground exercises the contact solver far from the
+    // origin.
+    let mut stack_def = default_body_def();
+    stack_def.type_ = BodyType::Dynamic;
+    stack_def.position = offset_pos(base, Vec2 { x: 0.0, y: 1.0 });
+    let stack_id = create_body(&mut world, &stack_def);
+    let mut box_def = default_shape_def();
+    box_def.density = 1.0;
+    create_polygon_shape(&mut world, stack_id, &box_def, &make_box(0.5, 0.5));
+
+    // A free body sliding along x so its center accrues sub-meter detail
+    // that float cannot hold at 1e7. Its evolved double transform is fed
+    // back through SetTransform mid-recording, so the op stream carries a
+    // position no float could round trip.
+    let mut slider_def = default_body_def();
+    slider_def.type_ = BodyType::Dynamic;
+    slider_def.gravity_scale = 0.0;
+    slider_def.position = offset_pos(base, Vec2 { x: 0.0, y: 5.0 });
+    slider_def.linear_velocity = Vec2 { x: 3.0, y: 0.0 };
+    let slider_id = create_body(&mut world, &slider_def);
+    create_polygon_shape(&mut world, slider_id, &box_def, &make_box(0.5, 0.5));
+
+    for _ in 0..30 {
+        world_step(&mut world, 1.0 / 60.0, 4);
+    }
+
+    let slider_xf = body_get_transform(&world, slider_id);
+    body_set_transform(&mut world, slider_id, slider_xf.p, slider_xf.q);
+
+    for _ in 0..30 {
+        world_step(&mut world, 1.0 / 60.0, 4);
+    }
+
+    let rec = world_stop_recording(&mut world).expect("active session");
+    assert!(!rec.buffer.is_empty());
+
+    // A demoted op-stream position would diverge the state hash; the
+    // full-width wire format reproduces the run exactly. (The C worker-count
+    // sweep collapses to one serial validation.)
+    assert!(validate_replay(&rec.buffer));
 }
