@@ -149,6 +149,15 @@ pub fn world_enable_sleeping(world: &mut World, flag: bool) {
         return;
     }
 
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_bool(
+            rec,
+            crate::recording::OP_WORLD_ENABLE_SLEEPING,
+            id,
+            flag,
+        )
+    });
+
     if flag == world.enable_sleep {
         return;
     }
@@ -179,6 +188,15 @@ pub fn world_enable_warm_starting(world: &mut World, flag: bool) {
         return;
     }
 
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_bool(
+            rec,
+            crate::recording::OP_WORLD_ENABLE_WARM_STARTING,
+            id,
+            flag,
+        )
+    });
+
     world.enable_warm_starting = flag;
 }
 
@@ -202,6 +220,15 @@ pub fn world_enable_continuous(world: &mut World, flag: bool) {
         return;
     }
 
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_bool(
+            rec,
+            crate::recording::OP_WORLD_ENABLE_CONTINUOUS,
+            id,
+            flag,
+        )
+    });
+
     world.enable_continuous = flag;
 }
 
@@ -218,6 +245,15 @@ pub fn world_set_restitution_threshold(world: &mut World, value: f32) {
     if world.locked {
         return;
     }
+
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_f32(
+            rec,
+            crate::recording::OP_WORLD_SET_RESTITUTION_THRESHOLD,
+            id,
+            value,
+        )
+    });
 
     world.restitution_threshold = clamp_float(value, 0.0, f32::MAX);
 }
@@ -236,6 +272,15 @@ pub fn world_set_hit_event_threshold(world: &mut World, value: f32) {
     if world.locked {
         return;
     }
+
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_f32(
+            rec,
+            crate::recording::OP_WORLD_SET_HIT_EVENT_THRESHOLD,
+            id,
+            value,
+        )
+    });
 
     world.hit_event_threshold = clamp_float(value, 0.0, f32::MAX);
 }
@@ -259,6 +304,10 @@ pub fn world_set_contact_tuning(
         return;
     }
 
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_set_contact_tuning(rec, id, hertz, damping_ratio, push_speed)
+    });
+
     world.contact_hertz = clamp_float(hertz, 0.0, f32::MAX);
     world.contact_damping_ratio = clamp_float(damping_ratio, 0.0, f32::MAX);
     world.contact_speed = clamp_float(push_speed, 0.0, f32::MAX);
@@ -272,6 +321,15 @@ pub fn world_set_contact_recycle_distance(world: &mut World, recycle_distance: f
     if world.locked {
         return;
     }
+
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_f32(
+            rec,
+            crate::recording::OP_WORLD_SET_CONTACT_RECYCLE_DISTANCE,
+            id,
+            recycle_distance,
+        )
+    });
 
     world.contact_recycle_distance = clamp_float(recycle_distance, 0.0, f32::MAX);
 }
@@ -290,6 +348,15 @@ pub fn world_set_maximum_linear_speed(world: &mut World, maximum_linear_speed: f
     if world.locked {
         return;
     }
+
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_f32(
+            rec,
+            crate::recording::OP_WORLD_SET_MAXIMUM_LINEAR_SPEED,
+            id,
+            maximum_linear_speed,
+        )
+    });
 
     world.max_linear_speed = maximum_linear_speed;
 }
@@ -397,6 +464,9 @@ pub fn world_set_pre_solve_callback(world: &mut World, fcn: Option<PreSolveFcn>,
 /// direction and this is left as a decision for the application.
 /// (b2World_SetGravity)
 pub fn world_set_gravity(world: &mut World, gravity: Vec2) {
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_set_gravity(rec, id, gravity)
+    });
     world.gravity = gravity;
 }
 
@@ -423,6 +493,10 @@ pub fn world_explode(world: &mut World, explosion_def: &ExplosionDef) {
     if world.locked {
         return;
     }
+
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_explode(rec, id, explosion_def)
+    });
 
     // The broad-phase tree is float, so translate a local query box out to
     // world with outward rounding
@@ -554,10 +628,26 @@ pub fn world_rebuild_static_tree(world: &mut World) {
         return;
     }
 
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_marker(
+            rec,
+            crate::recording::OP_WORLD_REBUILD_STATIC_TREE,
+            id,
+        )
+    });
+
     world.broad_phase.trees[BodyType::Static as usize].rebuild(true);
 }
 
 /// This is for internal testing. (b2World_EnableSpeculative)
 pub fn world_enable_speculative(world: &mut World, flag: bool) {
+    crate::recording::record_op(world, |rec, id| {
+        crate::recording::write_world_bool(
+            rec,
+            crate::recording::OP_WORLD_ENABLE_SPECULATIVE,
+            id,
+            flag,
+        )
+    });
     world.enable_speculative = flag;
 }

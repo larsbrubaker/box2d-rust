@@ -24,9 +24,110 @@ use crate::world::World;
 // 0x1x-0x3x body, 0x4x-0x6x shape, 0x7x chain, 0x80 step, 0x9x-0xD1 joints,
 // 0xEx queries, 0xFx markers)
 pub const OP_DESTROY_WORLD: u8 = 0x01;
+pub const OP_WORLD_ENABLE_SLEEPING: u8 = 0x02;
+pub const OP_WORLD_ENABLE_CONTINUOUS: u8 = 0x03;
+pub const OP_WORLD_SET_RESTITUTION_THRESHOLD: u8 = 0x04;
+pub const OP_WORLD_SET_HIT_EVENT_THRESHOLD: u8 = 0x05;
+pub const OP_WORLD_SET_GRAVITY: u8 = 0x06;
+pub const OP_WORLD_EXPLODE: u8 = 0x07;
+pub const OP_WORLD_SET_CONTACT_TUNING: u8 = 0x08;
+pub const OP_WORLD_SET_CONTACT_RECYCLE_DISTANCE: u8 = 0x09;
+pub const OP_WORLD_SET_MAXIMUM_LINEAR_SPEED: u8 = 0x0A;
+pub const OP_WORLD_ENABLE_WARM_STARTING: u8 = 0x0B;
+pub const OP_WORLD_REBUILD_STATIC_TREE: u8 = 0x0C;
+pub const OP_WORLD_ENABLE_SPECULATIVE: u8 = 0x0D;
 pub const OP_STEP: u8 = 0x80;
 pub const OP_STATE_HASH: u8 = 0xF1;
 pub const OP_RECORDING_BOUNDS: u8 = 0xF2;
+
+/// Run an op writer against the active recording session, if any. This is
+/// the B2_REC macro: one branch when recording is off, the args built inside
+/// the branch. (B2_REC)
+pub(crate) fn record_op(world: &mut World, f: impl FnOnce(&mut Recording, WorldId)) {
+    if let Some(mut rec) = world.recording.take() {
+        let world_id = world_id_of(world);
+        f(&mut rec, world_id);
+        world.recording = Some(rec);
+    }
+}
+
+/// A world-config op carrying a single bool. (WorldEnableSleeping and kin)
+pub(crate) fn write_world_bool(rec: &mut Recording, opcode: u8, world_id: WorldId, flag: bool) {
+    rec.begin_record(opcode);
+    rec_w_worldid(&mut rec.buffer, world_id);
+    rec_w_bool(&mut rec.buffer, flag);
+    rec.end_record();
+}
+
+/// A world-config op carrying a single f32. (WorldSetRestitutionThreshold
+/// and kin)
+pub(crate) fn write_world_f32(rec: &mut Recording, opcode: u8, world_id: WorldId, value: f32) {
+    rec.begin_record(opcode);
+    rec_w_worldid(&mut rec.buffer, world_id);
+    rec_w_f32(&mut rec.buffer, value);
+    rec.end_record();
+}
+
+/// A world-config op with no payload beyond the world id.
+/// (WorldRebuildStaticTree)
+pub(crate) fn write_world_marker(rec: &mut Recording, opcode: u8, world_id: WorldId) {
+    rec.begin_record(opcode);
+    rec_w_worldid(&mut rec.buffer, world_id);
+    rec.end_record();
+}
+
+pub(crate) fn write_world_set_gravity(
+    rec: &mut Recording,
+    world_id: WorldId,
+    gravity: crate::math_functions::Vec2,
+) {
+    rec.begin_record(OP_WORLD_SET_GRAVITY);
+    rec_w_worldid(&mut rec.buffer, world_id);
+    rec_w_vec2(&mut rec.buffer, gravity);
+    rec.end_record();
+}
+
+pub(crate) fn write_world_set_contact_tuning(
+    rec: &mut Recording,
+    world_id: WorldId,
+    hertz: f32,
+    damping_ratio: f32,
+    push_speed: f32,
+) {
+    rec.begin_record(OP_WORLD_SET_CONTACT_TUNING);
+    rec_w_worldid(&mut rec.buffer, world_id);
+    rec_w_f32(&mut rec.buffer, hertz);
+    rec_w_f32(&mut rec.buffer, damping_ratio);
+    rec_w_f32(&mut rec.buffer, push_speed);
+    rec.end_record();
+}
+
+pub(crate) fn write_world_explode(
+    rec: &mut Recording,
+    world_id: WorldId,
+    def: &crate::types::ExplosionDef,
+) {
+    rec.begin_record(OP_WORLD_EXPLODE);
+    rec_w_worldid(&mut rec.buffer, world_id);
+    rec_w_explosiondef(&mut rec.buffer, def);
+    rec.end_record();
+}
+
+#[cfg(feature = "double-precision")]
+fn read_position(r: &mut SnapReader) -> crate::math_functions::Pos {
+    crate::math_functions::Pos {
+        x: r.r_f64(),
+        y: r.r_f64(),
+    }
+}
+
+#[cfg(not(feature = "double-precision"))]
+fn read_position(r: &mut SnapReader) -> crate::math_functions::Pos {
+    crate::math_functions::Pos {
+        x: r.r_f32(),
+        y: r.r_f32(),
+    }
+}
 
 fn world_id_of(world: &World) -> WorldId {
     WorldId {
@@ -248,6 +349,80 @@ pub fn replay_buffer(data: &[u8]) -> ReplayResult {
                     result.diverged = true;
                 }
             }
+            OP_WORLD_ENABLE_SLEEPING => {
+                let _ = r.r_u32();
+                let flag = r.r_bool();
+                crate::world::world_enable_sleeping(&mut world, flag);
+            }
+            OP_WORLD_ENABLE_CONTINUOUS => {
+                let _ = r.r_u32();
+                let flag = r.r_bool();
+                crate::world::world_enable_continuous(&mut world, flag);
+            }
+            OP_WORLD_SET_RESTITUTION_THRESHOLD => {
+                let _ = r.r_u32();
+                let value = r.r_f32();
+                crate::world::world_set_restitution_threshold(&mut world, value);
+            }
+            OP_WORLD_SET_HIT_EVENT_THRESHOLD => {
+                let _ = r.r_u32();
+                let value = r.r_f32();
+                crate::world::world_set_hit_event_threshold(&mut world, value);
+            }
+            OP_WORLD_SET_GRAVITY => {
+                let _ = r.r_u32();
+                let gravity = crate::math_functions::Vec2 {
+                    x: r.r_f32(),
+                    y: r.r_f32(),
+                };
+                crate::world::world_set_gravity(&mut world, gravity);
+            }
+            OP_WORLD_EXPLODE => {
+                let _ = r.r_u32();
+                let mut def = crate::types::default_explosion_def();
+                def.mask_bits = r.r_u64();
+                def.position = read_position(&mut r);
+                def.radius = r.r_f32();
+                def.falloff = r.r_f32();
+                def.impulse_per_length = r.r_f32();
+                crate::world::world_explode(&mut world, &def);
+            }
+            OP_WORLD_SET_CONTACT_TUNING => {
+                let _ = r.r_u32();
+                let hertz = r.r_f32();
+                let damping_ratio = r.r_f32();
+                let push_speed = r.r_f32();
+                crate::world::world_set_contact_tuning(
+                    &mut world,
+                    hertz,
+                    damping_ratio,
+                    push_speed,
+                );
+            }
+            OP_WORLD_SET_CONTACT_RECYCLE_DISTANCE => {
+                let _ = r.r_u32();
+                let value = r.r_f32();
+                crate::world::world_set_contact_recycle_distance(&mut world, value);
+            }
+            OP_WORLD_SET_MAXIMUM_LINEAR_SPEED => {
+                let _ = r.r_u32();
+                let value = r.r_f32();
+                crate::world::world_set_maximum_linear_speed(&mut world, value);
+            }
+            OP_WORLD_ENABLE_WARM_STARTING => {
+                let _ = r.r_u32();
+                let flag = r.r_bool();
+                crate::world::world_enable_warm_starting(&mut world, flag);
+            }
+            OP_WORLD_REBUILD_STATIC_TREE => {
+                let _ = r.r_u32();
+                crate::world::world_rebuild_static_tree(&mut world);
+            }
+            OP_WORLD_ENABLE_SPECULATIVE => {
+                let _ = r.r_u32();
+                let flag = r.r_bool();
+                crate::world::world_enable_speculative(&mut world, flag);
+            }
             OP_RECORDING_BOUNDS => {
                 // Informational framing bounds; skip
             }
@@ -336,5 +511,58 @@ mod tests {
         corrupt[len - 30] ^= 0x01;
         let bad = replay_buffer(&corrupt);
         assert!(bad.diverged && bad.ok);
+    }
+
+    // World-config mutations recorded mid-stream replay through their
+    // dispatchers: a gravity flip and an explosion change the trajectory, so
+    // hashes only match if the ops re-execute at the right steps.
+    #[test]
+    fn config_ops_replay() {
+        let mut world_def = default_world_def();
+        world_def.gravity = Vec2 { x: 0.0, y: -10.0 };
+        let mut world = World::new(&world_def);
+
+        let bd = default_body_def();
+        let ground = create_body(&mut world, &bd);
+        let sd = default_shape_def();
+        create_polygon_shape(&mut world, ground, &sd, &make_box(15.0, 1.0));
+        for i in 0..6 {
+            let mut bd = default_body_def();
+            bd.type_ = BodyType::Dynamic;
+            bd.position = to_pos(Vec2 {
+                x: -2.0 + 0.8 * i as f32,
+                y: 2.0,
+            });
+            let body = create_body(&mut world, &bd);
+            create_polygon_shape(&mut world, body, &sd, &make_square(0.3));
+        }
+
+        assert!(world_start_recording(&mut world, Recording::new(0)).is_none());
+
+        for step in 0..90 {
+            if step == 20 {
+                let mut def = crate::types::default_explosion_def();
+                def.position = to_pos(Vec2 { x: 0.0, y: 1.5 });
+                def.radius = 2.0;
+                def.falloff = 2.0;
+                def.impulse_per_length = 4.0;
+                crate::world::world_explode(&mut world, &def);
+            }
+            if step == 40 {
+                crate::world::world_set_gravity(&mut world, Vec2 { x: 0.0, y: 3.0 });
+                crate::world::world_enable_sleeping(&mut world, false);
+            }
+            if step == 60 {
+                crate::world::world_set_gravity(&mut world, Vec2 { x: 0.0, y: -10.0 });
+                crate::world::world_set_contact_tuning(&mut world, 20.0, 5.0, 2.0);
+            }
+            world_step(&mut world, 1.0 / 60.0, 4);
+        }
+
+        let recording = world_stop_recording(&mut world).expect("active session");
+        let result = replay_buffer(&recording.buffer);
+        assert!(result.ok);
+        assert!(!result.diverged, "config ops must re-execute on replay");
+        assert_eq!(result.steps, 90);
     }
 }
