@@ -14,42 +14,37 @@ engine — exact behavioral match, including cross-platform deterministic math.
 
 [![box2d-rust demo](readme_hero.jpg)](https://larsbrubaker.github.io/box2d-rust/)
 
-Live WebAssembly demos running the ported engine: deterministic math, geometry queries,
-contact manifolds, falling bodies, and stacking — with full `b2World_Step` simulation,
-graph-colored constraint solving, and island sleeping.
+Live WebAssembly demos running the ported engine — all 13 upstream sample categories:
+bodies, shapes, stacking, joints, events, continuous collision, character movers, world
+queries and explosions, determinism (live snapshot/restore with bit-identical state
+hashes), overlap-recovery robustness, and benchmarks.
 
 > Part of the [rust-apps](https://github.com/larsbrubaker/rust-apps) suite — a collection of
 > Rust graphics and geometry libraries by Lars Brubaker.
 
-## Status: In progress
+## Status: Complete
 
-This is an exact behavioral port of the Box2D v3.1 C source, done module by module with the C
-test suite ported alongside. The pinned reference source lives in the `box2d-cpp-reference/`
-submodule.
+Every portable module of the Box2D v3.1 C source is ported, together with the C test suite
+(129 tests, green in both precision modes). The pinned reference source lives in the
+`box2d-cpp-reference/` submodule.
 
-| Module | Ported | Tests |
+| Area | Ported | Tests |
 |---|---|---|
-| math_functions | ✅ | ✅ (test_math.c) |
-| core / constants | ✅ | ✅ |
-| id (handles) | ✅ | ✅ (test_id.c) |
-| bitset | ✅ | ✅ (test_bitset.c) |
-| id_pool (index allocator) | ✅ | ✅ |
-| types (world/body/shape/chain defs + defaults) | ✅ | ✅ |
-| table (open-addressing hash set) | ✅ | ✅ (test_table.c) |
-| aabb (perimeter, enlarge, offset, ray cast) | ✅ | ✅ (test_collision.c AABB subtests) |
-| distance (GJK, shape cast, TOI, segment distance) | ✅ | ✅ (test_distance.c) |
-| hull (quickhull convex hull) | ✅ | ✅ |
-| geometry (shapes, mass, AABB, point tests, ray/shape casts) | ✅ | ✅ (test_shape.c) |
-| manifold (contact generation, all shape pairs) | ✅ | ✅ (test_collision.c manifold subtests) |
-| dynamic_tree (AABB tree: insert, rotate, query, ray/box cast, rebuild) | ✅ | ✅ (test_dynamic_tree.c) |
-| broad_phase (proxy ops, move buffer, overlap, pair update → contact creation) | ✅ | ✅ |
-| dynamics core data model (body/shape/contact/joint/island/solver_set/graph/world) | 🟡 | — |
-| body lifecycle (create/destroy), shape lifecycle (create/destroy), mass data | 🟡 | ✅ |
-| contact (create/destroy/narrow-phase update), constraint_graph, solver_set, island linking | 🟡 | ✅ |
-| joints (distance, motor, filter, prismatic, revolute, weld, wheel + joint core) | ✅ | ✅ |
-| contact_solver + solver (serial step pipeline) | ✅ | ✅ |
-| sensor overlap, world step (b2World_Step, HelloWorld passing) | ✅ | ✅ (test_world.c: HelloWorld, EmptyWorld) |
-| world public API (queries, casts, explosions, setters) | — | — |
+| Foundation: math_functions, core/constants, id, bitset, id_pool, table, types | ✅ | ✅ (test_math/id/bitset/table.c) |
+| Collision: aabb, distance (GJK/TOI), hull, geometry, manifold, dynamic_tree | ✅ | ✅ (test_collision/distance/shape/dynamic_tree.c) |
+| Broad phase: proxy ops, move buffer, pair update → contact creation | ✅ | ✅ |
+| Dynamics: body/shape/contact lifecycles, constraint graph, solver sets, islands | ✅ | ✅ |
+| Joints: distance, motor, filter, prismatic, revolute, weld, wheel | ✅ | ✅ |
+| Solver: contact solver + serial step pipeline, sensors, sleeping, continuous | ✅ | ✅ (test_world.c) |
+| World API: queries, casts, character movers, explosions, all setters | ✅ | ✅ |
+| Determinism: hand-rolled trig, bit-exact FallingHinges vs the C build | ✅ | ✅ (test_determinism.c) |
+| Snapshots: `world_snapshot` / `world_restore`, deep state hash | ✅ | ✅ (test_snapshot.c) |
+| Recording: full op-stream record/replay of every API mutation and query | ✅ | ✅ (test_recording.c) |
+| Debug draw: `world_draw` with the complete `DebugDraw` trait + color palette | ✅ | ✅ |
+| Large world mode (`double-precision` feature = `BOX2D_DOUBLE_PRECISION`) | ✅ | ✅ (test_large_world.c) |
+
+Not ported (by design): threading/task system (the port is serial), the global world
+registry (worlds are owned values), and the C arena allocator (Rust `Vec`s).
 
 ## Porting principles
 
