@@ -237,6 +237,10 @@ pub struct World {
     pub enable_continuous: bool,
     pub enable_speculative: bool,
     pub in_use: bool,
+
+    /// Active recording session; owned by the world between
+    /// world_start_recording and world_stop_recording. (C: b2Recording*)
+    pub recording: Option<crate::recording::Recording>,
 }
 
 /// Default friction mixing: `sqrt(frictionA * frictionB)`.
@@ -398,6 +402,7 @@ impl World {
             enable_continuous: def.enable_continuous,
             enable_speculative: true,
             in_use: true,
+            recording: None,
         }
     }
 

@@ -542,6 +542,16 @@ pub fn world_step(world: &mut World, time_step: f32, sub_step_count: i32) {
         return;
     }
 
+    // (B2_REC(world, Step, ...))
+    if let Some(mut rec) = world.recording.take() {
+        let world_id = crate::id::WorldId {
+            index1: world.world_id + 1,
+            generation: world.generation,
+        };
+        crate::recording::write_step(&mut rec, world_id, time_step, sub_step_count);
+        world.recording = Some(rec);
+    }
+
     // Prepare to capture events. Ensure user does not access stale data if
     // there is an early return.
     world.body_move_events.clear();
@@ -628,6 +638,9 @@ pub fn world_step(world: &mut World, time_step: f32, sub_step_count: i32) {
     world.end_event_array_index = 1 - world.end_event_array_index;
     world.sensor_end_events[world.end_event_array_index as usize].clear();
     world.contact_end_events[world.end_event_array_index as usize].clear();
+
+    // Per-step StateHash + bounds growth for an active recording session.
+    crate::recording::record_step_end(world);
 }
 
 #[cfg(test)]
