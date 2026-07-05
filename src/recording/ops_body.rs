@@ -234,7 +234,12 @@ fn r_body_def(r: &mut SnapReader) -> BodyDef {
 /// the opcode is not in this family; Some(ids_match) otherwise, where a false
 /// means a create op returned a different id than recorded (a determinism
 /// failure the caller reports as divergence).
-pub(crate) fn dispatch_body_op(opcode: u8, r: &mut SnapReader, world: &mut World) -> Option<bool> {
+pub(crate) fn dispatch_body_op(
+    opcode: u8,
+    r: &mut SnapReader,
+    world: &mut World,
+    tracker: Option<&mut Vec<crate::id::BodyId>>,
+) -> Option<bool> {
     use crate::body::*;
 
     match opcode {
@@ -243,10 +248,22 @@ pub(crate) fn dispatch_body_op(opcode: u8, r: &mut SnapReader, world: &mut World
             let def = r_body_def(r);
             let recorded = r_body_id(r);
             let created = create_body(world, &def);
+            // Append to the player outliner list; ordinals are creation
+            // order and never reused. (b2RecTrackBodyCreate)
+            if let Some(tracker) = tracker {
+                tracker.push(created);
+            }
             Some(created.index1 == recorded.index1 && created.generation == recorded.generation)
         }
         OP_DESTROY_BODY => {
             let body = r_body_id(r);
+            // Leave a hole so later ordinals do not shift, keeping a stored
+            // selection stable across the playthrough. (b2RecTrackBodyDestroy)
+            if let Some(tracker) = tracker {
+                if let Some(slot) = tracker.iter_mut().find(|id| **id == body) {
+                    *slot = crate::id::BodyId::default();
+                }
+            }
             destroy_body(world, body);
             Some(true)
         }

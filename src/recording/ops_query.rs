@@ -217,8 +217,15 @@ fn r_treestats(r: &mut SnapReader) -> TreeStats {
 /// Dispatch a query-family opcode: read the recorded hits, re-run the query
 /// with a comparing trampoline that feeds the recorded user returns back,
 /// and flag divergence on any mismatch. Returns None when the opcode is not
-/// in this family; Some(matched) otherwise.
-pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut World) -> Option<bool> {
+/// in this family; Some(matched) otherwise. When a player stash is supplied
+/// (rdr->owner in C), the recorded args and hits are stored for per-frame
+/// drawing and inspection.
+pub(crate) fn dispatch_query_op(
+    opcode: u8,
+    r: &mut SnapReader,
+    world: &mut World,
+    mut stash: Option<&mut super::player_queries::QueryStash>,
+) -> Option<bool> {
     use crate::shape::{shape_ray_cast, shape_test_point};
     use crate::world::*;
 
@@ -250,6 +257,13 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                 }
                 h.user_return
             });
+            if let Some(stash) = stash.as_deref_mut() {
+                let pooled = overlap_stash_hits(&hits);
+                let q = stash.begin(super::RecQueryType::OverlapAabb, &pooled);
+                q.filter = filter;
+                q.origin = origin;
+                q.aabb = aabb;
+            }
             Some(matched && cursor == hits.len())
         }
         OP_QUERY_OVERLAP_SHAPE => {
@@ -276,6 +290,13 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                 }
                 h.user_return
             });
+            if let Some(stash) = stash.as_deref_mut() {
+                let pooled = overlap_stash_hits(&hits);
+                let q = stash.begin(super::RecQueryType::OverlapShape, &pooled);
+                q.filter = filter;
+                q.origin = origin;
+                q.proxy = proxy;
+            }
             Some(matched && cursor == hits.len())
         }
         OP_QUERY_CAST_RAY => {
@@ -312,6 +333,13 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                     h.user_return
                 },
             );
+            if let Some(stash) = stash.as_deref_mut() {
+                let pooled = cast_stash_hits(&hits);
+                let q = stash.begin(super::RecQueryType::CastRay, &pooled);
+                q.filter = filter;
+                q.origin = origin;
+                q.translation = translation;
+            }
             Some(matched && cursor == hits.len())
         }
         OP_QUERY_CAST_SHAPE => {
@@ -350,6 +378,14 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                     h.user_return
                 },
             );
+            if let Some(stash) = stash.as_deref_mut() {
+                let pooled = cast_stash_hits(&hits);
+                let q = stash.begin(super::RecQueryType::CastShape, &pooled);
+                q.filter = filter;
+                q.origin = origin;
+                q.proxy = proxy;
+                q.translation = translation;
+            }
             Some(matched && cursor == hits.len())
         }
         OP_QUERY_COLLIDE_MOVER => {
@@ -396,6 +432,21 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                 }
                 h.user_return
             });
+            if let Some(stash) = stash.as_deref_mut() {
+                let pooled: Vec<super::player_queries::RecordedHit> = hits
+                    .iter()
+                    .map(|h| super::player_queries::RecordedHit {
+                        id: h.id,
+                        plane: h.plane,
+                        user_return_b: h.user_return,
+                        ..Default::default()
+                    })
+                    .collect();
+                let q = stash.begin(super::RecQueryType::CollideMover, &pooled);
+                q.filter = filter;
+                q.origin = origin;
+                q.mover = mover;
+            }
             Some(matched && cursor == hits.len())
         }
         OP_QUERY_CAST_RAY_CLOSEST => {
@@ -414,6 +465,22 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                         && !pos_differs(got.point, rec.point)
                         && !vec2_differs(got.normal, rec.normal)
                         && !f32_differs(got.fraction, rec.fraction)));
+            if let Some(stash) = stash.as_deref_mut() {
+                // Stash the closest result as a single pooled hit so the
+                // shared draw loop renders its point
+                let h = super::player_queries::RecordedHit {
+                    id: rec.shape_id,
+                    point: rec.point,
+                    normal: rec.normal,
+                    fraction: rec.fraction,
+                    ..Default::default()
+                };
+                let pooled = if rec.hit { vec![h] } else { Vec::new() };
+                let q = stash.begin(super::RecQueryType::CastRayClosest, &pooled);
+                q.filter = filter;
+                q.origin = origin;
+                q.translation = translation;
+            }
             Some(matched)
         }
         OP_QUERY_CAST_MOVER => {
@@ -427,6 +494,14 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                 return Some(false);
             }
             let got = world_cast_mover(world, origin, &mover, translation, filter);
+            if let Some(stash) = stash.as_deref_mut() {
+                let q = stash.begin(super::RecQueryType::CastMover, &[]);
+                q.filter = filter;
+                q.origin = origin;
+                q.mover = mover;
+                q.translation = translation;
+                q.cast_fraction = rec;
+            }
             Some(!f32_differs(got, rec))
         }
         OP_SHAPE_TEST_POINT => {
@@ -437,6 +512,12 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                 return Some(false);
             }
             let got = shape_test_point(world, shape, point);
+            if let Some(stash) = stash.as_deref_mut() {
+                let q = stash.begin(super::RecQueryType::ShapeTestPoint, &[]);
+                q.shape = shape;
+                q.origin = point;
+                q.bool_result = rec;
+            }
             Some(got == rec)
         }
         OP_SHAPE_RAY_CAST => {
@@ -453,10 +534,43 @@ pub(crate) fn dispatch_query_op(opcode: u8, r: &mut SnapReader, world: &mut Worl
                     || (!vec2_differs(got.normal, rec.normal)
                         && !pos_differs(got.point, rec.point)
                         && !f32_differs(got.fraction, rec.fraction)));
+            if let Some(stash) = stash {
+                let q = stash.begin(super::RecQueryType::ShapeRayCast, &[]);
+                q.shape = shape;
+                // The ray starts at the origin
+                q.origin = origin;
+                q.translation = translation;
+                q.cast_out = rec;
+            }
             Some(matched)
         }
         _ => None,
     }
+}
+
+// Convert the reader-local hit tails to the pooled player stash form.
+
+fn overlap_stash_hits(hits: &[OverlapHit]) -> Vec<super::player_queries::RecordedHit> {
+    hits.iter()
+        .map(|h| super::player_queries::RecordedHit {
+            id: h.id,
+            user_return_b: h.user_return,
+            ..Default::default()
+        })
+        .collect()
+}
+
+fn cast_stash_hits(hits: &[CastHit]) -> Vec<super::player_queries::RecordedHit> {
+    hits.iter()
+        .map(|h| super::player_queries::RecordedHit {
+            id: h.id,
+            point: h.point,
+            normal: h.normal,
+            fraction: h.fraction,
+            user_return_f: h.user_return,
+            ..Default::default()
+        })
+        .collect()
 }
 
 fn r_ray_result(r: &mut SnapReader) -> RayResult {

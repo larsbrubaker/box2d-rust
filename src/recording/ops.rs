@@ -315,6 +315,85 @@ pub fn validate_replay(data: &[u8]) -> bool {
     result.ok && !result.diverged
 }
 
+/// Dispatch a world-config opcode (0x01-0x0D). Shared by the linear
+/// replay loop and the incremental player. Returns None when the opcode
+/// is not in this family.
+pub(crate) fn dispatch_world_op(opcode: u8, r: &mut SnapReader, world: &mut World) -> Option<bool> {
+    match opcode {
+        OP_WORLD_ENABLE_SLEEPING => {
+            let _ = r.r_u32();
+            let flag = r.r_bool();
+            crate::world::world_enable_sleeping(world, flag);
+        }
+        OP_WORLD_ENABLE_CONTINUOUS => {
+            let _ = r.r_u32();
+            let flag = r.r_bool();
+            crate::world::world_enable_continuous(world, flag);
+        }
+        OP_WORLD_SET_RESTITUTION_THRESHOLD => {
+            let _ = r.r_u32();
+            let value = r.r_f32();
+            crate::world::world_set_restitution_threshold(world, value);
+        }
+        OP_WORLD_SET_HIT_EVENT_THRESHOLD => {
+            let _ = r.r_u32();
+            let value = r.r_f32();
+            crate::world::world_set_hit_event_threshold(world, value);
+        }
+        OP_WORLD_SET_GRAVITY => {
+            let _ = r.r_u32();
+            let gravity = crate::math_functions::Vec2 {
+                x: r.r_f32(),
+                y: r.r_f32(),
+            };
+            crate::world::world_set_gravity(world, gravity);
+        }
+        OP_WORLD_EXPLODE => {
+            let _ = r.r_u32();
+            let mut def = crate::types::default_explosion_def();
+            def.mask_bits = r.r_u64();
+            def.position = read_position(r);
+            def.radius = r.r_f32();
+            def.falloff = r.r_f32();
+            def.impulse_per_length = r.r_f32();
+            crate::world::world_explode(world, &def);
+        }
+        OP_WORLD_SET_CONTACT_TUNING => {
+            let _ = r.r_u32();
+            let hertz = r.r_f32();
+            let damping_ratio = r.r_f32();
+            let push_speed = r.r_f32();
+            crate::world::world_set_contact_tuning(world, hertz, damping_ratio, push_speed);
+        }
+        OP_WORLD_SET_CONTACT_RECYCLE_DISTANCE => {
+            let _ = r.r_u32();
+            let value = r.r_f32();
+            crate::world::world_set_contact_recycle_distance(world, value);
+        }
+        OP_WORLD_SET_MAXIMUM_LINEAR_SPEED => {
+            let _ = r.r_u32();
+            let value = r.r_f32();
+            crate::world::world_set_maximum_linear_speed(world, value);
+        }
+        OP_WORLD_ENABLE_WARM_STARTING => {
+            let _ = r.r_u32();
+            let flag = r.r_bool();
+            crate::world::world_enable_warm_starting(world, flag);
+        }
+        OP_WORLD_REBUILD_STATIC_TREE => {
+            let _ = r.r_u32();
+            crate::world::world_rebuild_static_tree(world);
+        }
+        OP_WORLD_ENABLE_SPECULATIVE => {
+            let _ = r.r_u32();
+            let flag = r.r_bool();
+            crate::world::world_enable_speculative(world, flag);
+        }
+        _ => return None,
+    }
+    Some(true)
+}
+
 /// (b2ReplayFile core loop, serial)
 pub fn replay_buffer(data: &[u8]) -> ReplayResult {
     let mut result = ReplayResult::default();
@@ -369,80 +448,6 @@ pub fn replay_buffer(data: &[u8]) -> ReplayResult {
                     result.diverged = true;
                 }
             }
-            OP_WORLD_ENABLE_SLEEPING => {
-                let _ = r.r_u32();
-                let flag = r.r_bool();
-                crate::world::world_enable_sleeping(&mut world, flag);
-            }
-            OP_WORLD_ENABLE_CONTINUOUS => {
-                let _ = r.r_u32();
-                let flag = r.r_bool();
-                crate::world::world_enable_continuous(&mut world, flag);
-            }
-            OP_WORLD_SET_RESTITUTION_THRESHOLD => {
-                let _ = r.r_u32();
-                let value = r.r_f32();
-                crate::world::world_set_restitution_threshold(&mut world, value);
-            }
-            OP_WORLD_SET_HIT_EVENT_THRESHOLD => {
-                let _ = r.r_u32();
-                let value = r.r_f32();
-                crate::world::world_set_hit_event_threshold(&mut world, value);
-            }
-            OP_WORLD_SET_GRAVITY => {
-                let _ = r.r_u32();
-                let gravity = crate::math_functions::Vec2 {
-                    x: r.r_f32(),
-                    y: r.r_f32(),
-                };
-                crate::world::world_set_gravity(&mut world, gravity);
-            }
-            OP_WORLD_EXPLODE => {
-                let _ = r.r_u32();
-                let mut def = crate::types::default_explosion_def();
-                def.mask_bits = r.r_u64();
-                def.position = read_position(&mut r);
-                def.radius = r.r_f32();
-                def.falloff = r.r_f32();
-                def.impulse_per_length = r.r_f32();
-                crate::world::world_explode(&mut world, &def);
-            }
-            OP_WORLD_SET_CONTACT_TUNING => {
-                let _ = r.r_u32();
-                let hertz = r.r_f32();
-                let damping_ratio = r.r_f32();
-                let push_speed = r.r_f32();
-                crate::world::world_set_contact_tuning(
-                    &mut world,
-                    hertz,
-                    damping_ratio,
-                    push_speed,
-                );
-            }
-            OP_WORLD_SET_CONTACT_RECYCLE_DISTANCE => {
-                let _ = r.r_u32();
-                let value = r.r_f32();
-                crate::world::world_set_contact_recycle_distance(&mut world, value);
-            }
-            OP_WORLD_SET_MAXIMUM_LINEAR_SPEED => {
-                let _ = r.r_u32();
-                let value = r.r_f32();
-                crate::world::world_set_maximum_linear_speed(&mut world, value);
-            }
-            OP_WORLD_ENABLE_WARM_STARTING => {
-                let _ = r.r_u32();
-                let flag = r.r_bool();
-                crate::world::world_enable_warm_starting(&mut world, flag);
-            }
-            OP_WORLD_REBUILD_STATIC_TREE => {
-                let _ = r.r_u32();
-                crate::world::world_rebuild_static_tree(&mut world);
-            }
-            OP_WORLD_ENABLE_SPECULATIVE => {
-                let _ = r.r_u32();
-                let flag = r.r_bool();
-                crate::world::world_enable_speculative(&mut world, flag);
-            }
             OP_RECORDING_BOUNDS => {
                 result.bounds = Aabb {
                     lower_bound: crate::math_functions::Vec2 {
@@ -462,10 +467,13 @@ pub fn replay_buffer(data: &[u8]) -> ReplayResult {
                 return result;
             }
             _ => {
-                let handled = super::ops_body::dispatch_body_op(opcode, &mut r, &mut world)
+                let handled = dispatch_world_op(opcode, &mut r, &mut world)
+                    .or_else(|| super::ops_body::dispatch_body_op(opcode, &mut r, &mut world, None))
                     .or_else(|| super::ops_shape::dispatch_shape_op(opcode, &mut r, &mut world))
                     .or_else(|| super::ops_joint::dispatch_joint_op(opcode, &mut r, &mut world))
-                    .or_else(|| super::ops_query::dispatch_query_op(opcode, &mut r, &mut world));
+                    .or_else(|| {
+                        super::ops_query::dispatch_query_op(opcode, &mut r, &mut world, None)
+                    });
                 if let Some(ids_match) = handled {
                     if !ids_match {
                         // A create op returned a different id than recorded:
