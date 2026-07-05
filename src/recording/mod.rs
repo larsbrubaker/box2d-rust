@@ -19,8 +19,10 @@
 use crate::math_functions::{Aabb, Pos};
 use crate::world::World;
 
+mod snapshot;
 mod write;
 
+pub use snapshot::*;
 pub use write::*;
 
 /// FNV-1a 64-bit initial value. (B2_SNAP_FNV_INIT)

@@ -16,9 +16,9 @@ use crate::core::pop_count64;
 #[derive(Debug, Clone, Default)]
 pub struct BitSet {
     /// Backing storage. `blocks.len()` is the block capacity.
-    blocks: Vec<u64>,
+    pub(crate) blocks: Vec<u64>,
     /// Logical number of active blocks (`blockCount` in C).
-    block_count: u32,
+    pub(crate) block_count: u32,
 }
 
 impl BitSet {

@@ -29,8 +29,8 @@ pub fn shape_pair_key(k1: i32, k2: i32) -> u64 {
 #[derive(Debug, Clone, Default)]
 pub struct HashSet {
     /// Backing slots; `items.len()` is the capacity. A slot of 0 is empty.
-    items: Vec<u64>,
-    count: u32,
+    pub(crate) items: Vec<u64>,
+    pub(crate) count: u32,
 }
 
 // Murmur hash finalizer. A good mixer matters here because keys are built from

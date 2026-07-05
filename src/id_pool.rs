@@ -9,8 +9,8 @@
 /// (b2IdPool)
 #[derive(Debug, Clone, Default)]
 pub struct IdPool {
-    free_array: Vec<i32>,
-    next_index: i32,
+    pub(crate) free_array: Vec<i32>,
+    pub(crate) next_index: i32,
 }
 
 impl IdPool {
