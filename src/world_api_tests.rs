@@ -292,7 +292,7 @@ fn world_queries() {
     // Overlap AABB on the box finds it; far away finds nothing.
     let mut count = 0;
     world_overlap_aabb(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: 0.0, y: 0.0 }),
         crate::math_functions::Aabb {
             lower_bound: Vec2 { x: -0.5, y: -0.5 },
@@ -308,7 +308,7 @@ fn world_queries() {
 
     count = 0;
     world_overlap_aabb(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: 100.0, y: 0.0 }),
         crate::math_functions::Aabb {
             lower_bound: Vec2 { x: -0.5, y: -0.5 },
@@ -326,7 +326,7 @@ fn world_queries() {
     let circle_proxy = crate::distance::make_proxy(&[Vec2 { x: 0.0, y: 0.0 }], 0.25);
     count = 0;
     world_overlap_shape(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: 0.0, y: 0.0 }),
         &circle_proxy,
         filter,
@@ -339,7 +339,7 @@ fn world_queries() {
 
     // Closest ray cast from the left hits the x = -1 face at fraction 0.4.
     let result = world_cast_ray_closest(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: -5.0, y: 0.0 }),
         Vec2 { x: 10.0, y: 0.0 },
         filter,
@@ -352,7 +352,7 @@ fn world_queries() {
     // Callback-form ray cast sees the same single hit.
     let mut hits = 0;
     world_cast_ray(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: -5.0, y: 0.0 }),
         Vec2 { x: 10.0, y: 0.0 },
         filter,
@@ -368,7 +368,7 @@ fn world_queries() {
     // linear-slop sized tolerance of the surface.
     let mut cast_fraction = 1.0f32;
     world_cast_shape(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: -5.0, y: 0.0 }),
         &circle_proxy,
         Vec2 { x: 10.0, y: 0.0 },
@@ -387,7 +387,7 @@ fn world_queries() {
         radius: 0.1,
     };
     let mover_fraction = world_cast_mover(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: -5.0, y: 0.0 }),
         &mover,
         Vec2 { x: 10.0, y: 0.0 },
@@ -400,7 +400,7 @@ fn world_queries() {
     let mut plane_count = 0;
     let mut plane_normal_x = 0.0f32;
     world_collide_mover(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: -1.05, y: 0.0 }),
         &mover,
         filter,

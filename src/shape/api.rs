@@ -72,24 +72,36 @@ pub fn shape_is_sensor(world: &World, shape_id: ShapeId) -> bool {
 }
 
 /// Test a point for overlap with a shape. (b2Shape_TestPoint)
-pub fn shape_test_point(world: &World, shape_id: ShapeId, point: Pos) -> bool {
+pub fn shape_test_point(world: &mut World, shape_id: ShapeId, point: Pos) -> bool {
     let shape_index = get_shape_index(world, shape_id);
     let shape = &world.shapes[shape_index as usize];
 
     let transform = get_body_transform(world, shape.body_id);
     let local_point = inv_transform_world_point(transform, point);
 
-    match &shape.geometry {
+    let result = match &shape.geometry {
         ShapeGeometry::Capsule(capsule) => point_in_capsule(capsule, local_point),
         ShapeGeometry::Circle(circle) => point_in_circle(circle, local_point),
         ShapeGeometry::Polygon(polygon) => point_in_polygon(polygon, local_point),
         _ => false,
-    }
+    };
+
+    crate::recording::record_query_result(
+        world,
+        crate::recording::OP_SHAPE_TEST_POINT,
+        |buf| {
+            crate::recording::rec_w_shapeid(buf, shape_id);
+            crate::recording::rec_w_position(buf, point);
+        },
+        |buf| crate::recording::rec_w_bool(buf, result),
+    );
+
+    result
 }
 
 /// Ray cast a shape directly. (b2Shape_RayCast)
 pub fn shape_ray_cast(
-    world: &World,
+    world: &mut World,
     shape_id: ShapeId,
     origin: Pos,
     translation: Vec2,
@@ -112,13 +124,26 @@ pub fn shape_ray_cast(
 
     // Lift the re-centered float result back to a world position
     let local = ray_cast_shape(&input, shape, transform);
-    WorldCastOutput {
+    let output = WorldCastOutput {
         normal: local.normal,
         point: offset_pos(origin, local.point),
         fraction: local.fraction,
         iterations: local.iterations,
         hit: local.hit,
-    }
+    };
+
+    crate::recording::record_query_result(
+        world,
+        crate::recording::OP_SHAPE_RAY_CAST,
+        |buf| {
+            crate::recording::rec_w_shapeid(buf, shape_id);
+            crate::recording::rec_w_position(buf, origin);
+            crate::recording::rec_w_vec2(buf, translation);
+        },
+        |buf| crate::recording::rec_w_worldcastoutput(buf, output),
+    );
+
+    output
 }
 
 /// Set the mass density of a shape, usually in kg/m^2. (b2Shape_SetDensity)

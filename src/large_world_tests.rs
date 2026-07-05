@@ -216,7 +216,7 @@ fn run_ray_cast(base: Pos) -> Vec2 {
     // at base + {-0.5, 0}.
     let origin = offset_pos(base, Vec2 { x: -5.0, y: 0.0 });
     let translation = Vec2 { x: 10.0, y: 0.0 };
-    let result = world_cast_ray_closest(&world, origin, translation, default_query_filter());
+    let result = world_cast_ray_closest(&mut world, origin, translation, default_query_filter());
 
     // A miss leaves the point at the origin, which the caller's position
     // check rejects
@@ -280,7 +280,7 @@ fn run_origin_queries(base: Pos) -> OriginQueryData {
     // Overlap a small circle centered on the box
     let center = Vec2 { x: 0.0, y: 0.0 };
     let overlap_proxy = make_proxy(&[center], 0.1);
-    world_overlap_shape(&world, base, &overlap_proxy, filter, |_| {
+    world_overlap_shape(&mut world, base, &overlap_proxy, filter, |_| {
         data.overlap_count += 1;
         true
     });
@@ -290,7 +290,7 @@ fn run_origin_queries(base: Pos) -> OriginQueryData {
     let start = Vec2 { x: -5.0, y: 0.0 };
     let cast_proxy = make_proxy(&[start], 0.1);
     world_cast_shape(
-        &world,
+        &mut world,
         base,
         &cast_proxy,
         Vec2 { x: 10.0, y: 0.0 },
@@ -308,7 +308,8 @@ fn run_origin_queries(base: Pos) -> OriginQueryData {
         center2: Vec2 { x: -5.0, y: 0.2 },
         radius: 0.3,
     };
-    data.mover_fraction = world_cast_mover(&world, base, &mover, Vec2 { x: 10.0, y: 0.0 }, filter);
+    data.mover_fraction =
+        world_cast_mover(&mut world, base, &mover, Vec2 { x: 10.0, y: 0.0 }, filter);
 
     // Mover overlapping the box gathers planes
     let touching = Capsule {
@@ -316,16 +317,16 @@ fn run_origin_queries(base: Pos) -> OriginQueryData {
         center2: Vec2 { x: -0.9, y: 0.2 },
         radius: 0.5,
     };
-    world_collide_mover(&world, base, &touching, filter, |_, _| {
+    world_collide_mover(&mut world, base, &touching, filter, |_, _| {
         data.plane_count += 1;
         true
     });
 
     // Shape level queries at the base
-    data.inside_point = shape_test_point(&world, shape_id, base);
+    data.inside_point = shape_test_point(&mut world, shape_id, base);
 
     let ray_output = shape_ray_cast(
-        &world,
+        &mut world,
         shape_id,
         offset_pos(base, Vec2 { x: -5.0, y: 0.0 }),
         Vec2 { x: 10.0, y: 0.0 },

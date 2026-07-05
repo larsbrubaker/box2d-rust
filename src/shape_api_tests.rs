@@ -272,19 +272,19 @@ fn shape_accessors() {
 
     // Point tests in world space: body center is inside, far point is not.
     assert!(shape_test_point(
-        &world,
+        &mut world,
         shape_id,
         to_pos(Vec2 { x: 1.0, y: 2.0 })
     ));
     assert!(!shape_test_point(
-        &world,
+        &mut world,
         shape_id,
         to_pos(Vec2 { x: 3.0, y: 2.0 })
     ));
 
     // Direct ray cast hits the left face at x = 0.5.
     let output = shape_ray_cast(
-        &world,
+        &mut world,
         shape_id,
         to_pos(Vec2 { x: -2.0, y: 2.0 }),
         Vec2 { x: 5.0, y: 0.0 },
@@ -341,7 +341,7 @@ fn shape_accessors() {
 
     // World ray cast still sees the reshaped body where it stands.
     let ray = world_cast_ray_closest(
-        &world,
+        &mut world,
         to_pos(Vec2 { x: -5.0, y: 2.0 }),
         Vec2 { x: 10.0, y: 0.0 },
         default_query_filter(),

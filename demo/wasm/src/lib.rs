@@ -682,7 +682,7 @@ impl SimWorld {
         // Gather contact planes at the current position.
         let mut planes: Vec<CollisionPlane> = Vec::new();
         world_collide_mover(
-            &self.world,
+            &mut self.world,
             self.mover_position,
             &capsule,
             filter,
@@ -713,7 +713,7 @@ impl SimWorld {
         let target = m::mul_sv(dt, *v);
         let result = solve_planes(target, &mut planes);
         let fraction = world_cast_mover(
-            &self.world,
+            &mut self.world,
             self.mover_position,
             &capsule,
             result.translation,
