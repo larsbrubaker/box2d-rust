@@ -328,7 +328,19 @@ pub fn create_distance_joint(world: &mut World, def: &DistanceJointDef) -> Joint
     joint.upper_impulse = 0.0;
     joint.motor_impulse = 0.0;
 
-    make_joint_id(world, joint_id)
+    let id = make_joint_id(world, joint_id);
+
+    // (B2_REC_CREATE)
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_joint(
+            rec,
+            crate::recording::OP_CREATE_DISTANCE_JOINT,
+            |buf| crate::recording::rec_w_distancejointdef(buf, def),
+            id,
+        )
+    });
+
+    id
 }
 
 /// (b2CreateMotorJoint)
@@ -351,7 +363,19 @@ pub fn create_motor_joint(world: &mut World, def: &MotorJointDef) -> JointId {
     joint.angular_damping_ratio = def.angular_damping_ratio;
     joint.max_spring_torque = def.max_spring_torque;
 
-    make_joint_id(world, joint_id)
+    let id = make_joint_id(world, joint_id);
+
+    // (B2_REC_CREATE)
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_joint(
+            rec,
+            crate::recording::OP_CREATE_MOTOR_JOINT,
+            |buf| crate::recording::rec_w_motorjointdef(buf, def),
+            id,
+        )
+    });
+
+    id
 }
 
 /// (b2CreateFilterJoint)
@@ -360,7 +384,19 @@ pub fn create_filter_joint(world: &mut World, def: &FilterJointDef) -> JointId {
 
     let joint_id = create_joint(world, &def.base, JointType::Filter);
 
-    make_joint_id(world, joint_id)
+    let id = make_joint_id(world, joint_id);
+
+    // (B2_REC_CREATE)
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_joint(
+            rec,
+            crate::recording::OP_CREATE_FILTER_JOINT,
+            |buf| crate::recording::rec_w_filterjointdef(buf, def),
+            id,
+        )
+    });
+
+    id
 }
 
 /// (b2CreatePrismaticJoint)
@@ -384,7 +420,19 @@ pub fn create_prismatic_joint(world: &mut World, def: &PrismaticJointDef) -> Joi
     joint.enable_limit = def.enable_limit;
     joint.enable_motor = def.enable_motor;
 
-    make_joint_id(world, joint_id)
+    let id = make_joint_id(world, joint_id);
+
+    // (B2_REC_CREATE)
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_joint(
+            rec,
+            crate::recording::OP_CREATE_PRISMATIC_JOINT,
+            |buf| crate::recording::rec_w_prismaticjointdef(buf, def),
+            id,
+        )
+    });
+
+    id
 }
 
 /// (b2CreateRevoluteJoint)
@@ -410,7 +458,19 @@ pub fn create_revolute_joint(world: &mut World, def: &RevoluteJointDef) -> Joint
     joint.enable_limit = def.enable_limit;
     joint.enable_motor = def.enable_motor;
 
-    make_joint_id(world, joint_id)
+    let id = make_joint_id(world, joint_id);
+
+    // (B2_REC_CREATE)
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_joint(
+            rec,
+            crate::recording::OP_CREATE_REVOLUTE_JOINT,
+            |buf| crate::recording::rec_w_revolutejointdef(buf, def),
+            id,
+        )
+    });
+
+    id
 }
 
 /// (b2CreateWeldJoint)
@@ -427,7 +487,19 @@ pub fn create_weld_joint(world: &mut World, def: &WeldJointDef) -> JointId {
     joint.angular_hertz = def.angular_hertz;
     joint.angular_damping_ratio = def.angular_damping_ratio;
 
-    make_joint_id(world, joint_id)
+    let id = make_joint_id(world, joint_id);
+
+    // (B2_REC_CREATE)
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_joint(
+            rec,
+            crate::recording::OP_CREATE_WELD_JOINT,
+            |buf| crate::recording::rec_w_weldjointdef(buf, def),
+            id,
+        )
+    });
+
+    id
 }
 
 /// (b2CreateWheelJoint)
@@ -450,11 +522,26 @@ pub fn create_wheel_joint(world: &mut World, def: &WheelJointDef) -> JointId {
     joint.enable_limit = def.enable_limit;
     joint.enable_motor = def.enable_motor;
 
-    make_joint_id(world, joint_id)
+    let id = make_joint_id(world, joint_id);
+
+    // (B2_REC_CREATE)
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_joint(
+            rec,
+            crate::recording::OP_CREATE_WHEEL_JOINT,
+            |buf| crate::recording::rec_w_wheeljointdef(buf, def),
+            id,
+        )
+    });
+
+    id
 }
 
 /// (b2DestroyJoint)
 pub fn destroy_joint(world: &mut World, joint_id: JointId, wake_attached: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_destroy_joint(rec, joint_id, wake_attached)
+    });
     let joint_index = get_joint_full_id(world, joint_id);
     destroy_joint_internal(world, joint_index, wake_attached);
 }

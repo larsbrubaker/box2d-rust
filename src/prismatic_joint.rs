@@ -28,6 +28,14 @@ use crate::world::World;
 
 /// (b2PrismaticJoint_EnableSpring)
 pub fn prismatic_joint_enable_spring(world: &mut World, joint_id: JointId, enable_spring: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_bool(
+            rec,
+            crate::recording::OP_PRISMATIC_ENABLE_SPRING,
+            joint_id,
+            enable_spring,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
     let prismatic = joint.prismatic_mut();
     if enable_spring != prismatic.enable_spring {
@@ -44,6 +52,14 @@ pub fn prismatic_joint_is_spring_enabled(world: &World, joint_id: JointId) -> bo
 
 /// (b2PrismaticJoint_SetSpringHertz)
 pub fn prismatic_joint_set_spring_hertz(world: &mut World, joint_id: JointId, hertz: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_PRISMATIC_SET_SPRING_HERTZ,
+            joint_id,
+            hertz,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
     joint.prismatic_mut().hertz = hertz;
 }
@@ -60,6 +76,14 @@ pub fn prismatic_joint_set_spring_damping_ratio(
     joint_id: JointId,
     damping_ratio: f32,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_PRISMATIC_SET_SPRING_DAMPING_RATIO,
+            joint_id,
+            damping_ratio,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
     joint.prismatic_mut().damping_ratio = damping_ratio;
 }
@@ -76,6 +100,14 @@ pub fn prismatic_joint_set_target_translation(
     joint_id: JointId,
     translation: f32,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_PRISMATIC_SET_TARGET_TRANSLATION,
+            joint_id,
+            translation,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
     joint.prismatic_mut().target_translation = translation;
 }
@@ -88,6 +120,14 @@ pub fn prismatic_joint_get_target_translation(world: &World, joint_id: JointId) 
 
 /// (b2PrismaticJoint_EnableLimit)
 pub fn prismatic_joint_enable_limit(world: &mut World, joint_id: JointId, enable_limit: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_bool(
+            rec,
+            crate::recording::OP_PRISMATIC_ENABLE_LIMIT,
+            joint_id,
+            enable_limit,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
     let prismatic = joint.prismatic_mut();
     if enable_limit != prismatic.enable_limit {
@@ -117,6 +157,15 @@ pub fn prismatic_joint_get_upper_limit(world: &World, joint_id: JointId) -> f32 
 
 /// (b2PrismaticJoint_SetLimits)
 pub fn prismatic_joint_set_limits(world: &mut World, joint_id: JointId, lower: f32, upper: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32_pair(
+            rec,
+            crate::recording::OP_PRISMATIC_SET_LIMITS,
+            joint_id,
+            lower,
+            upper,
+        )
+    });
     debug_assert!(lower <= upper);
 
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
@@ -131,6 +180,14 @@ pub fn prismatic_joint_set_limits(world: &mut World, joint_id: JointId, lower: f
 
 /// (b2PrismaticJoint_EnableMotor)
 pub fn prismatic_joint_enable_motor(world: &mut World, joint_id: JointId, enable_motor: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_bool(
+            rec,
+            crate::recording::OP_PRISMATIC_ENABLE_MOTOR,
+            joint_id,
+            enable_motor,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
     let prismatic = joint.prismatic_mut();
     if enable_motor != prismatic.enable_motor {
@@ -147,6 +204,14 @@ pub fn prismatic_joint_is_motor_enabled(world: &World, joint_id: JointId) -> boo
 
 /// (b2PrismaticJoint_SetMotorSpeed)
 pub fn prismatic_joint_set_motor_speed(world: &mut World, joint_id: JointId, motor_speed: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_PRISMATIC_SET_MOTOR_SPEED,
+            joint_id,
+            motor_speed,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
     joint.prismatic_mut().motor_speed = motor_speed;
 }
@@ -165,6 +230,14 @@ pub fn prismatic_joint_get_motor_force(world: &World, joint_id: JointId) -> f32 
 
 /// (b2PrismaticJoint_SetMaxMotorForce)
 pub fn prismatic_joint_set_max_motor_force(world: &mut World, joint_id: JointId, force: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_PRISMATIC_SET_MAX_MOTOR_FORCE,
+            joint_id,
+            force,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Prismatic);
     joint.prismatic_mut().max_motor_force = force;
 }

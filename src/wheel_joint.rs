@@ -24,6 +24,14 @@ use crate::world::World;
 
 /// (b2WheelJoint_EnableSpring)
 pub fn wheel_joint_enable_spring(world: &mut World, joint_id: JointId, enable_spring: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_bool(
+            rec,
+            crate::recording::OP_WHEEL_ENABLE_SPRING,
+            joint_id,
+            enable_spring,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Wheel);
     let wheel = joint.wheel_mut();
     if enable_spring != wheel.enable_spring {
@@ -40,6 +48,14 @@ pub fn wheel_joint_is_spring_enabled(world: &World, joint_id: JointId) -> bool {
 
 /// (b2WheelJoint_SetSpringHertz)
 pub fn wheel_joint_set_spring_hertz(world: &mut World, joint_id: JointId, hertz: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_WHEEL_SET_SPRING_HERTZ,
+            joint_id,
+            hertz,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Wheel);
     joint.wheel_mut().hertz = hertz;
 }
@@ -56,6 +72,14 @@ pub fn wheel_joint_set_spring_damping_ratio(
     joint_id: JointId,
     damping_ratio: f32,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_WHEEL_SET_SPRING_DAMPING_RATIO,
+            joint_id,
+            damping_ratio,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Wheel);
     joint.wheel_mut().damping_ratio = damping_ratio;
 }
@@ -68,6 +92,14 @@ pub fn wheel_joint_get_spring_damping_ratio(world: &World, joint_id: JointId) ->
 
 /// (b2WheelJoint_EnableLimit)
 pub fn wheel_joint_enable_limit(world: &mut World, joint_id: JointId, enable_limit: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_bool(
+            rec,
+            crate::recording::OP_WHEEL_ENABLE_LIMIT,
+            joint_id,
+            enable_limit,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Wheel);
     let wheel = joint.wheel_mut();
     if wheel.enable_limit != enable_limit {
@@ -97,6 +129,15 @@ pub fn wheel_joint_get_upper_limit(world: &World, joint_id: JointId) -> f32 {
 
 /// (b2WheelJoint_SetLimits)
 pub fn wheel_joint_set_limits(world: &mut World, joint_id: JointId, lower: f32, upper: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32_pair(
+            rec,
+            crate::recording::OP_WHEEL_SET_LIMITS,
+            joint_id,
+            lower,
+            upper,
+        )
+    });
     debug_assert!(lower <= upper);
 
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Wheel);
@@ -111,6 +152,14 @@ pub fn wheel_joint_set_limits(world: &mut World, joint_id: JointId, lower: f32, 
 
 /// (b2WheelJoint_EnableMotor)
 pub fn wheel_joint_enable_motor(world: &mut World, joint_id: JointId, enable_motor: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_bool(
+            rec,
+            crate::recording::OP_WHEEL_ENABLE_MOTOR,
+            joint_id,
+            enable_motor,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Wheel);
     let wheel = joint.wheel_mut();
     if wheel.enable_motor != enable_motor {
@@ -127,6 +176,14 @@ pub fn wheel_joint_is_motor_enabled(world: &World, joint_id: JointId) -> bool {
 
 /// (b2WheelJoint_SetMotorSpeed)
 pub fn wheel_joint_set_motor_speed(world: &mut World, joint_id: JointId, motor_speed: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_WHEEL_SET_MOTOR_SPEED,
+            joint_id,
+            motor_speed,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Wheel);
     joint.wheel_mut().motor_speed = motor_speed;
 }
@@ -145,6 +202,14 @@ pub fn wheel_joint_get_motor_torque(world: &World, joint_id: JointId) -> f32 {
 
 /// (b2WheelJoint_SetMaxMotorTorque)
 pub fn wheel_joint_set_max_motor_torque(world: &mut World, joint_id: JointId, torque: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_WHEEL_SET_MAX_MOTOR_TORQUE,
+            joint_id,
+            torque,
+        )
+    });
     let joint = get_joint_sim_check_type(world, joint_id, JointType::Wheel);
     joint.wheel_mut().max_motor_torque = torque;
 }

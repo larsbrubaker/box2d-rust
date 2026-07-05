@@ -58,6 +58,14 @@ pub fn joint_get_body_b(world: &World, joint_id: JointId) -> BodyId {
 
 /// (b2Joint_SetLocalFrameA)
 pub fn joint_set_local_frame_a(world: &mut World, joint_id: JointId, local_frame: Transform) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_xf(
+            rec,
+            crate::recording::OP_JOINT_SET_LOCAL_FRAME_A,
+            joint_id,
+            local_frame,
+        )
+    });
     debug_assert!(is_valid_transform(local_frame));
 
     let joint_index = get_joint_full_id(world, joint_id);
@@ -73,6 +81,14 @@ pub fn joint_get_local_frame_a(world: &World, joint_id: JointId) -> Transform {
 
 /// (b2Joint_SetLocalFrameB)
 pub fn joint_set_local_frame_b(world: &mut World, joint_id: JointId, local_frame: Transform) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_xf(
+            rec,
+            crate::recording::OP_JOINT_SET_LOCAL_FRAME_B,
+            joint_id,
+            local_frame,
+        )
+    });
     debug_assert!(is_valid_transform(local_frame));
 
     let joint_index = get_joint_full_id(world, joint_id);
@@ -88,6 +104,14 @@ pub fn joint_get_local_frame_b(world: &World, joint_id: JointId) -> Transform {
 
 /// (b2Joint_SetCollideConnected)
 pub fn joint_set_collide_connected(world: &mut World, joint_id: JointId, should_collide: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_bool(
+            rec,
+            crate::recording::OP_JOINT_SET_COLLIDE_CONNECTED,
+            joint_id,
+            should_collide,
+        )
+    });
     let joint_index = get_joint_full_id(world, joint_id);
     if world.joints[joint_index as usize].collide_connected == should_collide {
         return;
@@ -142,6 +166,9 @@ pub fn joint_get_user_data(world: &World, joint_id: JointId) -> u64 {
 
 /// (b2Joint_WakeBodies)
 pub fn joint_wake_bodies(world: &mut World, joint_id: JointId) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_marker(rec, crate::recording::OP_JOINT_WAKE_BODIES, joint_id)
+    });
     let joint_index = get_joint_full_id(world, joint_id);
     let body_id_a = world.joints[joint_index as usize].edges[0].body_id;
     let body_id_b = world.joints[joint_index as usize].edges[1].body_id;
@@ -316,6 +343,15 @@ pub fn joint_set_constraint_tuning(
     hertz: f32,
     damping_ratio: f32,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32_pair(
+            rec,
+            crate::recording::OP_JOINT_SET_CONSTRAINT_TUNING,
+            joint_id,
+            hertz,
+            damping_ratio,
+        )
+    });
     debug_assert!(is_valid_float(hertz) && hertz >= 0.0);
     debug_assert!(is_valid_float(damping_ratio) && damping_ratio >= 0.0);
 
@@ -334,6 +370,14 @@ pub fn joint_get_constraint_tuning(world: &World, joint_id: JointId) -> (f32, f3
 
 /// (b2Joint_SetForceThreshold)
 pub fn joint_set_force_threshold(world: &mut World, joint_id: JointId, threshold: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_JOINT_SET_FORCE_THRESHOLD,
+            joint_id,
+            threshold,
+        )
+    });
     debug_assert!(is_valid_float(threshold) && threshold >= 0.0);
 
     let joint_index = get_joint_full_id(world, joint_id);
@@ -349,6 +393,14 @@ pub fn joint_get_force_threshold(world: &World, joint_id: JointId) -> f32 {
 
 /// (b2Joint_SetTorqueThreshold)
 pub fn joint_set_torque_threshold(world: &mut World, joint_id: JointId, threshold: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_joint_f32(
+            rec,
+            crate::recording::OP_JOINT_SET_TORQUE_THRESHOLD,
+            joint_id,
+            threshold,
+        )
+    });
     debug_assert!(is_valid_float(threshold) && threshold >= 0.0);
 
     let joint_index = get_joint_full_id(world, joint_id);

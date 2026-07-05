@@ -433,7 +433,8 @@ pub fn replay_buffer(data: &[u8]) -> ReplayResult {
             }
             _ => {
                 let handled = super::ops_body::dispatch_body_op(opcode, &mut r, &mut world)
-                    .or_else(|| super::ops_shape::dispatch_shape_op(opcode, &mut r, &mut world));
+                    .or_else(|| super::ops_shape::dispatch_shape_op(opcode, &mut r, &mut world))
+                    .or_else(|| super::ops_joint::dispatch_joint_op(opcode, &mut r, &mut world));
                 if let Some(ids_match) = handled {
                     if !ids_match {
                         // A create op returned a different id than recorded:
