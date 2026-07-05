@@ -613,7 +613,10 @@ impl SimWorld {
     /// FNV-1a hash over all body transforms and velocities, as a hex string
     /// for display. (b2HashWorldState)
     pub fn state_hash(&self) -> String {
-        format!("{:016X}", box2d_rust::recording::hash_world_state(&self.world))
+        format!(
+            "{:016X}",
+            box2d_rust::recording::hash_world_state(&self.world)
+        )
     }
 
     /// Dynamic capsule (horizontal, half length `hl`), rotated by `angle`.
