@@ -17,6 +17,7 @@ const demoModules: Record<string, () => Promise<{ init: DemoInit }>> = {
   determinism: () => import("./demos/determinism.ts"),
   robustness: () => import("./demos/robustness.ts"),
   benchmark: () => import("./demos/benchmark.ts"),
+  replay: () => import("./demos/replay.ts"),
   geometry: () => import("./demos/geometry.ts"),
   manifolds: () => import("./demos/manifolds.ts"),
   math: () => import("./demos/math.ts"),
@@ -122,6 +123,11 @@ function renderHome(container: HTMLElement) {
           <span class="card-icon">&#9201;</span>
           <h3>Benchmark</h3>
           <p>A 465-body pyramid with live step timing. Watch the cost collapse when the island falls asleep.</p>
+        </a>
+        <a href="#/replay" class="feature-card">
+          <span class="card-icon">&#9199;</span>
+          <h3>Replay</h3>
+          <p>A recorded session scrubbed on a timeline &mdash; keyframe seeks land bit-identical to the original run.</p>
         </a>
         <a href="#/geometry" class="feature-card">
           <span class="card-icon">&#10140;</span>

@@ -21,6 +21,8 @@ export interface SimWorld {
   snapshot(): Uint8Array;
   restore(image: Uint8Array): boolean;
   state_hash(): string;
+  start_recording(): boolean;
+  stop_recording(): Uint8Array;
   mover_spawn(x: number, y: number): void;
   mover_update(dt: number, moveX: number, jump: boolean): Float32Array;
   add_capsule(x: number, y: number, hl: number, radius: number, density: number, angle: number): number;
@@ -35,6 +37,20 @@ export interface SimWorld {
   free(): void;
 }
 
+export interface SimPlayer {
+  step_frame(): boolean;
+  seek_frame(frame: number): void;
+  frame(): number;
+  frame_count(): number;
+  has_diverged(): boolean;
+  keyframe_interval(): number;
+  keyframe_kilobytes(): number;
+  positions(): Float32Array;
+  awake_body_count(): number;
+  contact_count(): number;
+  free(): void;
+}
+
 export interface Box2dWasm {
   version(): string;
   compute_cos_sin(radians: number): Float32Array;
@@ -45,6 +61,7 @@ export interface Box2dWasm {
   closest_points(bx: number, by: number): Float32Array;
   collide_with_box(kind: number, bx: number, by: number, angle: number): Float32Array;
   SimWorld: new (gravityY: number) => SimWorld;
+  SimPlayer: { open(data: Uint8Array): SimPlayer | undefined };
 }
 
 let wasmModule: Box2dWasm | null = null;
