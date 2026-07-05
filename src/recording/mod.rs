@@ -22,9 +22,11 @@ use crate::world::World;
 mod snapshot;
 mod snapshot_joints;
 mod snapshot_structs;
+mod snapshot_world;
 mod write;
 
 pub use snapshot::*;
+pub use snapshot_world::*;
 pub use write::*;
 
 /// FNV-1a 64-bit initial value. (B2_SNAP_FNV_INIT)

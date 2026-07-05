@@ -350,7 +350,7 @@ pub(crate) fn des_shape(r: &mut SnapReader) -> Shape {
     s
 }
 
-fn r_material(r: &mut SnapReader) -> crate::types::SurfaceMaterial {
+pub(crate) fn r_material(r: &mut SnapReader) -> crate::types::SurfaceMaterial {
     let mut m = crate::types::default_surface_material();
     m.friction = r.r_f32();
     m.restitution = r.r_f32();
