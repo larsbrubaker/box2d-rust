@@ -3,19 +3,18 @@
 //
 // Same conventions as distance_joint.rs. The C B2_WELD_BLOCK_SOLVE branch is
 // compiled out upstream (block solve doesn't work correctly with mixed
-// stiffness values) and is not ported. b2DrawWeldJoint lands with the
-// debug-draw phase.
+// stiffness values) and is not ported.
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
 //
 // bring-up: prepare/warm-start/solve are called by the solver slice.
-#![allow(dead_code)]
 
 use crate::body::{body_flags, BodyState, IDENTITY_BODY_STATE};
 use crate::core::NULL_INDEX;
 use crate::id::JointId;
 use crate::joint::{get_joint_sim_check_type, get_joint_sim_check_type_ref, JointSim, JointType};
+use crate::math_functions::WorldTransform;
 use crate::math_functions::{
     add, cross, cross_sv, inv_mul_rot, is_valid_float, is_valid_vec2, mul_add, mul_rot, mul_sub,
     mul_sv, rot_get_angle, rotate_vector, solve_22, sub, sub_pos, Vec2, MAT22_ZERO, VEC2_ZERO,
@@ -380,4 +379,26 @@ pub fn solve_weld_joint(
         state_b.angular_velocity = w_b;
         states[joint.index_b as usize] = state_b;
     }
+}
+
+/// (b2DrawWeldJoint)
+pub fn draw_weld_joint(
+    draw: &mut dyn crate::debug_draw::DebugDraw,
+    base: &JointSim,
+    transform_a: WorldTransform,
+    transform_b: WorldTransform,
+    draw_scale: f32,
+) {
+    use crate::debug_draw::HexColor;
+    use crate::geometry::make_box;
+    use crate::math_functions::offset_world_transform;
+
+    debug_assert!(base.joint_type() == JointType::Weld);
+
+    let frame_a = offset_world_transform(transform_a, base.local_frame_a);
+    let frame_b = offset_world_transform(transform_b, base.local_frame_b);
+
+    let box_ = make_box(0.25 * draw_scale, 0.125 * draw_scale);
+    draw.draw_polygon(frame_a, &box_.vertices[..4], HexColor::DARK_ORANGE);
+    draw.draw_polygon(frame_b, &box_.vertices[..4], HexColor::DARK_CYAN);
 }

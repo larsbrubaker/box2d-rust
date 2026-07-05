@@ -1,19 +1,18 @@
 // Port of wheel_joint.c: public accessors, force/torque reporting, and the
 // prepare/warm-start/solve simulation functions.
 //
-// Same conventions as distance_joint.rs. b2DrawWheelJoint lands with the
-// debug-draw phase.
+// Same conventions as distance_joint.rs.
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
 //
 // bring-up: prepare/warm-start/solve are called by the solver slice.
-#![allow(dead_code)]
 
 use crate::body::{body_flags, get_body_transform, BodyState, IDENTITY_BODY_STATE};
 use crate::core::NULL_INDEX;
 use crate::id::JointId;
 use crate::joint::{get_joint_sim_check_type, get_joint_sim_check_type_ref, JointSim, JointType};
+use crate::math_functions::WorldTransform;
 use crate::math_functions::{
     add, clamp_float, cross, dot, left_perp, max_float, min_float, mul_add, mul_rot, mul_sub,
     mul_sv, rotate_vector, sub, sub_pos, Vec2,
@@ -628,4 +627,60 @@ pub fn solve_wheel_joint(
         state_b.angular_velocity = w_b;
         states[joint.index_b as usize] = state_b;
     }
+}
+
+/// (b2DrawWheelJoint)
+pub fn draw_wheel_joint(
+    draw: &mut dyn crate::debug_draw::DebugDraw,
+    base: &JointSim,
+    transform_a: WorldTransform,
+    transform_b: WorldTransform,
+    draw_scale: f32,
+) {
+    use crate::debug_draw::HexColor;
+    use crate::math_functions::{
+        left_perp, mul_sv, neg, offset_pos, offset_world_transform, rotate_vector, Vec2,
+    };
+
+    debug_assert!(base.joint_type() == JointType::Wheel);
+
+    let joint = base.wheel();
+
+    let frame_a = offset_world_transform(transform_a, base.local_frame_a);
+    let frame_b = offset_world_transform(transform_b, base.local_frame_b);
+    let axis_a = rotate_vector(frame_a.q, Vec2 { x: 1.0, y: 0.0 });
+
+    let c1 = HexColor::GRAY;
+    let c2 = HexColor::GREEN;
+    let c3 = HexColor::RED;
+    let c4 = HexColor::DIM_GRAY;
+    let c5 = HexColor::BLUE;
+
+    draw.draw_line(frame_a.p, frame_b.p, c5);
+
+    if joint.enable_limit {
+        let lower = offset_pos(frame_a.p, mul_sv(joint.lower_translation, axis_a));
+        let upper = offset_pos(frame_a.p, mul_sv(joint.upper_translation, axis_a));
+        let perp = left_perp(axis_a);
+        draw.draw_line(lower, upper, c1);
+        draw.draw_line(
+            offset_pos(lower, mul_sv(-0.1 * draw_scale, perp)),
+            offset_pos(lower, mul_sv(0.1 * draw_scale, perp)),
+            c2,
+        );
+        draw.draw_line(
+            offset_pos(upper, mul_sv(-0.1 * draw_scale, perp)),
+            offset_pos(upper, mul_sv(0.1 * draw_scale, perp)),
+            c3,
+        );
+    } else {
+        draw.draw_line(
+            offset_pos(frame_a.p, neg(axis_a)),
+            offset_pos(frame_a.p, axis_a),
+            c1,
+        );
+    }
+
+    draw.draw_point(frame_a.p, 5.0, c1);
+    draw.draw_point(frame_b.p, 5.0, c4);
 }

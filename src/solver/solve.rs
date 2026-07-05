@@ -16,7 +16,6 @@
 // SPDX-License-Identifier: MIT
 //
 // bring-up: called by the world step slice.
-#![allow(dead_code)]
 // The range loops index two parallel arrays (constraints and graph colors).
 #![allow(clippy::needless_range_loop)]
 

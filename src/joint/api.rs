@@ -1,13 +1,11 @@
 // Joint public API from joint.c (b2Joint_*). The C resolves the world from
 // the id via the global registry; the Rust port takes `world` explicitly.
 // b2Joint_GetWorld is not ported (there is no world registry).
-// B2_REC recording is not ported. b2DrawJoint lands with the debug-draw phase.
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
 //
 // bring-up: exercised by the world API slice and tests.
-#![allow(dead_code)]
 
 use super::*;
 use crate::body::{make_body_id, wake_body};

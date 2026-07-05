@@ -14,8 +14,6 @@
 // SPDX-FileCopyrightText: 2026 Erin Catto
 // SPDX-License-Identifier: MIT
 
-#![allow(dead_code)] // bring-up: replay/snapshot slices land next; nothing calls this yet
-
 use crate::math_functions::{Aabb, Pos};
 use crate::world::World;
 

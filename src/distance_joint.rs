@@ -2,8 +2,7 @@
 // prepare/warm-start/solve simulation functions.
 //
 // The C accessors resolve the world from the id via the global registry
-// (b2GetWorld); the Rust port takes `world` explicitly. B2_REC recording is
-// not ported. b2DrawDistanceJoint lands with the debug-draw phase.
+// (b2GetWorld); the Rust port takes `world` explicitly.
 //
 // Borrow strategy for the sim functions: prepare takes &World (the caller
 // copies the JointSim out of the graph color and writes it back); warm start
@@ -14,13 +13,13 @@
 // SPDX-License-Identifier: MIT
 //
 // bring-up: prepare/warm-start/solve are called by the solver slice.
-#![allow(dead_code)]
 
 use crate::body::{body_flags, get_body_transform, BodyState, IDENTITY_BODY_STATE};
 use crate::constants::{huge, linear_slop};
 use crate::core::NULL_INDEX;
 use crate::id::JointId;
 use crate::joint::{get_joint_sim_check_type, get_joint_sim_check_type_ref, JointSim, JointType};
+use crate::math_functions::WorldTransform;
 use crate::math_functions::{
     add, clamp_float, cross, cross_sv, dot, length, max_float, min_float, mul_add, mul_sub, mul_sv,
     normalize, rotate_vector, sub, sub_pos, to_relative_transform, transform_point, Vec2,
@@ -658,5 +657,65 @@ pub fn solve_distance_joint(
         state_b.linear_velocity = v_b;
         state_b.angular_velocity = w_b;
         states[joint.index_b as usize] = state_b;
+    }
+}
+
+/// (b2DrawDistanceJoint)
+pub fn draw_distance_joint(
+    draw: &mut dyn crate::debug_draw::DebugDraw,
+    base: &JointSim,
+    transform_a: WorldTransform,
+    transform_b: WorldTransform,
+) {
+    use crate::debug_draw::HexColor;
+    use crate::math_functions::{
+        mul_sv, neg, normalize, offset_pos, right_perp, sub_pos, transform_world_point,
+    };
+
+    debug_assert!(base.joint_type() == JointType::Distance);
+
+    let joint = base.distance();
+
+    let p_a = transform_world_point(transform_a, base.local_frame_a.p);
+    let p_b = transform_world_point(transform_b, base.local_frame_b.p);
+
+    let axis = normalize(sub_pos(p_b, p_a));
+
+    if joint.min_length < joint.max_length && joint.enable_limit {
+        let p_min = offset_pos(p_a, mul_sv(joint.min_length, axis));
+        let p_max = offset_pos(p_a, mul_sv(joint.max_length, axis));
+        let offset = mul_sv(
+            0.05 * crate::core::get_length_units_per_meter(),
+            right_perp(axis),
+        );
+
+        if joint.min_length > linear_slop() {
+            draw.draw_line(
+                offset_pos(p_min, neg(offset)),
+                offset_pos(p_min, offset),
+                HexColor::LIGHT_GREEN,
+            );
+        }
+
+        if joint.max_length < huge() {
+            draw.draw_line(
+                offset_pos(p_max, neg(offset)),
+                offset_pos(p_max, offset),
+                HexColor::RED,
+            );
+        }
+
+        if joint.min_length > linear_slop() && joint.max_length < huge() {
+            draw.draw_line(p_min, p_max, HexColor::GRAY);
+        }
+    }
+
+    draw.draw_line(p_a, p_b, HexColor::WHITE);
+    draw.draw_point(p_a, 4.0, HexColor::WHITE);
+    draw.draw_point(p_b, 4.0, HexColor::WHITE);
+
+    if joint.hertz > 0.0 && joint.enable_spring {
+        let p_rest = offset_pos(p_a, mul_sv(joint.length, axis));
+        draw.draw_point(p_rest, 4.0, HexColor::BLUE);
     }
 }

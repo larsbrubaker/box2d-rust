@@ -558,11 +558,13 @@ impl JointSim {
 }
 
 mod api;
+mod draw;
 mod lifecycle;
 mod plumbing;
 mod solve;
 
 pub use api::*;
+pub use draw::*;
 pub use lifecycle::*;
 pub use plumbing::*;
 pub use solve::*;

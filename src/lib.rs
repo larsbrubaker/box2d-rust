@@ -14,6 +14,7 @@ pub mod constraint_graph;
 pub mod contact;
 pub mod contact_solver;
 pub mod core;
+pub mod debug_draw;
 pub mod distance;
 pub mod distance_joint;
 pub mod dynamic_tree;
@@ -47,6 +48,8 @@ mod aabb_tests;
 mod bitset_tests;
 #[cfg(test)]
 mod body_api_tests;
+#[cfg(test)]
+mod debug_draw_tests;
 #[cfg(test)]
 mod determinism_tests;
 #[cfg(test)]

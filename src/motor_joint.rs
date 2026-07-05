@@ -9,7 +9,6 @@
 // SPDX-License-Identifier: MIT
 //
 // bring-up: prepare/warm-start/solve are called by the solver slice.
-#![allow(dead_code)]
 
 use crate::body::{body_flags, BodyState, IDENTITY_BODY_STATE};
 use crate::core::NULL_INDEX;

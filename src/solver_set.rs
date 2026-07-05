@@ -215,7 +215,6 @@ pub fn wake_solver_set(world: &mut World, set_index: i32) {
 /// Islands need to have a deterministic order because data is moved to a
 /// sleeping set according to island order. (b2TrySleepIsland)
 // bring-up: called by the solver slice (b2Solve finalize stage).
-#[allow(dead_code)]
 pub fn try_sleep_island(world: &mut World, island_id: i32) {
     debug_assert!(world.islands[island_id as usize].set_index == AWAKE_SET);
 
@@ -549,7 +548,6 @@ pub fn try_sleep_island(world: &mut World, island_id: i32) {
 /// sets to continue sleeping if both are asleep. Otherwise one set is waked.
 /// Islands will get merged when the set is waked. (b2MergeSolverSets)
 // bring-up: called by the joint slice (b2CreateJoint between sleeping sets).
-#[allow(dead_code)]
 pub fn merge_solver_sets(world: &mut World, set_id1: i32, set_id2: i32) {
     debug_assert!(set_id1 >= FIRST_SLEEPING_SET);
     debug_assert!(set_id2 >= FIRST_SLEEPING_SET);
@@ -643,7 +641,6 @@ pub fn merge_solver_sets(world: &mut World, set_id1: i32, set_id2: i32) {
 /// Move a body between solver sets. (b2TransferBody — C passes set pointers;
 /// the Rust port passes set indices.)
 // bring-up: called by enable/disable body and destroy_body slices.
-#[allow(dead_code)]
 pub fn transfer_body(
     world: &mut World,
     target_set_index: i32,
@@ -693,7 +690,6 @@ pub fn transfer_body(
 /// Move a joint between solver sets. (b2TransferJoint — C passes set pointers;
 /// the Rust port passes set indices.)
 // bring-up: called by the joint slice.
-#[allow(dead_code)]
 pub fn transfer_joint(
     world: &mut World,
     target_set_index: i32,

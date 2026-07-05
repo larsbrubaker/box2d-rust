@@ -456,9 +456,11 @@ impl World {
 }
 
 mod api;
+mod draw;
 mod query;
 mod step;
 
 pub use api::*;
+pub use draw::*;
 pub use query::*;
 pub use step::*;

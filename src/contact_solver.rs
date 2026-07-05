@@ -25,7 +25,6 @@
 // SPDX-License-Identifier: MIT
 //
 // bring-up: called by the solver slice.
-#![allow(dead_code)]
 
 use crate::body::{body_flags, BodyState, IDENTITY_BODY_STATE};
 use crate::contact::ContactSim;

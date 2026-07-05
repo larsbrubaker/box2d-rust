@@ -327,3 +327,42 @@ pub fn remove_joint_from_graph(
         moved_joint.local_index = local_index;
     }
 }
+
+/// Visualization colors for the constraint graph slots. The last index
+/// (GRAPH_COLOR_COUNT - 1) is the overflow color. (b2_graphColors)
+const GRAPH_COLORS: [crate::debug_draw::HexColor; GRAPH_COLOR_COUNT as usize] = {
+    use crate::debug_draw::HexColor;
+    [
+        HexColor::RED,
+        HexColor::ORANGE,
+        HexColor::YELLOW,
+        HexColor::LIME_GREEN,
+        HexColor::SPRING_GREEN,
+        HexColor::AQUA,
+        HexColor::DODGER_BLUE,
+        HexColor::BLUE_VIOLET,
+        HexColor::MAGENTA,
+        HexColor::DEEP_PINK,
+        HexColor::CRIMSON,
+        HexColor::CORAL,
+        HexColor::GOLD,
+        HexColor::GREEN_YELLOW,
+        HexColor::MEDIUM_SEA_GREEN,
+        HexColor::TURQUOISE,
+        HexColor::DEEP_SKY_BLUE,
+        HexColor::CORNFLOWER_BLUE,
+        HexColor::MEDIUM_SLATE_BLUE,
+        HexColor::MEDIUM_ORCHID,
+        HexColor::HOT_PINK,
+        HexColor::TOMATO,
+        HexColor::KHAKI,
+        HexColor::SILVER,
+    ]
+};
+
+/// Get the visualization color assigned to a constraint graph color slot.
+/// (b2GetGraphColor)
+pub fn get_graph_color(index: i32) -> crate::debug_draw::HexColor {
+    debug_assert!((0..GRAPH_COLOR_COUNT).contains(&index));
+    GRAPH_COLORS[index as usize]
+}

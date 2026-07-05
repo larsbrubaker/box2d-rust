@@ -11,7 +11,6 @@
 // SPDX-License-Identifier: MIT
 //
 // bring-up: called by the solver slice.
-#![allow(dead_code)]
 
 use super::*;
 use crate::body::BodyState;

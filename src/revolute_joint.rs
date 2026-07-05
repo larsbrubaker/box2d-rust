@@ -4,18 +4,17 @@
 // Same conventions as distance_joint.rs: the world is passed explicitly,
 // B2_REC recording is not ported, sim functions copy body states out and back
 // writing only the fields the C guards with b2_dynamicFlag.
-// b2DrawRevoluteJoint lands with the debug-draw phase.
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
 //
 // bring-up: prepare/warm-start/solve are called by the solver slice.
-#![allow(dead_code)]
 
 use crate::body::{body_flags, get_body_transform, BodyState, IDENTITY_BODY_STATE};
 use crate::core::NULL_INDEX;
 use crate::id::JointId;
 use crate::joint::{get_joint_sim_check_type, get_joint_sim_check_type_ref, JointSim, JointType};
+use crate::math_functions::WorldTransform;
 use crate::math_functions::{
     add, clamp_float, cross, cross_sv, inv_mul_rot, max_float, min_float, mul_add, mul_rot,
     mul_sub, mul_sv, relative_angle, rot_get_angle, rotate_vector, solve_22, sub, sub_pos,
@@ -598,4 +597,67 @@ pub fn solve_revolute_joint(
         state_b.angular_velocity = w_b;
         states[joint.index_b as usize] = state_b;
     }
+}
+
+/// (b2DrawRevoluteJoint)
+pub fn draw_revolute_joint(
+    draw: &mut dyn crate::debug_draw::DebugDraw,
+    base: &JointSim,
+    transform_a: WorldTransform,
+    transform_b: WorldTransform,
+    draw_scale: f32,
+) {
+    use crate::debug_draw::HexColor;
+    use crate::math_functions::{
+        make_rot, mul_rot, offset_pos, offset_world_transform, relative_angle, rotate_vector, Vec2,
+        PI,
+    };
+
+    debug_assert!(base.joint_type() == JointType::Revolute);
+
+    let joint = base.revolute();
+
+    let frame_a = offset_world_transform(transform_a, base.local_frame_a);
+    let frame_b = offset_world_transform(transform_b, base.local_frame_b);
+
+    let radius = 0.25 * draw_scale;
+    draw.draw_circle(frame_b.p, radius, HexColor::GRAY);
+
+    let rx = Vec2 { x: radius, y: 0.0 };
+    let mut r = rotate_vector(frame_a.q, rx);
+    draw.draw_line(frame_a.p, offset_pos(frame_a.p, r), HexColor::GRAY);
+
+    r = rotate_vector(frame_b.q, rx);
+    draw.draw_line(frame_b.p, offset_pos(frame_b.p, r), HexColor::BLUE);
+
+    if draw.draw_joint_extras() {
+        let joint_angle = relative_angle(frame_a.q, frame_b.q);
+        let buffer = format!(" {:.1} deg", 180.0 * joint_angle / PI);
+        draw.draw_string(offset_pos(frame_a.p, r), &buffer, HexColor::WHITE);
+    }
+
+    let lower_angle = joint.lower_angle;
+    let upper_angle = joint.upper_angle;
+
+    if joint.enable_limit {
+        let rot_lo = mul_rot(frame_a.q, make_rot(lower_angle));
+        let rlo = rotate_vector(rot_lo, rx);
+
+        let rot_hi = mul_rot(frame_a.q, make_rot(upper_angle));
+        let rhi = rotate_vector(rot_hi, rx);
+
+        draw.draw_line(frame_b.p, offset_pos(frame_b.p, rlo), HexColor::GREEN);
+        draw.draw_line(frame_b.p, offset_pos(frame_b.p, rhi), HexColor::RED);
+    }
+
+    if joint.enable_spring {
+        let q = mul_rot(frame_a.q, make_rot(joint.target_angle));
+        let v = rotate_vector(q, rx);
+        draw.draw_line(frame_b.p, offset_pos(frame_b.p, v), HexColor::VIOLET);
+    }
+
+    let color = HexColor::GOLD;
+    draw.draw_line(transform_a.p, frame_a.p, color);
+    draw.draw_line(frame_a.p, frame_b.p, color);
+    draw.draw_line(transform_b.p, frame_b.p, color);
 }
