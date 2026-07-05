@@ -250,11 +250,11 @@ use box2d_rust::joint::{
     joint_get_local_frame_a, joint_get_local_frame_b,
 };
 use box2d_rust::math_functions::{inv_transform_world_point, transform_world_point};
+use box2d_rust::shape::{create_circle_shape, create_polygon_shape};
 use box2d_rust::types::{
     default_body_def, default_distance_joint_def, default_revolute_joint_def, default_shape_def,
     default_world_def, BodyType,
 };
-use box2d_rust::shape::{create_circle_shape, create_polygon_shape};
 use box2d_rust::world::{
     world_cast_mover, world_collide_mover, world_enable_continuous, world_get_contact_events,
     world_get_sensor_events, world_step, World,
@@ -681,17 +681,23 @@ impl SimWorld {
 
         // Gather contact planes at the current position.
         let mut planes: Vec<CollisionPlane> = Vec::new();
-        world_collide_mover(&self.world, self.mover_position, &capsule, filter, |_, hit| {
-            if planes.len() < 8 {
-                planes.push(CollisionPlane {
-                    plane: hit.plane,
-                    push_limit: f32::MAX,
-                    push: 0.0,
-                    clip_velocity: true,
-                });
-            }
-            true
-        });
+        world_collide_mover(
+            &self.world,
+            self.mover_position,
+            &capsule,
+            filter,
+            |_, hit| {
+                if planes.len() < 8 {
+                    planes.push(CollisionPlane {
+                        plane: hit.plane,
+                        push_limit: f32::MAX,
+                        push: 0.0,
+                        clip_velocity: true,
+                    });
+                }
+                true
+            },
+        );
         let grounded = planes.iter().any(|p| p.plane.normal.y > 0.7);
 
         // Input: horizontal approach, jump only from the ground, gravity.
@@ -713,10 +719,8 @@ impl SimWorld {
             result.translation,
             filter,
         );
-        self.mover_position = m::offset_pos(
-            self.mover_position,
-            m::mul_sv(fraction, result.translation),
-        );
+        self.mover_position =
+            m::offset_pos(self.mover_position, m::mul_sv(fraction, result.translation));
         self.mover_velocity = clip_vector(self.mover_velocity, &planes);
 
         vec![

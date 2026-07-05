@@ -7,16 +7,13 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-    compute_shape_mass, get_shape_index, make_shape_distance_proxy,
-    ray_cast_shape, update_shape_aabbs,
+    compute_shape_mass, get_shape_index, make_shape_distance_proxy, ray_cast_shape,
+    update_shape_aabbs,
 };
 use crate::body::{
     get_body_transform, get_body_transform_quick, make_body_id, update_body_mass_data,
 };
-use crate::collision::{
-    MassData, RayCastInput, ShapeGeometry,
-    ShapeType, WorldCastOutput,
-};
+use crate::collision::{MassData, RayCastInput, ShapeGeometry, ShapeType, WorldCastOutput};
 use crate::core::NULL_INDEX;
 use crate::distance::{make_proxy, shape_distance, DistanceInput, SimplexCache};
 use crate::events::ContactData;
@@ -125,7 +122,12 @@ pub fn shape_ray_cast(
 }
 
 /// Set the mass density of a shape, usually in kg/m^2. (b2Shape_SetDensity)
-pub fn shape_set_density(world: &mut World, shape_id: ShapeId, density: f32, update_body_mass: bool) {
+pub fn shape_set_density(
+    world: &mut World,
+    shape_id: ShapeId,
+    density: f32,
+    update_body_mass: bool,
+) {
     debug_assert!(is_valid_float(density) && density >= 0.0);
 
     debug_assert!(!world.locked);
@@ -233,7 +235,12 @@ pub fn shape_get_filter(world: &World, shape_id: ShapeId) -> Filter {
 
 /// Destroy this shape's contacts and refresh its broad-phase presence after a
 /// filter or geometry change. (static b2ResetProxy)
-pub(crate) fn reset_proxy(world: &mut World, shape_index: i32, wake_bodies: bool, destroy_proxy: bool) {
+pub(crate) fn reset_proxy(
+    world: &mut World,
+    shape_index: i32,
+    wake_bodies: bool,
+    destroy_proxy: bool,
+) {
     let body_id = world.shapes[shape_index as usize].body_id;
 
     // destroy all contacts associated with this shape
@@ -257,7 +264,11 @@ pub(crate) fn reset_proxy(world: &mut World, shape_index: i32, wake_bodies: bool
     let proxy_key = world.shapes[shape_index as usize].proxy_key;
     if proxy_key != NULL_INDEX {
         let proxy_type = crate::broad_phase::proxy_type(proxy_key);
-        update_shape_aabbs(&mut world.shapes[shape_index as usize], transform, proxy_type);
+        update_shape_aabbs(
+            &mut world.shapes[shape_index as usize],
+            transform,
+            proxy_type,
+        );
 
         if destroy_proxy {
             world.broad_phase.destroy_proxy(proxy_key);
@@ -280,7 +291,11 @@ pub(crate) fn reset_proxy(world: &mut World, shape_index: i32, wake_bodies: bool
         }
     } else {
         let proxy_type = world.bodies[body_id as usize].type_;
-        update_shape_aabbs(&mut world.shapes[shape_index as usize], transform, proxy_type);
+        update_shape_aabbs(
+            &mut world.shapes[shape_index as usize],
+            transform,
+            proxy_type,
+        );
     }
 
     world.validate_solver_sets();
@@ -419,7 +434,11 @@ pub fn shape_get_contact_capacity(world: &World, shape_id: ShapeId) -> i32 {
 
 /// Get the touching contact data for a shape. (b2Shape_GetContactData —
 /// returns a Vec instead of filling a caller array)
-pub fn shape_get_contact_data(world: &World, shape_id: ShapeId, capacity: usize) -> Vec<ContactData> {
+pub fn shape_get_contact_data(
+    world: &World,
+    shape_id: ShapeId,
+    capacity: usize,
+) -> Vec<ContactData> {
     debug_assert!(!world.locked);
     if world.locked {
         return Vec::new();

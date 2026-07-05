@@ -188,10 +188,7 @@ fn falling_hinges() {
     }
 
     if data.sleep_step != EXPECTED_SLEEP_STEP || data.hash != EXPECTED_HASH {
-        println!(
-            "  sleepStep={} hash=0x{:08X}",
-            data.sleep_step, data.hash
-        );
+        println!("  sleepStep={} hash=0x{:08X}", data.sleep_step, data.hash);
     }
 
     assert_eq!(data.sleep_step, EXPECTED_SLEEP_STEP);

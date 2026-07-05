@@ -20,9 +20,7 @@ use crate::aabb::offset_aabb;
 use crate::body::{get_body_transform_quick, wake_body};
 use crate::constants::GRAPH_COLOR_COUNT;
 use crate::distance::{make_proxy, shape_distance, DistanceInput, SimplexCache};
-use crate::events::{
-    BodyMoveEvent, ContactEvents, JointEvent, SensorEvents,
-};
+use crate::events::{BodyMoveEvent, ContactEvents, JointEvent, SensorEvents};
 use crate::math_functions::{
     aabb_union, clamp_float, cross, inv_transform_world_point, is_valid_float, is_valid_position,
     left_perp, length_squared, max_int, mul_add, mul_sv, normalize, rotate_vector, sub, Aabb, Pos,
@@ -250,7 +248,12 @@ pub fn world_get_hit_event_threshold(world: &World) -> f32 {
 
 /// Adjust contact tuning parameters: hertz, damping ratio, and push speed.
 /// Advanced feature for testing. (b2World_SetContactTuning)
-pub fn world_set_contact_tuning(world: &mut World, hertz: f32, damping_ratio: f32, push_speed: f32) {
+pub fn world_set_contact_tuning(
+    world: &mut World,
+    hertz: f32,
+    damping_ratio: f32,
+    push_speed: f32,
+) {
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -448,7 +451,14 @@ pub fn world_explode(world: &mut World, explosion_def: &ExplosionDef) {
     });
 
     for shape_id in shape_ids {
-        explosion_callback(world, shape_id, position, radius, falloff, impulse_per_length);
+        explosion_callback(
+            world,
+            shape_id,
+            position,
+            radius,
+            falloff,
+            impulse_per_length,
+        );
     }
 }
 
@@ -523,7 +533,11 @@ fn explosion_callback(
     let set = &mut world.solver_sets[AWAKE_SET as usize];
     let (inv_mass, inv_inertia, local_center) = {
         let body_sim = &set.body_sims[local_index as usize];
-        (body_sim.inv_mass, body_sim.inv_inertia, body_sim.local_center)
+        (
+            body_sim.inv_mass,
+            body_sim.inv_inertia,
+            body_sim.local_center,
+        )
     };
     let state = &mut set.body_states[local_index as usize];
     state.linear_velocity = mul_add(state.linear_velocity, inv_mass, impulse);

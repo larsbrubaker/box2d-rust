@@ -18,11 +18,9 @@ use crate::math_functions::{offset_pos, sub_pos, Pos, Vec2, POS_ZERO};
 // The 1e7 base only exists in the double-precision branches.
 #[cfg(feature = "double-precision")]
 use crate::math_functions::to_pos;
-use crate::shape::{
-    create_circle_shape, create_polygon_shape, shape_ray_cast, shape_test_point,
-};
-use crate::types::{default_body_def, default_query_filter, default_shape_def, default_world_def};
+use crate::shape::{create_circle_shape, create_polygon_shape, shape_ray_cast, shape_test_point};
 use crate::types::BodyType;
+use crate::types::{default_body_def, default_query_filter, default_shape_def, default_world_def};
 use crate::world::{
     world_cast_mover, world_cast_ray_closest, world_cast_shape, world_collide_mover,
     world_get_awake_body_count, world_get_body_events, world_overlap_shape, world_step, World,

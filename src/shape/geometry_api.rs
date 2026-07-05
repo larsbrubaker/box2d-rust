@@ -7,6 +7,7 @@
 
 use super::api::reset_proxy;
 use super::{compute_shape_margin, get_shape_index};
+use crate::body::wake_body;
 use crate::collision::{Capsule, ChainSegment, Circle, Polygon, Segment, ShapeGeometry, ShapeType};
 use crate::core::NULL_INDEX;
 use crate::id::{ChainId, ShapeId};
@@ -15,7 +16,6 @@ use crate::math_functions::{
     lerp, mul_add, mul_sub, mul_sv, neg, normalize, right_perp, rotate_vector, sub, Vec2,
     VEC2_ZERO,
 };
-use crate::body::wake_body;
 use crate::solver_set::{AWAKE_SET, FIRST_SLEEPING_SET};
 use crate::types::BodyType;
 use crate::world::World;
@@ -172,8 +172,7 @@ pub fn shape_set_chain_segment(world: &mut World, shape_id: ShapeId, chain_segme
 /// returns the null chain id. (b2Shape_GetParentChain)
 pub fn shape_get_parent_chain(world: &World, shape_id: ShapeId) -> ChainId {
     let shape_index = get_shape_index(world, shape_id);
-    if let ShapeGeometry::ChainSegment(chain_segment) =
-        &world.shapes[shape_index as usize].geometry
+    if let ShapeGeometry::ChainSegment(chain_segment) = &world.shapes[shape_index as usize].geometry
     {
         let chain_id = chain_segment.chain_id;
         if chain_id != NULL_INDEX {
@@ -260,7 +259,10 @@ pub fn shape_apply_wind(
             let mut speed = 0.0;
             let direction = get_length_and_normalize(&mut speed, relative_velocity);
             let projected_area = 2.0 * radius;
-            force = mul_sv(0.5 * air_density * projected_area * speed * speed, direction);
+            force = mul_sv(
+                0.5 * air_density * projected_area * speed * speed,
+                direction,
+            );
             torque = cross(lever, force);
         }
 

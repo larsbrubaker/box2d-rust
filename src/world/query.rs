@@ -13,15 +13,15 @@
 use super::World;
 use crate::aabb::offset_aabb;
 use crate::body::get_body_transform_quick;
-use crate::collision::{Capsule, CastOutput, RayCastInput, ShapeCastInput};
 use crate::collision::PlaneResult;
+use crate::collision::{Capsule, CastOutput, RayCastInput, ShapeCastInput};
 use crate::constants::linear_slop;
 use crate::distance::{shape_distance, DistanceInput, ShapeProxy, SimplexCache};
 use crate::dynamic_tree::{BoxCastInput, TreeStats};
 use crate::id::ShapeId;
 use crate::math_functions::{
-    is_normalized, is_valid_aabb, is_valid_position, is_valid_vec2, make_aabb, offset_pos,
-    sub_pos, to_relative_transform, to_vec2, Aabb, Pos, Vec2,
+    is_normalized, is_valid_aabb, is_valid_position, is_valid_vec2, make_aabb, offset_pos, sub_pos,
+    to_relative_transform, to_vec2, Aabb, Pos, Vec2,
 };
 use crate::shape::{
     collide_mover, make_shape_distance_proxy, ray_cast_shape, shape_cast_shape,
@@ -128,7 +128,8 @@ pub fn world_overlap_shape(
                 // Re-center on the query origin so the distance test stays in
                 // float precision far from the world origin
                 let body = &world.bodies[shape.body_id as usize];
-                let transform = to_relative_transform(get_body_transform_quick(world, body), origin);
+                let transform =
+                    to_relative_transform(get_body_transform_quick(world, body), origin);
 
                 let input = DistanceInput {
                     proxy_a: *proxy,
@@ -256,19 +257,25 @@ pub fn world_cast_ray_closest(
 
     // C duplicates the per-tree cast loop with b2RayCastClosestFcn as the
     // callback; routing through world_cast_ray runs the identical sequence.
-    let stats = world_cast_ray(world, origin, translation, filter, |id, point, normal, fraction| {
-        // Ignore initial overlap
-        if fraction == 0.0 {
-            return -1.0;
-        }
+    let stats = world_cast_ray(
+        world,
+        origin,
+        translation,
+        filter,
+        |id, point, normal, fraction| {
+            // Ignore initial overlap
+            if fraction == 0.0 {
+                return -1.0;
+            }
 
-        result.shape_id = id;
-        result.point = point;
-        result.normal = normal;
-        result.fraction = fraction;
-        result.hit = true;
-        fraction
-    });
+            result.shape_id = id;
+            result.point = point;
+            result.normal = normal;
+            result.fraction = fraction;
+            result.hit = true;
+            fraction
+        },
+    );
 
     result.node_visits = stats.node_visits;
     result.leaf_visits = stats.leaf_visits;
@@ -433,7 +440,8 @@ pub fn world_cast_mover(
                 local_input.max_fraction = box_input.max_fraction;
 
                 let body = &world.bodies[shape.body_id as usize];
-                let transform = to_relative_transform(get_body_transform_quick(world, body), origin);
+                let transform =
+                    to_relative_transform(get_body_transform_quick(world, body), origin);
 
                 let output = shape_cast_shape(&local_input, shape, transform);
                 if output.fraction == 0.0 {

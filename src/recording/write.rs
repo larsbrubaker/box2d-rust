@@ -6,7 +6,9 @@
 // SPDX-FileCopyrightText: 2026 Erin Catto
 // SPDX-License-Identifier: MIT
 
-use crate::collision::{Capsule, ChainSegment, Circle, MassData, Polygon, Segment, WorldCastOutput};
+use crate::collision::{
+    Capsule, ChainSegment, Circle, MassData, Polygon, Segment, WorldCastOutput,
+};
 use crate::distance::ShapeProxy;
 use crate::dynamic_tree::TreeStats;
 use crate::hull::MAX_POLYGON_VERTICES;

@@ -166,10 +166,7 @@ fn chain_create_and_destroy() {
 
     let segments = chain_get_segments(&world, chain_id, 8);
     assert_eq!(segments.len(), 1);
-    assert_eq!(
-        shape_get_type(&world, segments[0]),
-        ShapeType::ChainSegment
-    );
+    assert_eq!(shape_get_type(&world, segments[0]), ShapeType::ChainSegment);
     assert_eq!(shape_get_parent_chain(&world, segments[0]), chain_id);
 
     // Chain materials propagate to the segment shapes.
@@ -352,7 +349,14 @@ fn shape_accessors() {
     assert!(ray.hit);
 
     // Wind on a dynamic body adds force that integrates into velocity.
-    shape_apply_wind(&mut world, shape_id, Vec2 { x: 50.0, y: 0.0 }, 1.0, 0.0, true);
+    shape_apply_wind(
+        &mut world,
+        shape_id,
+        Vec2 { x: 50.0, y: 0.0 },
+        1.0,
+        0.0,
+        true,
+    );
     world_step(&mut world, 1.0 / 60.0, 4);
     let velocity = body_get_linear_velocity(&world, body_id);
     assert!(velocity.x > 0.0, "wind pushes the body along +x");
@@ -374,8 +378,12 @@ fn sensor_data_accessors() {
     let mut sensor_shape_def = default_shape_def();
     sensor_shape_def.is_sensor = true;
     sensor_shape_def.enable_sensor_events = true;
-    let sensor_shape =
-        create_polygon_shape(&mut world, sensor_body, &sensor_shape_def, &make_box(1.0, 1.0));
+    let sensor_shape = create_polygon_shape(
+        &mut world,
+        sensor_body,
+        &sensor_shape_def,
+        &make_box(1.0, 1.0),
+    );
     assert!(shape_is_sensor(&world, sensor_shape));
     assert_eq!(shape_get_contact_capacity(&world, sensor_shape), 0);
 

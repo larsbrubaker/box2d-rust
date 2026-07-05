@@ -104,7 +104,8 @@ impl RecHeader {
             return None;
         }
         let u16_at = |o: usize| u16::from_le_bytes([data[o], data[o + 1]]);
-        let u32_at = |o: usize| u32::from_le_bytes([data[o], data[o + 1], data[o + 2], data[o + 3]]);
+        let u32_at =
+            |o: usize| u32::from_le_bytes([data[o], data[o + 1], data[o + 2], data[o + 3]]);
         let u64_at = |o: usize| {
             u64::from_le_bytes([
                 data[o],
