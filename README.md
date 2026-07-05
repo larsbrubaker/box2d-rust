@@ -40,6 +40,7 @@ Every portable module of the Box2D v3.1 C source is ported, together with the C 
 | Determinism: hand-rolled trig, bit-exact FallingHinges vs the C build | ✅ | ✅ (test_determinism.c) |
 | Snapshots: `world_snapshot` / `world_restore`, deep state hash | ✅ | ✅ (test_snapshot.c) |
 | Recording: full op-stream record/replay of every API mutation and query | ✅ | ✅ (test_recording.c) |
+| Replay player: incremental playback, keyframe ring, timeline scrub, outliner | ✅ | ✅ (test_recording.c viewer subtests) |
 | Debug draw: `world_draw` with the complete `DebugDraw` trait + color palette | ✅ | ✅ |
 | Large world mode (`double-precision` feature = `BOX2D_DOUBLE_PRECISION`) | ✅ | ✅ (test_large_world.c) |
 

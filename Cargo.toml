@@ -3,7 +3,7 @@ members = [".", "demo/wasm"]
 
 [package]
 name = "box2d-rust"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 rust-version = "1.77"
 authors = ["Lars Brubaker <larsbrubaker@matterhackers.com>"]
