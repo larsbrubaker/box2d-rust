@@ -19,6 +19,25 @@ use crate::math_functions::{
 };
 use crate::world::World;
 
+/// Joint id validity. (b2Joint_IsValid — the world-registry check collapses
+/// to the index/generation check in the registry-less port)
+pub fn joint_is_valid(world: &World, id: JointId) -> bool {
+    let joint_index = id.index1 - 1;
+    if joint_index < 0 || world.joints.len() as i32 <= joint_index {
+        return false;
+    }
+
+    let joint = &world.joints[joint_index as usize];
+    if joint.joint_id == NULL_INDEX {
+        // joint is free
+        return false;
+    }
+
+    debug_assert!(joint.joint_id == joint_index);
+
+    id.generation == joint.generation
+}
+
 /// (b2Joint_GetType)
 pub fn joint_get_type(world: &World, joint_id: JointId) -> JointType {
     let joint_index = get_joint_full_id(world, joint_id);

@@ -473,6 +473,173 @@ pub fn create_world_from_snapshot(image: &[u8]) -> Option<World> {
     }
 }
 
+fn fnv_mix_bytes(mut hash: u64, data: &[u8]) -> u64 {
+    for &b in data {
+        hash = (hash ^ b as u64).wrapping_mul(super::SNAP_FNV_PRIME);
+    }
+    hash
+}
+
+fn fnv_mix_float(hash: u64, f: f32) -> u64 {
+    (hash ^ f.to_bits() as u64).wrapping_mul(super::SNAP_FNV_PRIME)
+}
+
+fn fnv_mix_int(hash: u64, v: i32) -> u64 {
+    // C zero-extends through (uint32_t)
+    (hash ^ v as u32 as u64).wrapping_mul(super::SNAP_FNV_PRIME)
+}
+
+fn fnv_mix_vec2_bytes(hash: u64, v: Vec2) -> u64 {
+    let mut bytes = [0u8; 8];
+    bytes[..4].copy_from_slice(&v.x.to_le_bytes());
+    bytes[4..].copy_from_slice(&v.y.to_le_bytes());
+    fnv_mix_bytes(hash, &bytes)
+}
+
+/// Deep world-state hash: transforms and velocities plus index bookkeeping,
+/// contact manifold impulses, joint impulses, and id-pool occupancy. Used by
+/// the snapshot tests to prove a restore reproduced the full solver state,
+/// not just the visible motion. (b2HashWorldStateDeep)
+pub fn hash_world_state_deep(world: &World) -> u64 {
+    use crate::joint::JointPayload;
+    use crate::solver_set::AWAKE_SET;
+
+    let mut hash = super::SNAP_FNV_INIT;
+
+    // Bodies: same iteration order as hash_world_state
+    for (i, body) in world.bodies.iter().enumerate() {
+        if body.id != i as i32 {
+            continue;
+        }
+
+        let sim = &world.solver_sets[body.set_index as usize].body_sims[body.local_index as usize];
+        hash = super::fnv_mix_position(hash, sim.transform.p);
+        hash = fnv_mix_float(hash, sim.transform.q.c);
+        hash = fnv_mix_float(hash, sim.transform.q.s);
+
+        if body.set_index == AWAKE_SET {
+            let state =
+                &world.solver_sets[AWAKE_SET as usize].body_states[body.local_index as usize];
+            hash = fnv_mix_float(hash, state.linear_velocity.x);
+            hash = fnv_mix_float(hash, state.linear_velocity.y);
+            hash = fnv_mix_float(hash, state.angular_velocity);
+        }
+
+        // Index bookkeeping
+        hash = fnv_mix_int(hash, body.set_index);
+        hash = fnv_mix_int(hash, body.local_index);
+    }
+
+    // Contacts: sparse array, skip free slots
+    for (i, contact) in world.contacts.iter().enumerate() {
+        if contact.contact_id != i as i32 {
+            continue;
+        }
+
+        hash = fnv_mix_int(hash, contact.set_index);
+        hash = fnv_mix_int(hash, contact.color_index);
+        hash = fnv_mix_int(hash, contact.local_index);
+
+        let sim =
+            if contact.set_index == AWAKE_SET && contact.color_index != crate::core::NULL_INDEX {
+                &world.constraint_graph.colors[contact.color_index as usize].contact_sims
+                    [contact.local_index as usize]
+            } else {
+                &world.solver_sets[contact.set_index as usize].contact_sims
+                    [contact.local_index as usize]
+            };
+
+        let m = &sim.manifold;
+        hash = fnv_mix_int(hash, m.point_count);
+        for p in m.points[..m.point_count as usize].iter() {
+            hash = fnv_mix_float(hash, p.normal_impulse);
+            hash = fnv_mix_float(hash, p.tangent_impulse);
+            hash = fnv_mix_float(hash, p.total_normal_impulse);
+        }
+    }
+
+    // Joints: sparse array, skip free slots
+    for (i, joint) in world.joints.iter().enumerate() {
+        if joint.joint_id != i as i32 {
+            continue;
+        }
+
+        hash = fnv_mix_int(hash, joint.set_index);
+        hash = fnv_mix_int(hash, joint.color_index);
+        hash = fnv_mix_int(hash, joint.local_index);
+
+        let sim = if joint.set_index == AWAKE_SET && joint.color_index != crate::core::NULL_INDEX {
+            &world.constraint_graph.colors[joint.color_index as usize].joint_sims
+                [joint.local_index as usize]
+        } else {
+            &world.solver_sets[joint.set_index as usize].joint_sims[joint.local_index as usize]
+        };
+
+        // Hash accumulated impulses per joint type
+        match &sim.payload {
+            JointPayload::Distance(d) => {
+                hash = fnv_mix_float(hash, d.impulse);
+                hash = fnv_mix_float(hash, d.lower_impulse);
+                hash = fnv_mix_float(hash, d.upper_impulse);
+                hash = fnv_mix_float(hash, d.motor_impulse);
+            }
+            JointPayload::Motor(m) => {
+                hash = fnv_mix_float(hash, m.linear_velocity_impulse.x);
+                hash = fnv_mix_float(hash, m.linear_velocity_impulse.y);
+                hash = fnv_mix_float(hash, m.angular_velocity_impulse);
+                hash = fnv_mix_float(hash, m.linear_spring_impulse.x);
+                hash = fnv_mix_float(hash, m.linear_spring_impulse.y);
+                hash = fnv_mix_float(hash, m.angular_spring_impulse);
+            }
+            JointPayload::Prismatic(p) => {
+                hash = fnv_mix_vec2_bytes(hash, p.impulse);
+                hash = fnv_mix_float(hash, p.spring_impulse);
+                hash = fnv_mix_float(hash, p.motor_impulse);
+                hash = fnv_mix_float(hash, p.lower_impulse);
+                hash = fnv_mix_float(hash, p.upper_impulse);
+            }
+            JointPayload::Revolute(rv) => {
+                hash = fnv_mix_vec2_bytes(hash, rv.linear_impulse);
+                hash = fnv_mix_float(hash, rv.spring_impulse);
+                hash = fnv_mix_float(hash, rv.motor_impulse);
+                hash = fnv_mix_float(hash, rv.lower_impulse);
+                hash = fnv_mix_float(hash, rv.upper_impulse);
+            }
+            JointPayload::Weld(w) => {
+                hash = fnv_mix_vec2_bytes(hash, w.linear_impulse);
+                hash = fnv_mix_float(hash, w.angular_impulse);
+            }
+            JointPayload::Wheel(w) => {
+                hash = fnv_mix_float(hash, w.perp_impulse);
+                hash = fnv_mix_float(hash, w.motor_impulse);
+                hash = fnv_mix_float(hash, w.spring_impulse);
+                hash = fnv_mix_float(hash, w.lower_impulse);
+                hash = fnv_mix_float(hash, w.upper_impulse);
+            }
+            JointPayload::Filter => {}
+        }
+    }
+
+    // 7 id pools: next_index + count
+    for pool in [
+        &world.body_id_pool,
+        &world.shape_id_pool,
+        &world.chain_id_pool,
+        &world.contact_id_pool,
+        &world.joint_id_pool,
+        &world.island_id_pool,
+        &world.solver_set_id_pool,
+    ] {
+        hash = fnv_mix_int(hash, pool.next_index);
+        hash = fnv_mix_int(hash, pool.id_count());
+    }
+
+    // Solver set count
+    hash = fnv_mix_int(hash, world.solver_sets.len() as i32);
+
+    hash
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
