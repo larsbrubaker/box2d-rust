@@ -20,6 +20,7 @@ use crate::math_functions::{Aabb, Pos};
 use crate::world::World;
 
 mod snapshot;
+mod snapshot_structs;
 mod write;
 
 pub use snapshot::*;
