@@ -14,6 +14,9 @@ const demoModules: Record<string, () => Promise<{ init: DemoInit }>> = {
   character: () => import("./demos/character.ts"),
   shapes: () => import("./demos/shapes.ts"),
   world: () => import("./demos/world.ts"),
+  determinism: () => import("./demos/determinism.ts"),
+  robustness: () => import("./demos/robustness.ts"),
+  benchmark: () => import("./demos/benchmark.ts"),
   geometry: () => import("./demos/geometry.ts"),
   manifolds: () => import("./demos/manifolds.ts"),
   math: () => import("./demos/math.ts"),
@@ -110,6 +113,16 @@ function renderHome(container: HTMLElement) {
           <h3>Continuous</h3>
           <p>Bullets vs a thin wall. Toggle continuous collision and watch the same shot tunnel straight through.</p>
         </a>
+        <a href="#/determinism" class="feature-card">
+          <span class="card-icon">&#8801;</span>
+          <h3>Determinism</h3>
+          <p>A live world and its snapshot clone stepped side by side &mdash; state hashes stay bit-identical every frame.</p>
+        </a>
+        <a href="#/benchmark" class="feature-card">
+          <span class="card-icon">&#9201;</span>
+          <h3>Benchmark</h3>
+          <p>A 465-body pyramid with live step timing. Watch the cost collapse when the island falls asleep.</p>
+        </a>
         <a href="#/geometry" class="feature-card">
           <span class="card-icon">&#10140;</span>
           <h3>Geometry Queries</h3>
@@ -138,8 +151,10 @@ function renderHome(container: HTMLElement) {
           This is a module-by-module Rust port of
           <a href="https://github.com/erincatto/box2d" target="_blank">Box2D v3</a> by Erin Catto,
           with the C test suite ported alongside each module. The full simulation pipeline is
-          running: broad-phase pairs, narrow-phase manifolds, graph-colored soft-constraint
-          solving with sub-stepping, restitution, joints, and island sleeping.
+          running &mdash; broad-phase pairs, narrow-phase manifolds, graph-colored soft-constraint
+          solving with sub-stepping, restitution, joints, and island sleeping &mdash; plus world
+          snapshots and deterministic record/replay. Every portable test in the C suite passes,
+          with the determinism tests matching bit-for-bit.
         </p>
         <p style="margin-top: 12px">
           Ported by <strong>Lars Brubaker</strong>, sponsored by
@@ -152,7 +167,7 @@ function renderHome(container: HTMLElement) {
             <div class="stat-label">On crates.io</div>
           </div>
           <div class="stat">
-            <div class="stat-value">107</div>
+            <div class="stat-value">118</div>
             <div class="stat-label">Tests Passing</div>
           </div>
           <div class="stat">

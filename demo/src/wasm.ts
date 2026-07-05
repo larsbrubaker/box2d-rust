@@ -18,6 +18,9 @@ export interface SimWorld {
   hit_events(): Float32Array;
   add_bullet(x: number, y: number, radius: number, vx: number, vy: number): number;
   set_continuous(flag: boolean): void;
+  snapshot(): Uint8Array;
+  restore(image: Uint8Array): boolean;
+  state_hash(): string;
   mover_spawn(x: number, y: number): void;
   mover_update(dt: number, moveX: number, jump: boolean): Float32Array;
   add_capsule(x: number, y: number, hl: number, radius: number, density: number, angle: number): number;

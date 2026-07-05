@@ -11,9 +11,9 @@ const CATEGORIES: Array<{ name: string; blurb: string; route?: string }> = [
   { name: "Events", blurb: "Contacts, sensors, hit events", route: "events" },
   { name: "Character", blurb: "Movers and platforming", route: "character" },
   { name: "World", blurb: "Gravity, explosions, large worlds", route: "world" },
-  { name: "Determinism", blurb: "Cross-platform reproducibility" },
-  { name: "Robustness", blurb: "Degenerate input, overlap recovery" },
-  { name: "Benchmark", blurb: "Performance stress scenes" },
+  { name: "Determinism", blurb: "Cross-platform reproducibility", route: "determinism" },
+  { name: "Robustness", blurb: "Degenerate input, overlap recovery", route: "robustness" },
+  { name: "Benchmark", blurb: "Performance stress scenes", route: "benchmark" },
 ];
 
 export function init(container: HTMLElement) {

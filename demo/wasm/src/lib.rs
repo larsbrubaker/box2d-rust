@@ -598,6 +598,24 @@ impl SimWorld {
         world_enable_continuous(&mut self.world, flag);
     }
 
+    /// Serialize the full simulation state. (b2World_Snapshot)
+    pub fn snapshot(&self) -> Vec<u8> {
+        box2d_rust::recording::world_snapshot(&self.world)
+    }
+
+    /// Restore simulation state from a snapshot image. The demo body/joint
+    /// tracking lists stay as-is: they only describe drawing, and restore is
+    /// used on a world with the same scene. (b2World_Restore)
+    pub fn restore(&mut self, image: &[u8]) -> bool {
+        box2d_rust::recording::world_restore(&mut self.world, image)
+    }
+
+    /// FNV-1a hash over all body transforms and velocities, as a hex string
+    /// for display. (b2HashWorldState)
+    pub fn state_hash(&self) -> String {
+        format!("{:016X}", box2d_rust::recording::hash_world_state(&self.world))
+    }
+
     /// Dynamic capsule (horizontal, half length `hl`), rotated by `angle`.
     /// Returns the demo body index.
     pub fn add_capsule(
