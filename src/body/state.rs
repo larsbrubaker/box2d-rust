@@ -26,6 +26,9 @@ use crate::world::World;
 /// preserve because the broad-phase pairs change, so they are destroyed.
 /// (b2Body_SetType — see the C comment block for the staged plan)
 pub fn body_set_type(world: &mut World, body_id: BodyId, body_type: BodyType) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_set_type(rec, body_id, body_type)
+    });
     let body_index = get_body_full_id(world, body_id);
 
     let original_type = world.bodies[body_index as usize].type_;
@@ -222,6 +225,9 @@ pub fn body_is_awake(world: &World, body_id: BodyId) -> bool {
 
 /// (b2Body_SetAwake)
 pub fn body_set_awake(world: &mut World, body_id: BodyId, awake: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_bool(rec, crate::recording::OP_BODY_SET_AWAKE, body_id, awake)
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -245,6 +251,9 @@ pub fn body_set_awake(world: &mut World, body_id: BodyId, awake: bool) {
 
 /// (b2Body_WakeTouching)
 pub fn body_wake_touching(world: &mut World, body_id: BodyId) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_marker(rec, crate::recording::OP_BODY_WAKE_TOUCHING, body_id)
+    });
     let body_index = get_body_full_id(world, body_id);
 
     let mut contact_key = world.bodies[body_index as usize].head_contact_key;
@@ -288,6 +297,14 @@ pub fn body_is_sleep_enabled(world: &World, body_id: BodyId) -> bool {
 
 /// (b2Body_SetSleepThreshold)
 pub fn body_set_sleep_threshold(world: &mut World, body_id: BodyId, sleep_threshold: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_f32(
+            rec,
+            crate::recording::OP_BODY_SET_SLEEP_THRESHOLD,
+            body_id,
+            sleep_threshold,
+        )
+    });
     let body_index = get_body_full_id(world, body_id);
     world.bodies[body_index as usize].sleep_threshold = sleep_threshold;
 }
@@ -300,6 +317,14 @@ pub fn body_get_sleep_threshold(world: &World, body_id: BodyId) -> f32 {
 
 /// (b2Body_EnableSleep)
 pub fn body_enable_sleep(world: &mut World, body_id: BodyId, enable_sleep: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_bool(
+            rec,
+            crate::recording::OP_BODY_ENABLE_SLEEP,
+            body_id,
+            enable_sleep,
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -332,6 +357,9 @@ pub fn body_enable_sleep(world: &mut World, body_id: BodyId, enable_sleep: bool)
 /// valuable feature. The most challenging aspect is that joints may connect
 /// to bodies that are not disabled. (b2Body_Disable)
 pub fn body_disable(world: &mut World, body_id: BodyId) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_marker(rec, crate::recording::OP_BODY_DISABLE, body_id)
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -399,6 +427,9 @@ pub fn body_disable(world: &mut World, body_id: BodyId) {
 
 /// (b2Body_Enable)
 pub fn body_enable(world: &mut World, body_id: BodyId) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_marker(rec, crate::recording::OP_BODY_ENABLE, body_id)
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -487,6 +518,9 @@ pub fn body_enable(world: &mut World, body_id: BodyId) {
 
 /// (b2Body_SetMotionLocks)
 pub fn body_set_motion_locks(world: &mut World, body_id: BodyId, locks: MotionLocks) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_set_motion_locks(rec, body_id, locks)
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -543,6 +577,9 @@ pub fn body_get_motion_locks(world: &World, body_id: BodyId) -> MotionLocks {
 
 /// (b2Body_SetBullet)
 pub fn body_set_bullet(world: &mut World, body_id: BodyId, flag: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_bool(rec, crate::recording::OP_BODY_SET_BULLET, body_id, flag)
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -574,6 +611,14 @@ pub fn body_is_bullet(world: &World, body_id: BodyId) -> bool {
 
 /// (b2Body_EnableContactRecycling)
 pub fn body_enable_contact_recycling(world: &mut World, body_id: BodyId, flag: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_bool(
+            rec,
+            crate::recording::OP_BODY_ENABLE_CONTACT_RECYCLING,
+            body_id,
+            flag,
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -609,6 +654,14 @@ pub fn body_is_contact_recycling_enabled(world: &World, body_id: BodyId) -> bool
 
 /// (b2Body_EnableContactEvents)
 pub fn body_enable_contact_events(world: &mut World, body_id: BodyId, flag: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_bool(
+            rec,
+            crate::recording::OP_BODY_ENABLE_CONTACT_EVENTS,
+            body_id,
+            flag,
+        )
+    });
     let body_index = get_body_full_id(world, body_id);
     let mut shape_id = world.bodies[body_index as usize].head_shape_id;
     while shape_id != NULL_INDEX {
@@ -620,6 +673,14 @@ pub fn body_enable_contact_events(world: &mut World, body_id: BodyId, flag: bool
 
 /// (b2Body_EnableHitEvents)
 pub fn body_enable_hit_events(world: &mut World, body_id: BodyId, flag: bool) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_bool(
+            rec,
+            crate::recording::OP_BODY_ENABLE_HIT_EVENTS,
+            body_id,
+            flag,
+        )
+    });
     let body_index = get_body_full_id(world, body_id);
     let mut shape_id = world.bodies[body_index as usize].head_shape_id;
     while shape_id != NULL_INDEX {

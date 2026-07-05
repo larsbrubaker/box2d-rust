@@ -9,9 +9,7 @@
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
 
-use super::{
-    get_body_full_id, get_body_transform_quick, limit_velocity, wake_body, BodySim, BodyState,
-};
+use super::{get_body_full_id, get_body_transform_quick, wake_body, BodySim, BodyState};
 use crate::body::body_flags;
 use crate::collision::MassData;
 use crate::constants::speculative_distance;
@@ -19,13 +17,13 @@ use crate::core::NULL_INDEX;
 use crate::geometry::compute_fat_shape_aabb;
 use crate::id::BodyId;
 use crate::math_functions::{
-    aabb_contains, aabb_union, abs_float, add, cross, cross_sv, inv_rotate_vector,
+    aabb_contains, aabb_union, abs_float, add, cross_sv, inv_rotate_vector,
     inv_transform_world_point, is_valid_float, is_valid_position, is_valid_rotation, is_valid_vec2,
-    length, length_squared, mul_add, mul_sv, relative_angle, rotate_vector, round_down_float,
+    length, length_squared, mul_sv, relative_angle, rotate_vector, round_down_float,
     round_up_float, sub, sub_pos, transform_world_point, Aabb, Pos, Rot, Vec2, WorldTransform,
     VEC2_ZERO,
 };
-use crate::solver_set::{AWAKE_SET, DISABLED_SET, FIRST_SLEEPING_SET};
+use crate::solver_set::{AWAKE_SET, DISABLED_SET};
 use crate::types::BodyType;
 use crate::world::World;
 
@@ -98,6 +96,9 @@ pub fn body_get_world_vector(world: &World, body_id: BodyId, local_vector: Vec2)
 
 /// (b2Body_SetTransform)
 pub fn body_set_transform(world: &mut World, body_id: BodyId, position: Pos, rotation: Rot) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_set_transform(rec, body_id, position, rotation)
+    });
     debug_assert!(is_valid_position(position));
     debug_assert!(is_valid_rotation(rotation));
     debug_assert!(body_is_valid(world, body_id));
@@ -184,6 +185,14 @@ pub fn body_get_angular_velocity(world: &World, body_id: BodyId) -> f32 {
 
 /// (b2Body_SetLinearVelocity)
 pub fn body_set_linear_velocity(world: &mut World, body_id: BodyId, linear_velocity: Vec2) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_vec2(
+            rec,
+            crate::recording::OP_BODY_SET_LINEAR_VELOCITY,
+            body_id,
+            linear_velocity,
+        )
+    });
     let body_index = get_body_full_id(world, body_id);
 
     if world.bodies[body_index as usize].type_ == BodyType::Static {
@@ -205,6 +214,14 @@ pub fn body_set_linear_velocity(world: &mut World, body_id: BodyId, linear_veloc
 
 /// (b2Body_SetAngularVelocity)
 pub fn body_set_angular_velocity(world: &mut World, body_id: BodyId, angular_velocity: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_f32(
+            rec,
+            crate::recording::OP_BODY_SET_ANGULAR_VELOCITY,
+            body_id,
+            angular_velocity,
+        )
+    });
     let body_index = get_body_full_id(world, body_id);
 
     {
@@ -235,6 +252,9 @@ pub fn body_set_target_transform(
     time_step: f32,
     wake: bool,
 ) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_set_target_transform(rec, body_id, target, time_step, wake)
+    });
     let body_index = get_body_full_id(world, body_id);
 
     {
@@ -334,183 +354,6 @@ pub fn body_get_world_point_velocity(world: &World, body_id: BodyId, world_point
     add(state.linear_velocity, cross_sv(state.angular_velocity, r))
 }
 
-/// (b2Body_ApplyForce)
-pub fn body_apply_force(world: &mut World, body_id: BodyId, force: Vec2, point: Pos, wake: bool) {
-    let body_index = get_body_full_id(world, body_id);
-
-    {
-        let body = &world.bodies[body_index as usize];
-        if body.type_ != BodyType::Dynamic || body.set_index == DISABLED_SET {
-            return;
-        }
-    }
-
-    if wake && world.bodies[body_index as usize].set_index >= FIRST_SLEEPING_SET {
-        wake_body(world, body_index);
-    }
-
-    let body = &world.bodies[body_index as usize];
-    if body.set_index == AWAKE_SET {
-        let local_index = body.local_index;
-        let body_sim = &mut world.solver_sets[AWAKE_SET as usize].body_sims[local_index as usize];
-        body_sim.force = add(body_sim.force, force);
-        body_sim.torque += cross(sub_pos(point, body_sim.center), force);
-    }
-}
-
-/// (b2Body_ApplyForceToCenter)
-pub fn body_apply_force_to_center(world: &mut World, body_id: BodyId, force: Vec2, wake: bool) {
-    let body_index = get_body_full_id(world, body_id);
-
-    {
-        let body = &world.bodies[body_index as usize];
-        if body.type_ != BodyType::Dynamic || body.set_index == DISABLED_SET {
-            return;
-        }
-    }
-
-    if wake && world.bodies[body_index as usize].set_index >= FIRST_SLEEPING_SET {
-        wake_body(world, body_index);
-    }
-
-    let body = &world.bodies[body_index as usize];
-    if body.set_index == AWAKE_SET {
-        let local_index = body.local_index;
-        let body_sim = &mut world.solver_sets[AWAKE_SET as usize].body_sims[local_index as usize];
-        body_sim.force = add(body_sim.force, force);
-    }
-}
-
-/// (b2Body_ApplyTorque)
-pub fn body_apply_torque(world: &mut World, body_id: BodyId, torque: f32, wake: bool) {
-    let body_index = get_body_full_id(world, body_id);
-
-    {
-        let body = &world.bodies[body_index as usize];
-        if body.type_ != BodyType::Dynamic || body.set_index == DISABLED_SET {
-            return;
-        }
-    }
-
-    if wake && world.bodies[body_index as usize].set_index >= FIRST_SLEEPING_SET {
-        wake_body(world, body_index);
-    }
-
-    let body = &world.bodies[body_index as usize];
-    if body.set_index == AWAKE_SET {
-        let local_index = body.local_index;
-        let body_sim = &mut world.solver_sets[AWAKE_SET as usize].body_sims[local_index as usize];
-        body_sim.torque += torque;
-    }
-}
-
-/// (b2Body_ClearForces)
-pub fn body_clear_forces(world: &mut World, body_id: BodyId) {
-    let body_index = get_body_full_id(world, body_id);
-    let (set_index, local_index) = {
-        let body = &world.bodies[body_index as usize];
-        (body.set_index, body.local_index)
-    };
-    let body_sim = &mut world.solver_sets[set_index as usize].body_sims[local_index as usize];
-    body_sim.force = VEC2_ZERO;
-    body_sim.torque = 0.0;
-}
-
-/// (b2Body_ApplyLinearImpulse)
-pub fn body_apply_linear_impulse(
-    world: &mut World,
-    body_id: BodyId,
-    impulse: Vec2,
-    point: Pos,
-    wake: bool,
-) {
-    let body_index = get_body_full_id(world, body_id);
-
-    {
-        let body = &world.bodies[body_index as usize];
-        if body.type_ != BodyType::Dynamic || body.set_index == DISABLED_SET {
-            return;
-        }
-    }
-
-    if wake && world.bodies[body_index as usize].set_index >= FIRST_SLEEPING_SET {
-        wake_body(world, body_index);
-    }
-
-    let max_linear_speed = world.max_linear_speed;
-    let body = &world.bodies[body_index as usize];
-    if body.set_index == AWAKE_SET {
-        let local_index = body.local_index as usize;
-        let set = &mut world.solver_sets[AWAKE_SET as usize];
-        let body_sim = set.body_sims[local_index];
-        let state = &mut set.body_states[local_index];
-        state.linear_velocity = mul_add(state.linear_velocity, body_sim.inv_mass, impulse);
-        state.angular_velocity +=
-            body_sim.inv_inertia * cross(sub_pos(point, body_sim.center), impulse);
-
-        limit_velocity(state, max_linear_speed);
-    }
-}
-
-/// (b2Body_ApplyLinearImpulseToCenter)
-pub fn body_apply_linear_impulse_to_center(
-    world: &mut World,
-    body_id: BodyId,
-    impulse: Vec2,
-    wake: bool,
-) {
-    let body_index = get_body_full_id(world, body_id);
-
-    {
-        let body = &world.bodies[body_index as usize];
-        if body.type_ != BodyType::Dynamic || body.set_index == DISABLED_SET {
-            return;
-        }
-    }
-
-    if wake && world.bodies[body_index as usize].set_index >= FIRST_SLEEPING_SET {
-        wake_body(world, body_index);
-    }
-
-    let max_linear_speed = world.max_linear_speed;
-    let body = &world.bodies[body_index as usize];
-    if body.set_index == AWAKE_SET {
-        let local_index = body.local_index as usize;
-        let set = &mut world.solver_sets[AWAKE_SET as usize];
-        let inv_mass = set.body_sims[local_index].inv_mass;
-        let state = &mut set.body_states[local_index];
-        state.linear_velocity = mul_add(state.linear_velocity, inv_mass, impulse);
-
-        limit_velocity(state, max_linear_speed);
-    }
-}
-
-/// (b2Body_ApplyAngularImpulse)
-pub fn body_apply_angular_impulse(world: &mut World, body_id: BodyId, impulse: f32, wake: bool) {
-    debug_assert!(body_is_valid(world, body_id));
-    let body_index = get_body_full_id(world, body_id);
-
-    {
-        let body = &world.bodies[body_index as usize];
-        if body.type_ != BodyType::Dynamic || body.set_index == DISABLED_SET {
-            return;
-        }
-    }
-
-    if wake && world.bodies[body_index as usize].set_index >= FIRST_SLEEPING_SET {
-        // this will not invalidate body index
-        wake_body(world, body_index);
-    }
-
-    let body = &world.bodies[body_index as usize];
-    if body.set_index == AWAKE_SET {
-        let local_index = body.local_index as usize;
-        let set = &mut world.solver_sets[AWAKE_SET as usize];
-        let inv_inertia = set.body_sims[local_index].inv_inertia;
-        set.body_states[local_index].angular_velocity += inv_inertia * impulse;
-    }
-}
-
 /// (b2Body_GetType)
 pub fn body_get_type(world: &World, body_id: BodyId) -> BodyType {
     let body_index = get_body_full_id(world, body_id);
@@ -577,6 +420,9 @@ pub fn body_get_world_center(world: &World, body_id: BodyId) -> Pos {
 
 /// (b2Body_SetMassData)
 pub fn body_set_mass_data(world: &mut World, body_id: BodyId, mass_data: MassData) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_set_mass_data(rec, body_id, mass_data)
+    });
     debug_assert!(is_valid_float(mass_data.mass) && mass_data.mass >= 0.0);
     debug_assert!(
         is_valid_float(mass_data.rotational_inertia) && mass_data.rotational_inertia >= 0.0
@@ -628,6 +474,13 @@ pub fn body_get_mass_data(world: &World, body_id: BodyId) -> MassData {
 
 /// (b2Body_ApplyMassFromShapes)
 pub fn body_apply_mass_from_shapes(world: &mut World, body_id: BodyId) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_marker(
+            rec,
+            crate::recording::OP_BODY_APPLY_MASS_FROM_SHAPES,
+            body_id,
+        )
+    });
     debug_assert!(!world.locked);
     if world.locked {
         return;
@@ -639,6 +492,14 @@ pub fn body_apply_mass_from_shapes(world: &mut World, body_id: BodyId) {
 
 /// (b2Body_SetLinearDamping)
 pub fn body_set_linear_damping(world: &mut World, body_id: BodyId, linear_damping: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_f32(
+            rec,
+            crate::recording::OP_BODY_SET_LINEAR_DAMPING,
+            body_id,
+            linear_damping,
+        )
+    });
     debug_assert!(is_valid_float(linear_damping) && linear_damping >= 0.0);
     debug_assert!(!world.locked);
     if world.locked {
@@ -660,6 +521,14 @@ pub fn body_get_linear_damping(world: &World, body_id: BodyId) -> f32 {
 
 /// (b2Body_SetAngularDamping)
 pub fn body_set_angular_damping(world: &mut World, body_id: BodyId, angular_damping: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_f32(
+            rec,
+            crate::recording::OP_BODY_SET_ANGULAR_DAMPING,
+            body_id,
+            angular_damping,
+        )
+    });
     debug_assert!(is_valid_float(angular_damping) && angular_damping >= 0.0);
     debug_assert!(!world.locked);
     if world.locked {
@@ -681,6 +550,14 @@ pub fn body_get_angular_damping(world: &World, body_id: BodyId) -> f32 {
 
 /// (b2Body_SetGravityScale)
 pub fn body_set_gravity_scale(world: &mut World, body_id: BodyId, gravity_scale: f32) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_f32(
+            rec,
+            crate::recording::OP_BODY_SET_GRAVITY_SCALE,
+            body_id,
+            gravity_scale,
+        )
+    });
     debug_assert!(body_is_valid(world, body_id));
     debug_assert!(is_valid_float(gravity_scale));
     debug_assert!(!world.locked);
@@ -717,6 +594,9 @@ pub fn body_get_user_data(world: &World, body_id: BodyId) -> u64 {
 /// (b2Body_SetName — takes &str; truncation matches the C strncpy to
 /// B2_NAME_LENGTH)
 pub fn body_set_name(world: &mut World, body_id: BodyId, name: &str) {
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_set_name(rec, body_id, name)
+    });
     let body_index = get_body_full_id(world, body_id);
     let body = &mut world.bodies[body_index as usize];
     // C: strncpy into char[B2_NAME_LENGTH + 1]; truncate to the same limit

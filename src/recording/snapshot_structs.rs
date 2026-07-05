@@ -158,7 +158,7 @@ pub(crate) fn des_body(r: &mut SnapReader) -> Body {
     b
 }
 
-fn r_string(r: &mut SnapReader) -> String {
+pub(crate) fn r_string(r: &mut SnapReader) -> String {
     let len = r.r_u16();
     if len == 0xFFFF {
         // C NULL marker

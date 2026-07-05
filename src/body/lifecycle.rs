@@ -179,7 +179,14 @@ pub fn create_body(world: &mut World, def: &crate::types::BodyDef) -> BodyId {
 
     world.validate_solver_sets();
 
-    make_body_id(world, body_id)
+    let id = make_body_id(world, body_id);
+
+    // (B2_REC_CREATE(world, CreateBody, id, worldId, *def))
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_create_body(rec, def, id)
+    });
+
+    id
 }
 
 /// Update a body's mass, center of mass, rotational inertia, and extents from
@@ -355,6 +362,10 @@ pub fn destroy_body(world: &mut World, body_id: BodyId) {
     use super::{remove_body_from_island, remove_body_sim};
     use crate::body::get_body_full_id;
     use crate::solver_set::FIRST_SLEEPING_SET;
+
+    crate::recording::record_op(world, |rec, _| {
+        crate::recording::write_body_marker(rec, crate::recording::OP_DESTROY_BODY, body_id)
+    });
 
     let body_index = get_body_full_id(world, body_id);
 

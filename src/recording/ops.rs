@@ -114,7 +114,7 @@ pub(crate) fn write_world_explode(
 }
 
 #[cfg(feature = "double-precision")]
-fn read_position(r: &mut SnapReader) -> crate::math_functions::Pos {
+pub(crate) fn read_position(r: &mut SnapReader) -> crate::math_functions::Pos {
     crate::math_functions::Pos {
         x: r.r_f64(),
         y: r.r_f64(),
@@ -122,7 +122,7 @@ fn read_position(r: &mut SnapReader) -> crate::math_functions::Pos {
 }
 
 #[cfg(not(feature = "double-precision"))]
-fn read_position(r: &mut SnapReader) -> crate::math_functions::Pos {
+pub(crate) fn read_position(r: &mut SnapReader) -> crate::math_functions::Pos {
     crate::math_functions::Pos {
         x: r.r_f32(),
         y: r.r_f32(),
@@ -432,8 +432,18 @@ pub fn replay_buffer(data: &[u8]) -> ReplayResult {
                 return result;
             }
             _ => {
-                // Mutation ops gain dispatchers as their hooks land; skip by
-                // framed size
+                if let Some(ids_match) =
+                    super::ops_body::dispatch_body_op(opcode, &mut r, &mut world)
+                {
+                    if !ids_match {
+                        // A create op returned a different id than recorded:
+                        // the replay is not deterministic.
+                        result.diverged = true;
+                    }
+                } else {
+                    // Mutation ops gain dispatchers as their hooks land; skip
+                    // by framed size
+                }
             }
         }
 
