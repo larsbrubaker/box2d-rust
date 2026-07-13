@@ -185,28 +185,35 @@ export const SAMPLES: SampleEntry[] = [
     ["Unstable Windmill", "planned"],
   ]),
   ...cat("Joints", "sample_joints.cpp", [
-    ["Distance Joint", "planned"],
-    ["Motor Joint", "planned"],
-    ["Top Down Friction", "planned"],
-    ["Filter Joint", "planned"],
-    ["Revolute", "planned"],
-    ["Prismatic", "planned"],
-    ["Wheel", "planned"],
-    ["Bridge", "planned"],
-    ["Ball & Chain", "planned"],
-    ["Cantilever", "planned"],
-    ["Motion Locks", "planned"],
-    ["Breakable", "planned"],
-    ["Separation", "planned"],
-    ["User Constraint", "planned"],
-    ["Driving", "planned"],
-    ["Ragdoll", "planned"],
-    ["Soft Body", "planned"],
-    ["Doohickey", "planned"],
-    ["Scissor Lift", "planned"],
-    ["Gear Lift", "planned"],
-    ["Door", "planned"],
-    ["Scale Ragdoll", "planned"],
+    ["Distance Joint", "live", "joints", "distance-joint"],
+    ["Motor Joint", "live", "joints", "motor-joint"],
+    // Partial: remainder==3 RandomPolygon branch uses square (hull attach not wired for mid-body)
+    ["Top Down Friction", "partial", "joints", "top-down-friction"],
+    ["Filter Joint", "live", "joints", "filter-joint"],
+    ["Revolute", "live", "joints", "revolute"],
+    ["Prismatic", "live", "joints", "prismatic"],
+    ["Wheel", "live", "joints", "wheel"],
+    ["Bridge", "live", "joints", "bridge"],
+    // Partial: category/mask filter bits → groupIndex -1 approximation for link-link
+    ["Ball & Chain", "partial", "joints", "ball-chain"],
+    ["Cantilever", "live", "joints", "cantilever"],
+    ["Motion Locks", "live", "joints", "motion-locks"],
+    // Partial: force-threshold break on 2 joints; C six-joint gallery incomplete
+    ["Breakable", "partial", "joints", "breakable"],
+    // Partial: HUD separations only — C Separation construction not fully mirrored
+    ["Separation", "partial", "joints", "separation"],
+    // Partial: simplified impulse constraint toward (0,5); C has richer dual-impulse setup
+    ["User Constraint", "partial", "joints", "user-constraint"],
+    // Partial: Car + bumps; missing teeter/bridge/truck/chase-cam extras
+    ["Driving", "partial", "joints", "driving"],
+    ["Ragdoll", "planned"], // needs CreateHuman (shared/human.c)
+    ["Soft Body", "live", "joints", "soft-body"],
+    ["Doohickey", "live", "joints", "doohickey"],
+    ["Scissor Lift", "planned"], // large; deferred this session
+    ["Gear Lift", "planned"], // large; deferred this session
+    // Partial: single hinged panel; C two-joint/latch extras missing
+    ["Door", "partial", "joints", "door"],
+    ["Scale Ragdoll", "planned"], // needs Human_SetScale
   ]),
   ...cat("Robustness", "sample_robustness.cpp", [
     ["HighMassRatio1", "planned"],
