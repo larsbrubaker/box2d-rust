@@ -1,8 +1,8 @@
 //! Replay inspector: outliner JSON, detail text, pick, selection highlight.
 //! Mirrors sample_replay.cpp DrawOutlineTree / DrawDetail / MouseDown / DrawSelectionHighlight.
 
-use crate::interact::CollectingDraw;
 use super::names::{body_type_name, joint_type_name, query_type_name, shape_type_name};
+use crate::interact::CollectingDraw;
 use box2d_rust::body::{
     body_compute_aabb, body_get_angular_velocity, body_get_contact_capacity, body_get_contact_data,
     body_get_gravity_scale, body_get_joint_count, body_get_joints, body_get_linear_velocity,
@@ -178,7 +178,11 @@ pub fn outline_json(player: &RecPlayer) -> String {
         first_body = false;
         let name = body_get_name(world, body);
         let label = if name.is_empty() {
-            format!("Body {}  {}", ord, body_type_name(body_get_type(world, body)))
+            format!(
+                "Body {}  {}",
+                ord,
+                body_type_name(body_get_type(world, body))
+            )
         } else {
             format!("Body {}  {}", ord, name)
         };
@@ -192,7 +196,11 @@ pub fn outline_json(player: &RecPlayer) -> String {
             if s > 0 {
                 out.push(',');
             }
-            let sl = format!("Shape {}  {}", s, shape_type_name(shape_get_type(world, *sid)));
+            let sl = format!(
+                "Shape {}  {}",
+                s,
+                shape_type_name(shape_get_type(world, *sid))
+            );
             out.push_str(&format!(
                 "{{\"slot\":{},\"label\":\"{}\"}}",
                 s,
@@ -311,8 +319,14 @@ fn append_shape_detail(world: &World, shape: ShapeId, out: &mut String) {
     out.push_str(&format!("category 0x{:016x}\n", f.category_bits));
     out.push_str(&format!("mask     0x{:016x}\n", f.mask_bits));
     out.push_str(&format!("group    {}\n", f.group_index));
-    out.push_str(&format!("density  {:.3}\n", shape_get_density(world, shape)));
-    out.push_str(&format!("friction {:.3}\n", shape_get_friction(world, shape)));
+    out.push_str(&format!(
+        "density  {:.3}\n",
+        shape_get_density(world, shape)
+    ));
+    out.push_str(&format!(
+        "friction {:.3}\n",
+        shape_get_friction(world, shape)
+    ));
     out.push_str(&format!(
         "restitution {:.3}\n",
         shape_get_restitution(world, shape)
@@ -450,7 +464,10 @@ pub fn detail_text(player: &RecPlayer, sel: &Selection) -> String {
         let g = world_get_gravity(world);
         let c = world_get_counters(world);
         out.push_str(&format!("gravity ({:.2}, {:.2})\n", g.x, g.y));
-        out.push_str(&format!("bodies {}  shapes {}\n", c.body_count, c.shape_count));
+        out.push_str(&format!(
+            "bodies {}  shapes {}\n",
+            c.body_count, c.shape_count
+        ));
         out.push_str(&format!(
             "contacts {}  joints {}\n",
             c.contact_count, c.joint_count
@@ -513,11 +530,7 @@ fn draw_xf(draw: &mut CollectingDraw, xf: WorldTransform, scale: f32) {
 }
 
 /// Selection highlight + optional single-query overlay into the draw buffers.
-pub fn draw_selection(
-    player: &RecPlayer,
-    sel: &Selection,
-    draw: &mut CollectingDraw,
-) {
+pub fn draw_selection(player: &RecPlayer, sel: &Selection, draw: &mut CollectingDraw) {
     if sel.kind == SEL_QUERY {
         player.draw_frame_queries(draw, sel.query);
         return;

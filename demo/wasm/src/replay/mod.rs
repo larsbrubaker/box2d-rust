@@ -8,9 +8,7 @@ use crate::interact::collect_world_draw;
 use crate::sim::SimWorld;
 use box2d_rust::body::{get_body_full_id, get_body_transform};
 use box2d_rust::math_functions as m;
-use inspect::{
-    detail_text, draw_selection, outline_json, pick_at, Selection, SEL_NONE, SEL_QUERY,
-};
+use inspect::{detail_text, draw_selection, outline_json, pick_at, Selection, SEL_NONE, SEL_QUERY};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -105,8 +103,7 @@ impl SimPlayer {
     /// pre-generate afterward.
     pub fn set_keyframe_policy(&mut self, budget_mb: i32, min_interval: i32) {
         let bytes = (budget_mb.max(1) as usize) * 1024 * 1024;
-        self.player
-            .set_keyframe_policy(bytes, min_interval.max(1));
+        self.player.set_keyframe_policy(bytes, min_interval.max(1));
     }
 
     pub fn keyframe_budget_mb(&self) -> i32 {

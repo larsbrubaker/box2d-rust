@@ -89,15 +89,18 @@ fn contact_get_data_matches_body_contact_data() {
     let mut ground_def = default_body_def();
     ground_def.position = to_pos(Vec2 { x: 0.0, y: -1.0 });
     let ground = create_body(&mut world, &ground_def);
-    let ground_shape =
-        create_polygon_shape(&mut world, ground, &default_shape_def(), &make_box(10.0, 1.0));
+    let ground_shape = create_polygon_shape(
+        &mut world,
+        ground,
+        &default_shape_def(),
+        &make_box(10.0, 1.0),
+    );
 
     let mut body_def = default_body_def();
     body_def.type_ = BodyType::Dynamic;
     body_def.position = to_pos(Vec2 { x: 0.0, y: 1.0 });
     let body = create_body(&mut world, &body_def);
-    let box_shape =
-        create_polygon_shape(&mut world, body, &default_shape_def(), &make_square(0.5));
+    let box_shape = create_polygon_shape(&mut world, body, &default_shape_def(), &make_square(0.5));
 
     for _ in 0..30 {
         world_step(&mut world, 1.0 / 60.0, 4);
