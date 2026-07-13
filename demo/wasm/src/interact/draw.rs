@@ -4,9 +4,7 @@
 
 use box2d_rust::debug_draw::{DebugDraw, HexColor};
 use box2d_rust::math_functions as m;
-use box2d_rust::math_functions::{
-    transform_world_point, Aabb, Pos, Vec2, WorldTransform,
-};
+use box2d_rust::math_functions::{transform_world_point, Aabb, Pos, Vec2, WorldTransform};
 use box2d_rust::world::{world_draw, World};
 use std::cell::Cell;
 use wasm_bindgen::prelude::*;
@@ -279,10 +277,22 @@ impl DebugDraw for CollectingDraw {
         let l = aabb.lower_bound;
         let u = aabb.upper_bound;
         let corners = [
-            Pos { x: l.x as _, y: l.y as _ },
-            Pos { x: u.x as _, y: l.y as _ },
-            Pos { x: u.x as _, y: u.y as _ },
-            Pos { x: l.x as _, y: u.y as _ },
+            Pos {
+                x: l.x as _,
+                y: l.y as _,
+            },
+            Pos {
+                x: u.x as _,
+                y: l.y as _,
+            },
+            Pos {
+                x: u.x as _,
+                y: u.y as _,
+            },
+            Pos {
+                x: l.x as _,
+                y: u.y as _,
+            },
         ];
         for i in 0..4 {
             self.draw_line(corners[i], corners[(i + 1) % 4], color);

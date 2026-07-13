@@ -159,7 +159,16 @@ impl SimWorld {
         restitution: f32,
     ) {
         self.attach_capsule_filtered(
-            index, c1x, c1y, c2x, c2y, radius, density, friction, restitution, 0,
+            index,
+            c1x,
+            c1y,
+            c2x,
+            c2y,
+            radius,
+            density,
+            friction,
+            restitution,
+            0,
         );
     }
 
@@ -300,13 +309,8 @@ impl SimWorld {
         shape_def.material.friction = friction;
         shape_def.material.restitution = restitution;
         shape_def.invoke_contact_creation = invoke_contact_creation;
-        let polygon = make_offset_rounded_box(
-            hx,
-            hy,
-            Vec2 { x: cx, y: cy },
-            make_rot(angle),
-            radius,
-        );
+        let polygon =
+            make_offset_rounded_box(hx, hy, Vec2 { x: cx, y: cy }, make_rot(angle), radius);
         create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
     }
 

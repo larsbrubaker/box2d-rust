@@ -15,13 +15,11 @@ fn joint_types_create_and_track() {
         ground, a, -1.0, 2.0, true, -0.5, 0.5, false, 0.0, 0.0, false, 0.0, 0.0, false,
     );
     let prismatic = sim.add_prismatic_joint(
-        ground, b, 1.0, 2.0, 1.0, 0.0, true, -1.0, 1.0, false, 0.0, 0.0, false, 0.0, 0.0,
-        false,
+        ground, b, 1.0, 2.0, 1.0, 0.0, true, -1.0, 1.0, false, 0.0, 0.0, false, 0.0, 0.0, false,
     );
     let weld = sim.add_weld_joint(a, c, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, false);
     let wheel = sim.add_wheel_joint(
-        ground, b, 1.0, 1.0, 0.0, 1.0, false, 0.0, 0.0, false, 0.0, 0.0, true, 4.0, 0.7,
-        false,
+        ground, b, 1.0, 1.0, 0.0, 1.0, false, 0.0, 0.0, false, 0.0, 0.0, true, 4.0, 0.7, false,
     );
     let motor = sim.add_motor_joint(ground, a, 4.0, 1.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, false);
     let filter = sim.add_filter_joint(a, b);
@@ -50,14 +48,7 @@ fn shapes_segment_polygon_attach() {
     let body = sim.add_body(0.0, 2.0, 0.0, 2);
     sim.attach_box(body, 0.5, 0.25, 0.0, 0.0, 0.0, 1.0, 0.3, 0.0);
     sim.attach_circle(body, 0.0, 0.5, 0.2, 1.0, 0.3, 0.1);
-    let poly = sim.add_polygon(
-        2.0,
-        3.0,
-        0.0,
-        &[-0.5, -0.5, 0.5, -0.5, 0.0, 0.5],
-        0.0,
-        1.0,
-    );
+    let poly = sim.add_polygon(2.0, 3.0, 0.0, &[-0.5, -0.5, 0.5, -0.5, 0.0, 0.5], 0.0, 1.0);
     let _ = (seg, poly);
     for _ in 0..20 {
         sim.step(1.0 / 60.0, 4);

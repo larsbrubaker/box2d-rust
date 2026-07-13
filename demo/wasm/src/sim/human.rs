@@ -17,9 +17,7 @@ use box2d_rust::joint::{
     create_revolute_joint, destroy_joint, joint_get_local_frame_a, joint_get_local_frame_b,
     joint_get_type, joint_set_local_frame_a, joint_set_local_frame_b, JointType,
 };
-use box2d_rust::math_functions::{
-    make_rot, mul_sv, offset_pos, sub_pos, to_pos, Pos, Vec2, PI,
-};
+use box2d_rust::math_functions::{make_rot, mul_sv, offset_pos, sub_pos, to_pos, Pos, Vec2, PI};
 use box2d_rust::revolute_joint::{
     revolute_joint_enable_motor, revolute_joint_enable_spring, revolute_joint_set_max_motor_torque,
     revolute_joint_set_spring_damping_ratio, revolute_joint_set_spring_hertz,
@@ -28,7 +26,9 @@ use box2d_rust::shape::{
     create_capsule_shape, create_polygon_shape, shape_enable_sensor_events, shape_get_capsule,
     shape_get_polygon, shape_get_type, shape_set_capsule, shape_set_polygon,
 };
-use box2d_rust::types::{default_body_def, default_revolute_joint_def, default_shape_def, BodyType};
+use box2d_rust::types::{
+    default_body_def, default_revolute_joint_def, default_shape_def, BodyType,
+};
 use std::sync::atomic::{AtomicU32, Ordering};
 use wasm_bindgen::prelude::*;
 
@@ -266,7 +266,13 @@ impl SimWorld {
 
         // --- hip ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 0.95 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.95 * s,
+                },
+            );
             body_def.linear_damping = 0.0;
             body_def.name = "hip".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -340,7 +346,13 @@ impl SimWorld {
 
         // --- head ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 1.475 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 1.475 * s,
+                },
+            );
             body_def.linear_damping = 0.1;
             body_def.name = "head".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -386,7 +398,13 @@ impl SimWorld {
 
         // --- upper left leg ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 0.775 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.775 * s,
+                },
+            );
             body_def.linear_damping = 0.0;
             body_def.name = "upper_left_leg".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -432,7 +450,13 @@ impl SimWorld {
 
         // --- lower left leg ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 0.475 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.475 * s,
+                },
+            );
             body_def.linear_damping = 0.0;
             body_def.name = "lower_left_leg".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -453,7 +477,13 @@ impl SimWorld {
             };
             create_capsule_shape(&mut self.world, body_id, &shape_def, &capsule);
             create_polygon_shape(&mut self.world, body_id, &foot_shape_def, &foot_polygon);
-            let pivot = offset_pos(position, Vec2 { x: 0.0, y: 0.625 * s });
+            let pivot = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.625 * s,
+                },
+            );
             let parent = self.humans[human_index].bones[BONE_UPPER_LEFT_LEG].body_id;
             let friction_scale = 0.5f32;
             let (joint_id, joint_index) = self.human_create_revolute(
@@ -479,7 +509,13 @@ impl SimWorld {
 
         // --- upper right leg ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 0.775 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.775 * s,
+                },
+            );
             body_def.linear_damping = 0.0;
             body_def.name = "upper_right_leg".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -525,7 +561,13 @@ impl SimWorld {
 
         // --- lower right leg ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 0.475 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.475 * s,
+                },
+            );
             body_def.linear_damping = 0.0;
             body_def.name = "lower_right_leg".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -546,7 +588,13 @@ impl SimWorld {
             };
             create_capsule_shape(&mut self.world, body_id, &shape_def, &capsule);
             create_polygon_shape(&mut self.world, body_id, &foot_shape_def, &foot_polygon);
-            let pivot = offset_pos(position, Vec2 { x: 0.0, y: 0.625 * s });
+            let pivot = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.625 * s,
+                },
+            );
             let parent = self.humans[human_index].bones[BONE_UPPER_RIGHT_LEG].body_id;
             let friction_scale = 0.5f32;
             let (joint_id, joint_index) = self.human_create_revolute(
@@ -572,7 +620,13 @@ impl SimWorld {
 
         // --- upper left arm ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 1.225 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 1.225 * s,
+                },
+            );
             body_def.linear_damping = 0.0;
             body_def.name = "upper_left_arm".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -592,7 +646,13 @@ impl SimWorld {
                 radius: 0.035 * s,
             };
             create_capsule_shape(&mut self.world, body_id, &shape_def, &capsule);
-            let pivot = offset_pos(position, Vec2 { x: 0.0, y: 1.35 * s });
+            let pivot = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 1.35 * s,
+                },
+            );
             let parent = self.humans[human_index].bones[BONE_TORSO].body_id;
             let friction_scale = 0.5f32;
             let (joint_id, joint_index) = self.human_create_revolute(
@@ -618,7 +678,13 @@ impl SimWorld {
 
         // --- lower left arm ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 0.975 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.975 * s,
+                },
+            );
             body_def.linear_damping = 0.1;
             body_def.name = "lower_left_arm".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -664,7 +730,13 @@ impl SimWorld {
 
         // --- upper right arm ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 1.225 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 1.225 * s,
+                },
+            );
             body_def.linear_damping = 0.0;
             body_def.name = "upper_right_arm".to_string();
             let body_id = create_body(&mut self.world, &body_def);
@@ -684,7 +756,13 @@ impl SimWorld {
                 radius: 0.035 * s,
             };
             create_capsule_shape(&mut self.world, body_id, &shape_def, &capsule);
-            let pivot = offset_pos(position, Vec2 { x: 0.0, y: 1.35 * s });
+            let pivot = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 1.35 * s,
+                },
+            );
             let parent = self.humans[human_index].bones[BONE_TORSO].body_id;
             let friction_scale = 0.5f32;
             let (joint_id, joint_index) = self.human_create_revolute(
@@ -710,7 +788,13 @@ impl SimWorld {
 
         // --- lower right arm ---
         {
-            body_def.position = offset_pos(position, Vec2 { x: 0.0, y: 0.975 * s });
+            body_def.position = offset_pos(
+                position,
+                Vec2 {
+                    x: 0.0,
+                    y: 0.975 * s,
+                },
+            );
             body_def.linear_damping = 0.1;
             body_def.name = "lower_right_arm".to_string();
             let body_id = create_body(&mut self.world, &body_def);

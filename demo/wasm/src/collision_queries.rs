@@ -152,16 +152,7 @@ pub fn collision_time_of_impact() -> Vec<f32> {
             y: 45.25,
         },
     ];
-    let vertices_b = [
-        Vec2 {
-            x: 0.0,
-            y: -0.125,
-        },
-        Vec2 {
-            x: 0.0,
-            y: 0.125,
-        },
-    ];
+    let vertices_b = [Vec2 { x: 0.0, y: -0.125 }, Vec2 { x: 0.0, y: 0.125 }];
 
     let sweep_a = Sweep {
         local_center: Vec2 { x: 0.0, y: 0.0 },

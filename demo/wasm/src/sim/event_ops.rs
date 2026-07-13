@@ -78,10 +78,7 @@ impl SimWorld {
             .unwrap_or(-1)
     }
 
-    fn contact_sim_manifold(
-        &self,
-        contact_index: i32,
-    ) -> Option<&box2d_rust::collision::Manifold> {
+    fn contact_sim_manifold(&self, contact_index: i32) -> Option<&box2d_rust::collision::Manifold> {
         let contact = self.world.contacts.get(contact_index as usize)?;
         if contact.set_index == NULL_INDEX {
             return None;
@@ -530,7 +527,9 @@ impl SimWorld {
             let ji = self
                 .joints
                 .iter()
-                .position(|&j| j.index1 == e.joint_id.index1 && j.generation == e.joint_id.generation)
+                .position(|&j| {
+                    j.index1 == e.joint_id.index1 && j.generation == e.joint_id.generation
+                })
                 .map(|i| i as i32)
                 .unwrap_or(-1);
             out.push(ji);
@@ -665,13 +664,7 @@ impl SimWorld {
     }
 
     /// Closest ray cast: [hit(0/1), x, y, nx, ny, fraction].
-    pub fn cast_ray_closest(
-        &mut self,
-        ox: f32,
-        oy: f32,
-        tx: f32,
-        ty: f32,
-    ) -> Vec<f32> {
+    pub fn cast_ray_closest(&mut self, ox: f32, oy: f32, tx: f32, ty: f32) -> Vec<f32> {
         let origin = to_pos(Vec2 { x: ox, y: oy });
         let translation = Vec2 { x: tx, y: ty };
         let filter = default_query_filter();

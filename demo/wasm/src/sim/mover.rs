@@ -15,7 +15,9 @@ use box2d_rust::math_functions::{
 use box2d_rust::mover::{clip_vector, solve_planes, CollisionPlane};
 use box2d_rust::shape::{shape_get_body, shape_get_user_data};
 use box2d_rust::types::{BodyType, QueryFilter};
-use box2d_rust::world::{world_cast_mover, world_cast_shape, world_collide_mover, world_overlap_shape};
+use box2d_rust::world::{
+    world_cast_mover, world_cast_shape, world_collide_mover, world_overlap_shape,
+};
 use wasm_bindgen::prelude::*;
 
 /// sample_character.cpp CollisionBits
@@ -266,10 +268,7 @@ impl SimWorld {
             if accel_speed > add_speed {
                 accel_speed = add_speed;
             }
-            self.mover_velocity = add(
-                self.mover_velocity,
-                mul_sv(accel_speed, desired_direction),
-            );
+            self.mover_velocity = add(self.mover_velocity, mul_sv(accel_speed, desired_direction));
         }
 
         self.mover_velocity.y -= self.mover_gravity * time_step;

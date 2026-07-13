@@ -160,9 +160,7 @@ impl TreeDemo {
                         },
                     };
                     let idx = self.proxies.len() as u64;
-                    let proxy_id =
-                        self.tree
-                            .create_proxy(fat, DEFAULT_CATEGORY_BITS, idx);
+                    let proxy_id = self.tree.create_proxy(fat, DEFAULT_CATEGORY_BITS, idx);
                     self.proxies.push(Proxy {
                         position: Vec2 { x, y },
                         width: Vec2 { x: wx, y: wy },
@@ -237,8 +235,14 @@ impl TreeDemo {
     /// AABB query — stamps query_stamp; returns hit proxy indices.
     pub fn query_aabb(&mut self, x0: f32, y0: f32, x1: f32, y1: f32) -> Vec<i32> {
         let aabb = Aabb {
-            lower_bound: Vec2 { x: x0.min(x1), y: y0.min(y1) },
-            upper_bound: Vec2 { x: x0.max(x1), y: y0.max(y1) },
+            lower_bound: Vec2 {
+                x: x0.min(x1),
+                y: y0.min(y1),
+            },
+            upper_bound: Vec2 {
+                x: x0.max(x1),
+                y: y0.max(y1),
+            },
         };
         let stamp = self.time_stamp;
         let mut hits = Vec::new();
@@ -267,14 +271,15 @@ impl TreeDemo {
         let stamp = self.time_stamp;
         let mut hits = Vec::new();
         let proxies = &mut self.proxies;
-        self.tree.ray_cast(&input, u64::MAX, |_input, _id, user_data| {
-            let i = user_data as usize;
-            if i < proxies.len() {
-                proxies[i].ray_stamp = stamp;
-                hits.push(i as i32);
-            }
-            1.0 // continue
-        });
+        self.tree
+            .ray_cast(&input, u64::MAX, |_input, _id, user_data| {
+                let i = user_data as usize;
+                if i < proxies.len() {
+                    proxies[i].ray_stamp = stamp;
+                    hits.push(i as i32);
+                }
+                1.0 // continue
+            });
         hits
     }
 

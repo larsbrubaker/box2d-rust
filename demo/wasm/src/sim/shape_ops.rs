@@ -9,8 +9,8 @@ use box2d_rust::id::ShapeId;
 use box2d_rust::math_functions::Vec2;
 use box2d_rust::shape::{
     create_chain_segment_shape, shape_apply_wind, shape_set_capsule, shape_set_chain_segment,
-    shape_set_circle, shape_set_filter, shape_set_friction, shape_set_polygon, shape_set_restitution,
-    shape_set_segment, shape_set_surface_material,
+    shape_set_circle, shape_set_filter, shape_set_friction, shape_set_polygon,
+    shape_set_restitution, shape_set_segment, shape_set_surface_material,
 };
 use box2d_rust::types::{default_shape_def, default_surface_material, Filter, SurfaceMaterial};
 use box2d_rust::world::world_set_custom_filter_callback;
@@ -550,14 +550,7 @@ impl SimWorld {
     }
 
     /// Morph shape to segment.
-    pub fn shape_set_segment(
-        &mut self,
-        shape_index: usize,
-        x1: f32,
-        y1: f32,
-        x2: f32,
-        y2: f32,
-    ) {
+    pub fn shape_set_segment(&mut self, shape_index: usize, x1: f32, y1: f32, x2: f32, y2: f32) {
         if shape_index >= self.shapes.len() {
             return;
         }
@@ -766,10 +759,8 @@ impl SimWorld {
         if shape_index >= self.shapes.len() {
             return;
         }
-        let mut mat = box2d_rust::shape::shape_get_surface_material(
-            &self.world,
-            self.shapes[shape_index],
-        );
+        let mut mat =
+            box2d_rust::shape::shape_get_surface_material(&self.world, self.shapes[shape_index]);
         mat.custom_color = custom_color;
         shape_set_surface_material(&mut self.world, self.shapes[shape_index], mat);
     }
@@ -860,13 +851,8 @@ impl SimWorld {
         shape_def.density = density;
         shape_def.material.friction = friction;
         shape_def.material.custom_color = custom_color;
-        let polygon = make_offset_rounded_box(
-            hx,
-            hy,
-            Vec2 { x: cx, y: cy },
-            make_rot(angle),
-            radius,
-        );
+        let polygon =
+            make_offset_rounded_box(hx, hy, Vec2 { x: cx, y: cy }, make_rot(angle), radius);
         let sid = create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
         self.track_shape(sid)
     }

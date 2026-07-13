@@ -4,6 +4,7 @@
 
 use super::SimWorld;
 use box2d_rust::body::body_get_local_point;
+use box2d_rust::body::get_body_transform;
 use box2d_rust::distance_joint::{
     distance_joint_enable_limit, distance_joint_enable_motor, distance_joint_enable_spring,
     distance_joint_set_length, distance_joint_set_length_range, distance_joint_set_max_motor_force,
@@ -12,8 +13,8 @@ use box2d_rust::distance_joint::{
 };
 use box2d_rust::joint::{
     create_distance_joint, create_motor_joint, create_prismatic_joint, create_revolute_joint,
-    create_weld_joint, create_wheel_joint, destroy_joint, joint_get_constraint_force,
-    joint_get_constraint_torque, joint_get_linear_separation, joint_get_angular_separation,
+    create_weld_joint, create_wheel_joint, destroy_joint, joint_get_angular_separation,
+    joint_get_constraint_force, joint_get_constraint_torque, joint_get_linear_separation,
     joint_set_collide_connected, joint_set_constraint_tuning, joint_set_force_threshold,
     joint_set_torque_threshold, joint_wake_bodies,
 };
@@ -48,9 +49,9 @@ use box2d_rust::weld_joint::{
 use box2d_rust::wheel_joint::{
     wheel_joint_enable_limit, wheel_joint_enable_motor, wheel_joint_enable_spring,
     wheel_joint_get_motor_torque, wheel_joint_set_limits, wheel_joint_set_max_motor_torque,
-    wheel_joint_set_motor_speed, wheel_joint_set_spring_damping_ratio, wheel_joint_set_spring_hertz,
+    wheel_joint_set_motor_speed, wheel_joint_set_spring_damping_ratio,
+    wheel_joint_set_spring_hertz,
 };
-use box2d_rust::body::get_body_transform;
 use wasm_bindgen::prelude::*;
 
 fn joint_alive(sim: &SimWorld, index: usize) -> bool {
@@ -717,7 +718,8 @@ impl SimWorld {
     /// World point from body-local (for overlay).
     pub fn body_world_point(&self, index: usize, lx: f32, ly: f32) -> Vec<f32> {
         let xf = get_body_transform(&self.world, self.body_index_at(index));
-        let p = box2d_rust::math_functions::transform_world_point(xf, to_pos(Vec2 { x: lx, y: ly }));
+        let p =
+            box2d_rust::math_functions::transform_world_point(xf, to_pos(Vec2 { x: lx, y: ly }));
         vec![p.x, p.y]
     }
 }

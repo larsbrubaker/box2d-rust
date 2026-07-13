@@ -62,14 +62,7 @@ impl SimWorld {
     /// (b2World_CastRay) collecting hits. Ignores shapes with user_data==1.
     /// `mode`: 0 any, 1 closest, 2 multiple, 3 sorted.
     /// Returns flat `[count, f,px,py,nx,ny,shapeIdx, …]`.
-    pub fn cast_ray_hits(
-        &mut self,
-        ox: f32,
-        oy: f32,
-        tx: f32,
-        ty: f32,
-        mode: i32,
-    ) -> Vec<f32> {
+    pub fn cast_ray_hits(&mut self, ox: f32, oy: f32, tx: f32, ty: f32, mode: i32) -> Vec<f32> {
         let mut raw: Vec<(f32, f32, f32, f32, f32, ShapeId)> = Vec::new();
         let filter = default_query_filter();
         let world_ptr: *const World = &self.world;
@@ -214,13 +207,7 @@ impl SimWorld {
     }
 
     /// (b2World_OverlapShape). Returns demo shape indices (cap 16).
-    pub fn overlap_shape_hits(
-        &mut self,
-        ox: f32,
-        oy: f32,
-        pts: &[f32],
-        radius: f32,
-    ) -> Vec<i32> {
+    pub fn overlap_shape_hits(&mut self, ox: f32, oy: f32, pts: &[f32], radius: f32) -> Vec<i32> {
         let proxy = proxy_from_flat(pts, radius);
         let mut raw: Vec<ShapeId> = Vec::new();
         let world_ptr: *const World = &self.world;

@@ -62,8 +62,7 @@ impl SimWorld {
         let body_id = self.body_id_at(index);
         destroy_body(&mut self.world, body_id);
         self.bodies[index] = DESTROYED_BODY_SLOT;
-        self.joints
-            .retain(|&jid| joint_is_valid(&self.world, jid));
+        self.joints.retain(|&jid| joint_is_valid(&self.world, jid));
         self.grab.validate(&mut self.world);
     }
 
@@ -210,12 +209,7 @@ impl SimWorld {
     /// (b2Body_ApplyLinearImpulseToCenter)
     pub fn apply_linear_impulse_to_center(&mut self, index: usize, ix: f32, iy: f32, wake: bool) {
         let body_id = self.body_id_at(index);
-        body_apply_linear_impulse_to_center(
-            &mut self.world,
-            body_id,
-            Vec2 { x: ix, y: iy },
-            wake,
-        );
+        body_apply_linear_impulse_to_center(&mut self.world, body_id, Vec2 { x: ix, y: iy }, wake);
     }
 
     /// (b2Body_SetBullet)
@@ -283,7 +277,12 @@ impl SimWorld {
     /// (b2Body_ComputeAABB) as [lowerX, lowerY, upperX, upperY]
     pub fn body_compute_aabb(&self, index: usize) -> Vec<f32> {
         let aabb = body_compute_aabb(&self.world, self.body_id_at(index));
-        vec![aabb.lower_bound.x, aabb.lower_bound.y, aabb.upper_bound.x, aabb.upper_bound.y]
+        vec![
+            aabb.lower_bound.x,
+            aabb.lower_bound.y,
+            aabb.upper_bound.x,
+            aabb.upper_bound.y,
+        ]
     }
 
     /// (b2Body_GetLocalPointVelocity) as [vx, vy]

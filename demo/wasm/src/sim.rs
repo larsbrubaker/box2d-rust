@@ -16,9 +16,9 @@ mod mover;
 mod query_ops;
 mod shape_ops;
 mod shapes;
-mod world_ops;
 #[cfg(test)]
 mod tests;
+mod world_ops;
 
 use box2d_rust::collision::Capsule;
 use box2d_rust::math_functions as m;
@@ -257,10 +257,7 @@ impl SimWorld {
     /// Run `b2World_Draw` into internal buffers. Bounds: lowerX, lowerY, upperX, upperY.
     /// Honors the global view-flag mask from `sim_set_debug_flags`.
     pub fn collect_draw(&mut self, lower_x: f32, lower_y: f32, upper_x: f32, upper_y: f32) {
-        let collected = collect_world_draw(
-            &mut self.world,
-            [lower_x, lower_y, upper_x, upper_y],
-        );
+        let collected = collect_world_draw(&mut self.world, [lower_x, lower_y, upper_x, upper_y]);
         let text = collected.text_json();
         self.draw_polygons = collected.polygons;
         self.draw_circles = collected.circles;
