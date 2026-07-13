@@ -120,19 +120,34 @@ export function runSimLoop(
   };
 }
 
-/// Standard demo page scaffolding (matches the clipper2-rust layout).
+/// Standard demo page scaffolding. Sample pages pass `samplesShell: true`
+/// for the dark C Samples App Info panel.
+export type DemoPageOpts = {
+  category?: string;
+  samplesShell?: boolean;
+  hideHeader?: boolean;
+};
+
 export function demoPage(
   container: HTMLElement,
   title: string,
   description: string,
   hint: string,
-): { canvas: HTMLCanvasElement; controls: HTMLElement; readout: HTMLElement } {
+  opts: DemoPageOpts = {},
+): { canvas: HTMLCanvasElement; controls: HTMLElement; readout: HTMLElement; page: HTMLElement } {
+  const samplesShell = opts.samplesShell === true;
+  const hideHeader = opts.hideHeader ?? samplesShell;
+  const shellClass = samplesShell ? " samples-shell" : "";
   container.innerHTML = `
-    <div class="demo-page">
-      <div class="demo-header">
+    <div class="demo-page${shellClass}">
+      ${
+        hideHeader
+          ? ""
+          : `<div class="demo-header">
         <h2>${title}</h2>
         <p>${description}</p>
-      </div>
+      </div>`
+      }
       <div class="demo-body">
         <div class="demo-canvas-area">
           <canvas id="demo-canvas"></canvas>
@@ -146,6 +161,7 @@ export function demoPage(
     canvas: document.getElementById("demo-canvas") as HTMLCanvasElement,
     controls: document.getElementById("controls")!,
     readout: document.createElement("div"),
+    page: container.querySelector(".demo-page") as HTMLElement,
   };
 }
 

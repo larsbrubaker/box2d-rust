@@ -10,14 +10,14 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type SimWorld } from "../wasm.ts";
-import { paintDebugDraw } from "./debug-draw.ts";
+import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
 import {
   createSampleTransport,
+  mountSampleChrome,
   disposeTransport,
   makeCamera,
-  screenToWorld,
-  viewBounds,
+  screenToWorld,
   type SampleCamera,
 } from "./sample-shell.ts";
 
@@ -239,6 +239,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     "C <code>sample_determinism.cpp</code> — Falling Hinges soak (CrossPlatformTest) " +
       "and SnapShot mid-run restore of the same scene.",
     "P pause · O step · R restart · drag to grab",
+    { category: "Determinism", samplesShell: true }
   );
 
   let scene: Scene =
@@ -302,7 +303,15 @@ export function init(container: HTMLElement, initialScene?: string) {
     ),
   );
   controls.appendChild(createSeparator());
-  transport.mountControls(controls, () => rebuild());
+  const chrome = mountSampleChrome({
+    controls,
+    route: "determinism",
+    category: "Determinism",
+    sampleName: SCENE_LABEL[scene],
+    transport,
+    onRestart: () => rebuild(),
+    getWorld: () => sim,
+  });
   controls.appendChild(createSeparator());
   controls.appendChild(
     createInfoBox(
@@ -330,14 +339,7 @@ export function init(container: HTMLElement, initialScene?: string) {
       runtime.afterStep?.();
     }
 
-    const b = viewBounds(camera, canvas);
-    sim.collect_draw(b.lowerX, b.lowerY, b.upperX, b.upperY);
-    paintDebugDraw(canvas, camera, {
-      polygons: sim.draw_polygons(),
-      circles: sim.draw_circles(),
-      capsules: sim.draw_capsules(),
-      lines: sim.draw_lines(),
-    });
+    paintSampleDraw(canvas, camera, sim);
 
     updateReadout(readout, [
       { label: "Sample", value: SCENE_LABEL[scene] },
@@ -352,6 +354,7 @@ export function init(container: HTMLElement, initialScene?: string) {
   return () => {
     stop();
     unbindKeys();
+    chrome.dispose();
     disposeTransport(transport);
     canvas.removeEventListener("pointerdown", onPointerDown);
     canvas.removeEventListener("pointermove", onPointerMove);

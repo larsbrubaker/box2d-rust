@@ -19,7 +19,7 @@ import {
   updateReadout,
 } from "../controls.ts";
 import { getWasm, type SimPlayer, type SimWorld } from "../wasm.ts";
-import { paintDebugDraw } from "./debug-draw.ts";
+import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
 import {
   makeCamera,
@@ -128,6 +128,7 @@ export function init(container: HTMLElement) {
     "C <code>sample_replay.cpp</code> Replay Viewer — play a .b2rec recording with " +
       "timeline scrubbing. Default session is a recorded Falling Hinges soak.",
     "Scrub timeline · Play/Pause · Loop · load a local .b2rec",
+    { category: "Replay", samplesShell: true }
   );
 
   const camera: SampleCamera = makeCamera(CAMERA.cx, CAMERA.cy, CAMERA.zoom);
@@ -313,14 +314,7 @@ export function init(container: HTMLElement) {
       if (input && !scrubbing) input.value = String(player.frame());
     }
 
-    const b = viewBounds(camera, canvas);
-    player.collect_draw(b.lowerX, b.lowerY, b.upperX, b.upperY);
-    paintDebugDraw(canvas, camera, {
-      polygons: player.draw_polygons(),
-      circles: player.draw_circles(),
-      capsules: player.draw_capsules(),
-      lines: player.draw_lines(),
-    });
+    paintSampleDraw(canvas, camera, player);
 
     const diverge = player.diverge_frame();
     updateReadout(readout, [

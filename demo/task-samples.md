@@ -157,7 +157,10 @@ Door), Replay inspector polish.
 - [x] **Batch A:** Remove Labs sidebar duplicates; fully retire `#/manifolds`
   (route, `demos/manifolds.ts`, `collide_with_box` wasm helper); keep About
   `#/math` / `#/roadmap`; refresh this tracker
-- [ ] C-faithful menu/info/debug draw polish (Partial / shell — not Missing)
+- [x] C-faithful menu/info/debug draw polish (Partial / shell — not Missing):
+  samples-shell Info panel (title ◀/▶, C source, stats), Debug-draw flag
+  toggles via `sim_set_debug_flags`, Solver sleep/warm/continuous, points/text
+  collectors
 - [x] Close remaining planned gaps (CreateHuman batch + Cast/Sensor/lifts) — Missing-complete
 - [x] Partial→Exact binding-completeable upgrades (Bodies/Shapes/Sensor Hits/Ball & Chain)
 

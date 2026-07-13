@@ -41,6 +41,8 @@ pub struct SimPlayer {
     draw_circles: Vec<f32>,
     draw_capsules: Vec<f32>,
     draw_lines: Vec<f32>,
+    draw_points: Vec<f32>,
+    draw_text: String,
 }
 
 #[wasm_bindgen]
@@ -53,6 +55,8 @@ impl SimPlayer {
             draw_circles: Vec::new(),
             draw_capsules: Vec::new(),
             draw_lines: Vec::new(),
+            draw_points: Vec::new(),
+            draw_text: String::new(),
         })
     }
 
@@ -147,10 +151,13 @@ impl SimPlayer {
             self.player.world_mut(),
             [lower_x, lower_y, upper_x, upper_y],
         );
+        let text = collected.text_json();
         self.draw_polygons = collected.polygons;
         self.draw_circles = collected.circles;
         self.draw_capsules = collected.capsules;
         self.draw_lines = collected.lines;
+        self.draw_points = collected.points;
+        self.draw_text = text;
     }
 
     pub fn draw_polygons(&self) -> Vec<f32> {
@@ -167,5 +174,13 @@ impl SimPlayer {
 
     pub fn draw_lines(&self) -> Vec<f32> {
         self.draw_lines.clone()
+    }
+
+    pub fn draw_points(&self) -> Vec<f32> {
+        self.draw_points.clone()
+    }
+
+    pub fn draw_text(&self) -> String {
+        self.draw_text.clone()
     }
 }

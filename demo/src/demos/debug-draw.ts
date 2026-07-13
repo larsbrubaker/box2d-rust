@@ -1,12 +1,8 @@
 // Canvas adapter for engine-driven debug draw (`b2World_Draw`).
-// Consumes interleaved float buffers produced by SimWorld.draw_* collectors.
-//
-// Phase 1 scope (incremental): solid polygons, solid circles, solid capsules,
-// and lines. Gaps (joints extras, contacts, mass, bounds, text, chain normals,
-// graph colors, islands) are tracked in demo/task-samples.md.
+// Phase 3: solids + lines + points + world-space text under view flags.
 
 import type { SampleCamera } from "./sample-shell.ts";
-import { worldToScreen } from "./sample-shell.ts";
+import { viewBounds, worldToScreen } from "./sample-shell.ts";
 
 function hexToCss(color: number, alpha = 1): string {
   const r = (color >> 16) & 0xff;
@@ -16,17 +12,41 @@ function hexToCss(color: number, alpha = 1): string {
 }
 
 export interface DebugDrawBuffers {
-  /** [x0,y0, x1,y1, ..., color] per polygon; length prefix per poly. */
   polygons: Float32Array;
-  /** [cx, cy, radius, angle, color]* */
   circles: Float32Array;
-  /** [x1,y1, x2,y2, radius, color]* */
   capsules: Float32Array;
-  /** [x1,y1, x2,y2, color]* */
   lines: Float32Array;
+  points?: Float32Array;
+  textJson?: string;
 }
 
-/** Paint collected debug-draw primitives onto a 2D canvas. */
+export interface DrawSource {
+  collect_draw(lowerX: number, lowerY: number, upperX: number, upperY: number): void;
+  draw_polygons(): Float32Array;
+  draw_circles(): Float32Array;
+  draw_capsules(): Float32Array;
+  draw_lines(): Float32Array;
+  draw_points?: () => Float32Array;
+  draw_text?: () => string;
+}
+
+export function paintSampleDraw(
+  canvas: HTMLCanvasElement,
+  camera: SampleCamera,
+  source: DrawSource,
+) {
+  const b = viewBounds(camera, canvas);
+  source.collect_draw(b.lowerX, b.lowerY, b.upperX, b.upperY);
+  paintDebugDraw(canvas, camera, {
+    polygons: source.draw_polygons(),
+    circles: source.draw_circles(),
+    capsules: source.draw_capsules(),
+    lines: source.draw_lines(),
+    points: source.draw_points?.(),
+    textJson: source.draw_text?.(),
+  });
+}
+
 export function paintDebugDraw(
   canvas: HTMLCanvasElement,
   camera: SampleCamera,
@@ -35,7 +55,6 @@ export function paintDebugDraw(
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Polygons: packed as [count, x0,y0,..., xn,yn, color] repeating.
   const polys = buffers.polygons;
   let i = 0;
   while (i + 1 < polys.length) {
@@ -71,7 +90,6 @@ export function paintDebugDraw(
     ctx.lineWidth = 1.5;
     ctx.fill();
     ctx.stroke();
-    // Radius tick so rotation is visible (C solid circle draws an axis).
     ctx.beginPath();
     ctx.moveTo(center.x, center.y);
     ctx.lineTo(center.x + Math.cos(-angle) * r, center.y + Math.sin(-angle) * r);
@@ -115,5 +133,44 @@ export function paintDebugDraw(
     ctx.strokeStyle = hexToCss(color, 1);
     ctx.lineWidth = 1.5;
     ctx.stroke();
+  }
+
+  const points = buffers.points;
+  if (points) {
+    const ppm = canvas.height / (2 * Math.max(1e-6, camera.zoom));
+    for (let c = 0; c + 3 < points.length; c += 4) {
+      const p = worldToScreen(camera, canvas, points[c]!, points[c + 1]!);
+      const r = Math.max(2, (points[c + 2]! * ppm) / 40);
+      const color = points[c + 3]!;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = hexToCss(color, 0.95);
+      ctx.fill();
+    }
+  }
+
+  if (buffers.textJson) {
+    let labels: { x: number; y: number; color: number | string; text: string }[] = [];
+    try {
+      const raw = JSON.parse(buffers.textJson);
+      if (Array.isArray(raw)) labels = raw;
+    } catch {
+      labels = [];
+    }
+    ctx.save();
+    ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+    ctx.textBaseline = "middle";
+    for (const lab of labels) {
+      if (!lab?.text) continue;
+      const p = worldToScreen(camera, canvas, Number(lab.x) || 0, Number(lab.y) || 0);
+      const color =
+        typeof lab.color === "number" ? hexToCss(lab.color, 1) : String(lab.color || "#fff");
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      const w = ctx.measureText(lab.text).width;
+      ctx.fillRect(p.x - 2, p.y - 8, w + 4, 16);
+      ctx.fillStyle = color;
+      ctx.fillText(lab.text, p.x, p.y);
+    }
+    ctx.restore();
   }
 }

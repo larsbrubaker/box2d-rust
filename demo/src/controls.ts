@@ -137,3 +137,22 @@ export function createControlLabel(text: string): HTMLElement {
   group.appendChild(lbl);
   return group;
 }
+
+/** Collapsing section matching C ImGui CollapsingHeader. */
+export function createCollapsingSection(
+  title: string,
+  open = true,
+): { root: HTMLElement; body: HTMLElement; setOpen: (v: boolean) => void } {
+  const root = document.createElement("div");
+  root.className = "collapse-section" + (open ? " open" : "");
+  const header = document.createElement("button");
+  header.type = "button";
+  header.className = "collapse-header";
+  header.innerHTML = `<span class="collapse-chevron">▾</span><span>${title}</span>`;
+  const body = document.createElement("div");
+  body.className = "collapse-body";
+  const setOpen = (v: boolean) => root.classList.toggle("open", v);
+  header.addEventListener("click", () => setOpen(!root.classList.contains("open")));
+  root.append(header, body);
+  return { root, body, setOpen };
+}

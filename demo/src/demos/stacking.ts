@@ -13,14 +13,14 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes, entryHref, findByRouteName } from "../registry.ts";
 import { getWasm, type SimWorld } from "../wasm.ts";
-import { paintDebugDraw } from "./debug-draw.ts";
+import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
 import {
   createSampleTransport,
+  mountSampleChrome,
   disposeTransport,
   makeCamera,
-  screenToWorld,
-  viewBounds,
+  screenToWorld,
   type SampleCamera,
 } from "./sample-shell.ts";
 
@@ -536,6 +536,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     "C sample_stacking.cpp roster — Single Box through Card House. " +
       "Pause/step/restart, Hertz/sub-steps, mouse grab, and engine debug draw.",
     "Drag to grab · P pause · O step · R restart",
+    { category: "Stacking", samplesShell: true }
   );
 
   let mode: StackingScene =
@@ -747,9 +748,17 @@ export function init(container: HTMLElement, initialScene?: string) {
       (v) => setMode(v as StackingScene, true),
     ),
   );
-  transport.mountControls(controls, () => buildScene());
+  const chrome = mountSampleChrome({
+    controls,
+    route: "stacking",
+    category: "Stacking",
+    sampleName: SCENE_LABELS[mode],
+    transport,
+    onRestart: () => buildScene(),
+    getWorld: () => sim,
+  });
   controls.appendChild(createSeparator());
-  controls.appendChild(sceneControls);
+  chrome.afterHead.appendChild(sceneControls);
   controls.appendChild(createSeparator());
   const readout = createReadout();
   controls.appendChild(readout);
@@ -768,14 +777,7 @@ export function init(container: HTMLElement, initialScene?: string) {
       }
     }
 
-    const b = viewBounds(camera, canvas);
-    sim.collect_draw(b.lowerX, b.lowerY, b.upperX, b.upperY);
-    paintDebugDraw(canvas, camera, {
-      polygons: sim.draw_polygons(),
-      circles: sim.draw_circles(),
-      capsules: sim.draw_capsules(),
-      lines: sim.draw_lines(),
-    });
+    paintSampleDraw(canvas, camera, sim);
 
     const rows: { label: string; value: string }[] = [
       { label: "Bodies", value: String(sim.body_count()) },
@@ -808,6 +810,7 @@ export function init(container: HTMLElement, initialScene?: string) {
   return () => {
     stop();
     unbindKeys();
+    chrome.dispose();
     disposeTransport(transport);
     window.removeEventListener("keydown", onKey);
     canvas.removeEventListener("pointerdown", onPointerDown);

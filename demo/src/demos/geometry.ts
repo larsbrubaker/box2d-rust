@@ -15,6 +15,7 @@ import { getWasm } from "../wasm.ts";
 import { demoPage, fitCanvas, runSimLoop } from "./sim-common.ts";
 import {
   createSampleTransport,
+  mountSampleChrome,
   disposeTransport,
   makeCamera,
   worldToScreen,
@@ -114,6 +115,7 @@ export function init(container: HTMLElement, _initialScene?: string) {
     "Geometry",
     "C <code>sample_geometry.cpp</code> — Convex Hull (b2ComputeHull / b2ValidateHull).",
     "G generate · A auto · B bulk · P pause · O step · R restart",
+    { category: "Geometry", samplesShell: true }
   );
 
   const camera: SampleCamera = makeCamera();
@@ -141,8 +143,15 @@ export function init(container: HTMLElement, _initialScene?: string) {
     ),
   );
   controls.appendChild(createSeparator());
-  transport.mountControls(controls, () => {
-    frame = parseFrame(wasm.geometry_hull_reset());
+  const chrome = mountSampleChrome({
+    controls,
+    route: "geometry",
+    category: "Geometry",
+    sampleName: "Convex Hull",
+    transport,
+    onRestart: () => {
+      frame = parseFrame(wasm.geometry_hull_reset());
+    },
   });
   controls.appendChild(createSeparator());
 
@@ -248,6 +257,7 @@ export function init(container: HTMLElement, _initialScene?: string) {
     stop();
     unbindKeys();
     window.removeEventListener("keydown", onKey);
+    chrome.dispose();
     disposeTransport(transport);
   };
 }

@@ -13,14 +13,14 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type Box2dWasm, type SimWorld } from "../wasm.ts";
-import { paintDebugDraw } from "./debug-draw.ts";
+import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
 import {
   createSampleTransport,
+  mountSampleChrome,
   disposeTransport,
   makeCamera,
-  screenToWorld,
-  viewBounds,
+  screenToWorld,
   worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
@@ -1396,6 +1396,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     "C <code>sample_collision.cpp</code> RegisterSample ports — GJK distance, dynamic tree, " +
       "ray/shape cast, overlap, manifolds, and time of impact. Invented <code>#/manifolds</code> retired.",
     "Drag / Shift / Ctrl per sample · P pause · O step · R restart",
+    { category: "Collision", samplesShell: true }
   );
 
   let scene: Scene =
@@ -1477,9 +1478,17 @@ export function init(container: HTMLElement, initialScene?: string) {
     ),
   );
   controls.appendChild(createSeparator());
-  transport.mountControls(controls, () => rebuild());
+  const chrome = mountSampleChrome({
+    controls,
+    route: "collision",
+    category: "Collision",
+    sampleName: SCENE_LABEL[scene],
+    transport,
+    onRestart: () => rebuild(),
+    getWorld: () => sim,
+  });
   controls.appendChild(createSeparator());
-  controls.appendChild(sceneControls);
+  chrome.afterHead.appendChild(sceneControls);
   controls.appendChild(createSeparator());
   const readout = createReadout();
   controls.appendChild(readout);
@@ -1496,14 +1505,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     runtime.afterStep?.(dt);
 
     if (!runtime.skipSim) {
-      const b = viewBounds(camera, canvas);
-      sim.collect_draw(b.lowerX, b.lowerY, b.upperX, b.upperY);
-      paintDebugDraw(canvas, camera, {
-        polygons: sim.draw_polygons(),
-        circles: sim.draw_circles(),
-        capsules: sim.draw_capsules(),
-        lines: sim.draw_lines(),
-      });
+      paintSampleDraw(canvas, camera, sim);
     } else {
       const ctx = canvas.getContext("2d")!;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1529,6 +1531,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     stop();
     unbindKeys();
     runtime.dispose?.();
+    chrome.dispose();
     disposeTransport(transport);
     freeSim(sim);
     canvas.removeEventListener("pointerdown", onPointerDown);

@@ -962,6 +962,8 @@ export interface SimWorld {
   draw_circles(): Float32Array;
   draw_capsules(): Float32Array;
   draw_lines(): Float32Array;
+  draw_points(): Float32Array;
+  draw_text(): string;
   free(): void;
 }
 
@@ -985,6 +987,8 @@ export interface SimPlayer {
   draw_circles(): Float32Array;
   draw_capsules(): Float32Array;
   draw_lines(): Float32Array;
+  draw_points(): Float32Array;
+  draw_text(): string;
   free(): void;
 }
 

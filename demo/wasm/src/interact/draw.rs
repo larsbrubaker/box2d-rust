@@ -1,20 +1,89 @@
 //! Incremental `b2World_Draw` collector for the demo canvas adapter.
-//! Collects solid polygons, solid circles, solid capsules, and lines.
-//! See demo/task-samples.md for deferred debug-draw features.
+//! Collects solids, lines, points, and text under a global view-flag mask
+//! matching the C samples View menu (`sample.cpp` / `b2DebugDraw`).
 
 use box2d_rust::debug_draw::{DebugDraw, HexColor};
 use box2d_rust::math_functions as m;
-use box2d_rust::math_functions::{transform_world_point, Aabb, Pos, Vec2, WorldTransform};
+use box2d_rust::math_functions::{
+    transform_world_point, Aabb, Pos, Vec2, WorldTransform,
+};
 use box2d_rust::world::{world_draw, World};
+use std::cell::Cell;
+use wasm_bindgen::prelude::*;
 
-/// Collecting DebugDraw that packs primitives into interleaved float buffers.
+pub const MENU_SHAPES: u32 = 1 << 0;
+pub const MENU_CHAIN_NORMALS: u32 = 1 << 1;
+pub const MENU_JOINTS: u32 = 1 << 2;
+pub const MENU_JOINT_EXTRAS: u32 = 1 << 3;
+pub const MENU_BOUNDS: u32 = 1 << 4;
+pub const MENU_MASS: u32 = 1 << 5;
+pub const MENU_BODY_NAMES: u32 = 1 << 6;
+pub const MENU_GRAPH_COLORS: u32 = 1 << 7;
+pub const MENU_ISLANDS: u32 = 1 << 8;
+pub const MENU_CONTACTS: u32 = 1 << 9;
+pub const MENU_CONTACT_NORMALS: u32 = 1 << 10;
+pub const MENU_CONTACT_FEATURES: u32 = 1 << 11;
+pub const MENU_CONTACT_FORCES: u32 = 1 << 12;
+pub const MENU_FRICTION_FORCES: u32 = 1 << 13;
+pub const MENU_ANCHOR_A: u32 = 1 << 14;
+
+/// Default mask: shapes only (`b2DefaultDebugDraw`).
+pub const DEFAULT_DRAW_FLAGS: u32 = MENU_SHAPES;
+
+thread_local! {
+    static DEBUG_FLAGS: Cell<u32> = const { Cell::new(DEFAULT_DRAW_FLAGS) };
+    static JOINT_SCALE: Cell<f32> = const { Cell::new(1.0) };
+    static FORCE_SCALE: Cell<f32> = const { Cell::new(1.0) };
+}
+
+pub fn set_debug_flags(mask: u32) {
+    DEBUG_FLAGS.with(|c| c.set(mask));
+}
+pub fn debug_flags() -> u32 {
+    DEBUG_FLAGS.with(|c| c.get())
+}
+pub fn set_draw_scales(joint_scale: f32, force_scale: f32) {
+    JOINT_SCALE.with(|c| c.set(joint_scale));
+    FORCE_SCALE.with(|c| c.set(force_scale));
+}
+pub fn joint_scale() -> f32 {
+    JOINT_SCALE.with(|c| c.get())
+}
+pub fn force_scale() -> f32 {
+    FORCE_SCALE.with(|c| c.get())
+}
+
+#[wasm_bindgen]
+pub fn sim_set_debug_flags(mask: u32) {
+    set_debug_flags(mask);
+}
+#[wasm_bindgen]
+pub fn sim_get_debug_flags() -> u32 {
+    debug_flags()
+}
+#[wasm_bindgen]
+pub fn sim_set_draw_scales(joint: f32, force: f32) {
+    set_draw_scales(joint, force);
+}
+
+struct TextEntry {
+    x: f32,
+    y: f32,
+    color: u32,
+    text: String,
+}
+
 pub struct CollectingDraw {
     pub polygons: Vec<f32>,
     pub circles: Vec<f32>,
     pub capsules: Vec<f32>,
     pub lines: Vec<f32>,
+    pub points: Vec<f32>,
+    strings: Vec<TextEntry>,
     bounds: Aabb,
-    draw_joints: bool,
+    flags: u32,
+    joint_scale: f32,
+    force_scale: f32,
 }
 
 impl CollectingDraw {
@@ -24,31 +93,115 @@ impl CollectingDraw {
             circles: Vec::new(),
             capsules: Vec::new(),
             lines: Vec::new(),
+            points: Vec::new(),
+            strings: Vec::new(),
             bounds,
-            draw_joints: true,
+            flags: debug_flags(),
+            joint_scale: joint_scale(),
+            force_scale: force_scale(),
         }
     }
 
-    #[allow(dead_code)]
-    pub fn clear(&mut self) {
-        self.polygons.clear();
-        self.circles.clear();
-        self.capsules.clear();
-        self.lines.clear();
+    fn flag(&self, bit: u32) -> bool {
+        self.flags & bit != 0
     }
+
+    pub fn text_json(&self) -> String {
+        if self.strings.is_empty() {
+            return "[]".to_string();
+        }
+        let mut out = String::from("[");
+        for (i, e) in self.strings.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(&format!(
+                "{{\"x\":{},\"y\":{},\"color\":{},\"text\":\"{}\"}}",
+                e.x,
+                e.y,
+                e.color,
+                escape_json(&e.text)
+            ));
+        }
+        out.push(']');
+        out
+    }
+}
+
+fn escape_json(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c.is_control() => {}
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 impl DebugDraw for CollectingDraw {
     fn drawing_bounds(&self) -> Aabb {
         self.bounds
     }
-
-    fn draw_shapes(&self) -> bool {
-        true
+    fn force_scale(&self) -> f32 {
+        self.force_scale
     }
-
+    fn joint_scale(&self) -> f32 {
+        self.joint_scale
+    }
+    fn draw_shapes(&self) -> bool {
+        self.flag(MENU_SHAPES)
+    }
+    fn draw_chain_normals(&self) -> bool {
+        self.flag(MENU_CHAIN_NORMALS)
+    }
     fn draw_joints(&self) -> bool {
-        self.draw_joints
+        self.flag(MENU_JOINTS)
+    }
+    fn draw_joint_extras(&self) -> bool {
+        self.flag(MENU_JOINT_EXTRAS)
+    }
+    fn draw_bounds_boxes(&self) -> bool {
+        self.flag(MENU_BOUNDS)
+    }
+    fn draw_mass(&self) -> bool {
+        self.flag(MENU_MASS)
+    }
+    fn draw_body_names(&self) -> bool {
+        self.flag(MENU_BODY_NAMES)
+    }
+    fn draw_graph_colors(&self) -> bool {
+        self.flag(MENU_GRAPH_COLORS)
+    }
+    fn draw_islands(&self) -> bool {
+        self.flag(MENU_ISLANDS)
+    }
+    fn draw_contacts(&self) -> bool {
+        self.flag(MENU_CONTACTS)
+            || self.flag(MENU_CONTACT_NORMALS)
+            || self.flag(MENU_CONTACT_FEATURES)
+            || self.flag(MENU_CONTACT_FORCES)
+            || self.flag(MENU_FRICTION_FORCES)
+    }
+    fn draw_contact_normals(&self) -> bool {
+        self.flag(MENU_CONTACT_NORMALS)
+    }
+    fn draw_contact_features(&self) -> bool {
+        self.flag(MENU_CONTACT_FEATURES)
+    }
+    fn draw_contact_forces(&self) -> bool {
+        self.flag(MENU_CONTACT_FORCES)
+    }
+    fn draw_friction_forces(&self) -> bool {
+        self.flag(MENU_FRICTION_FORCES)
+    }
+    fn draw_anchor_a(&self) -> bool {
+        self.flag(MENU_ANCHOR_A)
     }
 
     fn draw_solid_polygon(
@@ -71,7 +224,6 @@ impl DebugDraw for CollectingDraw {
     }
 
     fn draw_polygon(&mut self, transform: WorldTransform, vertices: &[Vec2], color: HexColor) {
-        // Outline-only polygons: reuse the solid path with zero fill opacity on JS.
         self.draw_solid_polygon(transform, vertices, 0.0, color);
     }
 
@@ -115,10 +267,50 @@ impl DebugDraw for CollectingDraw {
         self.lines.push(p2.y as f32);
         self.lines.push(color.0 as f32);
     }
+
+    fn draw_point(&mut self, p: Pos, size: f32, color: HexColor) {
+        self.points.push(p.x as f32);
+        self.points.push(p.y as f32);
+        self.points.push(size);
+        self.points.push(color.0 as f32);
+    }
+
+    fn draw_bounds(&mut self, aabb: Aabb, color: HexColor) {
+        let l = aabb.lower_bound;
+        let u = aabb.upper_bound;
+        let corners = [
+            Pos { x: l.x as _, y: l.y as _ },
+            Pos { x: u.x as _, y: l.y as _ },
+            Pos { x: u.x as _, y: u.y as _ },
+            Pos { x: l.x as _, y: u.y as _ },
+        ];
+        for i in 0..4 {
+            self.draw_line(corners[i], corners[(i + 1) % 4], color);
+        }
+    }
+
+    fn draw_transform(&mut self, transform: WorldTransform) {
+        let scale = 0.4f32;
+        let origin = transform.p;
+        let x_axis = transform_world_point(transform, Vec2 { x: scale, y: 0.0 });
+        let y_axis = transform_world_point(transform, Vec2 { x: 0.0, y: scale });
+        self.draw_line(origin, x_axis, HexColor::RED);
+        self.draw_line(origin, y_axis, HexColor::GREEN);
+    }
+
+    fn draw_string(&mut self, p: Pos, s: &str, color: HexColor) {
+        if s.is_empty() {
+            return;
+        }
+        self.strings.push(TextEntry {
+            x: p.x as f32,
+            y: p.y as f32,
+            color: color.0,
+            text: s.to_string(),
+        });
+    }
 }
 
-/// Run `world_draw` into a fresh collector for the given view bounds.
-/// Bounds are `[lowerX, lowerY, upperX, upperY]`.
 pub fn collect_world_draw(world: &mut World, bounds: [f32; 4]) -> CollectingDraw {
     let aabb = Aabb {
         lower_bound: Vec2 {

@@ -12,13 +12,13 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type SimWorld } from "../wasm.ts";
-import { paintDebugDraw } from "./debug-draw.ts";
+import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
 import {
   createSampleTransport,
+  mountSampleChrome,
   disposeTransport,
-  makeCamera,
-  viewBounds,
+  makeCamera,
   worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
@@ -533,6 +533,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     "Erin Catto’s <code>sample_character.cpp</code> Mover: capsule character controller over " +
       "chain terrain, a spring bridge, soft mover capsule, debris ball, and kinematic elevator.",
     "A/D move · W jump · K kick · P pause · O step · R restart",
+    { category: "Character", samplesShell: true }
   );
 
   let scene: Scene =
@@ -569,8 +570,16 @@ export function init(container: HTMLElement, initialScene?: string) {
       },
     ),
   );
-  controls.appendChild(sceneControls);
-  transport.mountControls(controls, rebuild);
+  chrome.afterHead.appendChild(sceneControls);
+  const chrome = mountSampleChrome({
+    controls,
+    route: "character",
+    category: "Character",
+    sampleName: SCENE_LABEL[scene],
+    transport,
+    onRestart: rebuild,
+    getWorld: () => sim,
+  });
   controls.appendChild(readout);
 
   const onKeyDown = (e: KeyboardEvent) => runtime.onKeyDown?.(e);
@@ -586,11 +595,8 @@ export function init(container: HTMLElement, initialScene?: string) {
     if (dt > 0) sim.step(dt, transport.subSteps);
     runtime.afterStep?.(dt);
 
-    const bounds = viewBounds(camera, canvas);
-    sim.collect_draw(bounds.lowerX, bounds.lowerY, bounds.upperX, bounds.upperY);
+    paintSampleDraw(canvas, camera, sim);
     const ctx = canvas.getContext("2d")!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    paintDebugDraw(ctx, camera, canvas, sim);
     runtime.paintOverlay?.(ctx, camera, canvas);
 
     updateReadout(readout, [
@@ -603,6 +609,7 @@ export function init(container: HTMLElement, initialScene?: string) {
   return () => {
     stop();
     unbindTransport();
+    chrome.dispose();
     disposeTransport(transport);
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);

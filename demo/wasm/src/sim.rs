@@ -90,6 +90,8 @@ pub struct SimWorld {
     draw_circles: Vec<f32>,
     draw_capsules: Vec<f32>,
     draw_lines: Vec<f32>,
+    draw_points: Vec<f32>,
+    draw_text: String,
 }
 
 impl SimWorld {
@@ -160,6 +162,8 @@ impl SimWorld {
             draw_circles: Vec::new(),
             draw_capsules: Vec::new(),
             draw_lines: Vec::new(),
+            draw_points: Vec::new(),
+            draw_text: String::new(),
         }
     }
 
@@ -251,15 +255,19 @@ impl SimWorld {
     }
 
     /// Run `b2World_Draw` into internal buffers. Bounds: lowerX, lowerY, upperX, upperY.
+    /// Honors the global view-flag mask from `sim_set_debug_flags`.
     pub fn collect_draw(&mut self, lower_x: f32, lower_y: f32, upper_x: f32, upper_y: f32) {
         let collected = collect_world_draw(
             &mut self.world,
             [lower_x, lower_y, upper_x, upper_y],
         );
+        let text = collected.text_json();
         self.draw_polygons = collected.polygons;
         self.draw_circles = collected.circles;
         self.draw_capsules = collected.capsules;
         self.draw_lines = collected.lines;
+        self.draw_points = collected.points;
+        self.draw_text = text;
     }
 
     pub fn draw_polygons(&self) -> Vec<f32> {
@@ -276,6 +284,14 @@ impl SimWorld {
 
     pub fn draw_lines(&self) -> Vec<f32> {
         self.draw_lines.clone()
+    }
+
+    pub fn draw_points(&self) -> Vec<f32> {
+        self.draw_points.clone()
+    }
+
+    pub fn draw_text(&self) -> String {
+        self.draw_text.clone()
     }
 
     /// Interleaved [x, y, angle] for every demo body, in creation order.

@@ -14,14 +14,14 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type SimWorld } from "../wasm.ts";
-import { paintDebugDraw } from "./debug-draw.ts";
+import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
 import {
   createSampleTransport,
+  mountSampleChrome,
   disposeTransport,
   makeCamera,
-  screenToWorld,
-  viewBounds,
+  screenToWorld,
   worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
@@ -659,6 +659,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     "C <code>sample_bodies.cpp</code> RegisterSample ports — body types, sleep, " +
       "kinematic targets, velocity, motion locks.",
     "Drag to grab · P pause · O step · R restart",
+    { category: "Bodies", samplesShell: true }
   );
 
   let scene: Scene =
@@ -727,9 +728,17 @@ export function init(container: HTMLElement, initialScene?: string) {
     ),
   );
   controls.appendChild(createSeparator());
-  transport.mountControls(controls, () => rebuild());
+  const chrome = mountSampleChrome({
+    controls,
+    route: "bodies",
+    category: "Bodies",
+    sampleName: SCENE_LABEL[scene],
+    transport,
+    onRestart: () => rebuild(),
+    getWorld: () => sim,
+  });
   controls.appendChild(createSeparator());
-  controls.appendChild(sceneControls);
+  chrome.afterHead.appendChild(sceneControls);
   controls.appendChild(createSeparator());
   const readout = createReadout();
   controls.appendChild(readout);
@@ -743,14 +752,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     sim.step(dt, transport.subSteps);
     runtime.afterStep?.(dt);
 
-    const b = viewBounds(camera, canvas);
-    sim.collect_draw(b.lowerX, b.lowerY, b.upperX, b.upperY);
-    paintDebugDraw(canvas, camera, {
-      polygons: sim.draw_polygons(),
-      circles: sim.draw_circles(),
-      capsules: sim.draw_capsules(),
-      lines: sim.draw_lines(),
-    });
+    paintSampleDraw(canvas, camera, sim);
     const ctx = canvas.getContext("2d");
     if (ctx && runtime.paintOverlay) runtime.paintOverlay(ctx, camera, canvas);
 
@@ -767,6 +769,7 @@ export function init(container: HTMLElement, initialScene?: string) {
   return () => {
     stop();
     unbindKeys();
+    chrome.dispose();
     disposeTransport(transport);
     runtime.dispose?.();
     canvas.removeEventListener("pointerdown", onPointerDown);
