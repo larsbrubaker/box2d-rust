@@ -24,6 +24,8 @@ use box2d_rust::world::{
     world_get_sensor_events, world_step, World,
 };
 
+use crate::interact::{collect_world_draw, MouseGrab};
+
 /// A live physics world for the Bodies/Stacking demos. Every step runs the
 /// ported b2World_Step pipeline: broad phase, narrow phase, graph-colored
 /// soft-constraint solver, restitution, and sleeping.
@@ -37,6 +39,13 @@ pub struct SimWorld {
     /// Character mover state (not a body; driven by the mover queries).
     mover_position: m::Pos,
     mover_velocity: m::Vec2,
+    /// C Sample mouse grab (kinematic body + motor joint).
+    grab: MouseGrab,
+    /// Last collected debug-draw buffers (see draw_* accessors).
+    draw_polygons: Vec<f32>,
+    draw_circles: Vec<f32>,
+    draw_capsules: Vec<f32>,
+    draw_lines: Vec<f32>,
 }
 
 #[wasm_bindgen]
@@ -54,6 +63,11 @@ impl SimWorld {
             joints: Vec::new(),
             mover_position: m::POS_ZERO,
             mover_velocity: m::VEC2_ZERO,
+            grab: MouseGrab::default(),
+            draw_polygons: Vec::new(),
+            draw_circles: Vec::new(),
+            draw_capsules: Vec::new(),
+            draw_lines: Vec::new(),
         }
     }
 
@@ -110,8 +124,66 @@ impl SimWorld {
     }
 
     /// Advance the simulation. (b2World_Step)
+    /// Drives the mouse-grab kinematic target before stepping when `dt > 0`.
     pub fn step(&mut self, dt: f32, sub_step_count: i32) {
-        world_step(&mut self.world, dt, sub_step_count);
+        self.grab.pre_step(&mut self.world, dt);
+        if dt > 0.0 {
+            world_step(&mut self.world, dt, sub_step_count);
+        }
+    }
+
+    /// Begin a mouse grab at world `(x, y)`. C spring: hertz 7.5, damping 1.0.
+    /// Returns true if a dynamic body was grabbed.
+    pub fn mouse_down(&mut self, x: f32, y: f32) -> bool {
+        self.grab.begin(&mut self.world, x, y)
+    }
+
+    /// Update the grab target (world space).
+    pub fn mouse_move(&mut self, x: f32, y: f32) {
+        self.grab.move_to(x, y);
+    }
+
+    /// Release the mouse grab.
+    pub fn mouse_up(&mut self) {
+        self.grab.end(&mut self.world);
+    }
+
+    /// Whether a mouse joint is currently active.
+    pub fn mouse_active(&self) -> bool {
+        self.grab.is_active()
+    }
+
+    /// Override `m_mouseForceScale` (C Sample default 100).
+    pub fn set_grab_force_scale(&mut self, scale: f32) {
+        self.grab.force_scale = scale;
+    }
+
+    /// Run `b2World_Draw` into internal buffers. Bounds: lowerX, lowerY, upperX, upperY.
+    pub fn collect_draw(&mut self, lower_x: f32, lower_y: f32, upper_x: f32, upper_y: f32) {
+        let collected = collect_world_draw(
+            &mut self.world,
+            [lower_x, lower_y, upper_x, upper_y],
+        );
+        self.draw_polygons = collected.polygons;
+        self.draw_circles = collected.circles;
+        self.draw_capsules = collected.capsules;
+        self.draw_lines = collected.lines;
+    }
+
+    pub fn draw_polygons(&self) -> Vec<f32> {
+        self.draw_polygons.clone()
+    }
+
+    pub fn draw_circles(&self) -> Vec<f32> {
+        self.draw_circles.clone()
+    }
+
+    pub fn draw_capsules(&self) -> Vec<f32> {
+        self.draw_capsules.clone()
+    }
+
+    pub fn draw_lines(&self) -> Vec<f32> {
+        self.draw_lines.clone()
     }
 
     /// Interleaved [x, y, angle] for every demo body, in creation order.

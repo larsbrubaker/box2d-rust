@@ -52,6 +52,7 @@ pub fn polygon_points(sides: u32, radius: f32, angle: f32, cx: f32, cy: f32) -> 
 // modules. World units are meters; the page scales to pixels.
 
 mod geometry_demo;
+mod interact;
 mod replay;
 mod sim;
 

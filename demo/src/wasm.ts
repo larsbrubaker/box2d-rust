@@ -34,6 +34,18 @@ export interface SimWorld {
   awake_body_count(): number;
   contact_count(): number;
   body_count(): number;
+  /** Mouse grab (C Sample motor joint). Returns true if a dynamic body was grabbed. */
+  mouse_down(x: number, y: number): boolean;
+  mouse_move(x: number, y: number): void;
+  mouse_up(): void;
+  mouse_active(): boolean;
+  set_grab_force_scale(scale: number): void;
+  /** Run b2World_Draw into internal buffers for the given view AABB. */
+  collect_draw(lowerX: number, lowerY: number, upperX: number, upperY: number): void;
+  draw_polygons(): Float32Array;
+  draw_circles(): Float32Array;
+  draw_capsules(): Float32Array;
+  draw_lines(): Float32Array;
   free(): void;
 }
 
