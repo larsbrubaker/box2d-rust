@@ -1,6 +1,12 @@
 // SimWorld: the live physics world behind the simulation demo pages.
 // Split from lib.rs; every value shown on the demo site is computed by
 // the ported Rust code, never re-implemented in JavaScript.
+//
+// Extra construction/manipulation APIs for Phase 2 C samples live in
+// sibling modules (joints / shapes / body_ops / world_ops) so this file
+// stays under the 800-line limit.
+
+mod joints;
 
 use box2d_rust::collision::Capsule;
 use box2d_rust::math_functions as m;
@@ -8,7 +14,7 @@ use wasm_bindgen::prelude::*;
 
 use box2d_rust::body::{create_body, get_body_full_id, get_body_transform, make_body_id};
 use box2d_rust::geometry::make_box;
-use box2d_rust::id::JointId;
+use box2d_rust::id::{BodyId, JointId};
 use box2d_rust::joint::{
     create_distance_joint, create_revolute_joint, joint_get_body_a, joint_get_body_b,
     joint_get_local_frame_a, joint_get_local_frame_b,
@@ -33,9 +39,9 @@ use crate::interact::{collect_world_draw, MouseGrab};
 pub struct SimWorld {
     pub(crate) world: World,
     /// Raw body indices in creation order; positions() reports in this order.
-    bodies: Vec<i32>,
+    pub(crate) bodies: Vec<i32>,
     /// Joint ids in creation order; joint_anchors() reports in this order.
-    joints: Vec<JointId>,
+    pub(crate) joints: Vec<JointId>,
     /// Character mover state (not a body; driven by the mover queries).
     mover_position: m::Pos,
     mover_velocity: m::Vec2,
@@ -46,6 +52,26 @@ pub struct SimWorld {
     draw_circles: Vec<f32>,
     draw_capsules: Vec<f32>,
     draw_lines: Vec<f32>,
+}
+
+impl SimWorld {
+    pub(crate) fn track_body(&mut self, body_id: BodyId) -> usize {
+        self.bodies.push(get_body_full_id(&self.world, body_id));
+        self.bodies.len() - 1
+    }
+
+    pub(crate) fn track_joint(&mut self, joint_id: JointId) -> usize {
+        self.joints.push(joint_id);
+        self.joints.len() - 1
+    }
+
+    pub(crate) fn body_id_at(&self, index: usize) -> BodyId {
+        make_body_id(&self.world, self.bodies[index])
+    }
+
+    pub(crate) fn body_index_at(&self, index: usize) -> i32 {
+        self.bodies[index]
+    }
 }
 
 #[wasm_bindgen]
