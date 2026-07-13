@@ -7,6 +7,7 @@
 // stays under the 800-line limit.
 
 mod joints;
+mod body_ops;
 mod shapes;
 
 use box2d_rust::collision::Capsule;
