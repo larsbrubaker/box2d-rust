@@ -145,11 +145,16 @@ Gear Lift). Totals now Exact **101** / Partial **38** / Missing **0**.
 
 ### Phase 3 — Shell polish + retire invented pages — IN PROGRESS
 
+**Missing-complete:** planned inventory is **0**; the Missing list is closed
+(CreateHuman batch + batch C Cast / Shape Distance / Sensor / Scissor / Gear Lift).
+Remaining Phase 3 work is **Partial upgrades** (DEBUG counts, unbound setters,
+shell polish) — not Missing inventory.
+
 - [x] **Batch A:** Remove Labs sidebar duplicates; fully retire `#/manifolds`
   (route, `demos/manifolds.ts`, `collide_with_box` wasm helper); keep About
   `#/math` / `#/roadmap`; refresh this tracker
-- [ ] C-faithful menu/info/debug draw polish
-- [x] Close remaining planned gaps (CreateHuman batch + Cast/Sensor/lifts)
+- [ ] C-faithful menu/info/debug draw polish (Partial / shell — not Missing)
+- [x] Close remaining planned gaps (CreateHuman batch + Cast/Sensor/lifts) — Missing-complete
 
 ## How the parity test tightens
 
