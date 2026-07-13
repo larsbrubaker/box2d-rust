@@ -72,6 +72,8 @@ in the sidebar; the Samples tree is registry-only. Phase 3 batch A removed the
 duplicate Labs links that pointed at categories the Samples tree already owns,
 and fully retired `#/manifolds`.
 
+**Intentional:** `#/math` and `#/roadmap` stay About-only (not samples) — keep them.
+
 | Route | Why |
 |---|---|
 | `#/math` | No C sample — deterministic math showcase. About page |
@@ -133,9 +135,11 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 | Contact tuning | Stacking, Joints | **Done** |
 | Mouse grab (motor joint + kinematic proxy) | Harness (Sample.cpp) | **Owned by Phase 1 harness `interact/`** — not on this branch |
 | Debug draw dump (`world_draw` → buffers) | Harness | **Owned by Phase 1 harness `interact/`** (`collect_draw`) |
-| Shape filter / material / morph APIs | Shapes | Still missing — lower priority for first ports |
-| Joint runtime setters / constraint readouts | Joints GUI | Still missing — follow once create surface exists |
-| Custom friction/restitution/filter callbacks | Bodies, Shapes | Still missing — WASM callback bridging later |
+| Shape filter / material / morph APIs | Shapes | **Done** (`shape_ops` / `shape_mutate`) |
+| Joint runtime setters / constraint readouts | Joints GUI | **Done** (`joint_ops` setters + force/torque readouts) |
+| Custom friction/restitution/filter callbacks | Bodies, Shapes | **Done** (wasm callback bridging in `body_ops` / events) |
+| Attach polygon to existing body | Joints (Top Down) | **Done** (`attach_polygon` / `attach_polygon_mat`) |
+| Profile step timings (`b2Profile`) | Benchmark Capacity | Still missing — `world_get_profile` returns zeros (timer never filled) |
 
 ### Phase 2 — Category ports — DONE
 
@@ -154,13 +158,25 @@ Left as Partial: DEBUG-count Benchmarks / Dynamic Tree / World Tiles, incomplete
 Joints galleries (Top Down / Breakable / Separation / User Constraint / Driving /
 Door), Replay inspector polish.
 
+**Audit follow-ups (Jul 2026 consolidated):**
+- **Contact / AABB (lib):** port `b2Contact_IsValid` + `b2Contact_GetData`; port
+  `LargeWorldAABBTest` from `test_collision.c`
+- **Profile / Capacity:** fill `b2Profile` timings → upgrade Benchmark Capacity
+  from wall-clock to `profile.step`
+- **Joints (6 Partials → Exact):** Top Down Friction, Breakable, Separation,
+  User Constraint, Driving, Door
+- **Replay Viewer:** inspector outliner, per-frame query index, keyframe-policy
+  load popup (`set_keyframe_policy`)
+
 - [x] **Batch A:** Remove Labs sidebar duplicates; fully retire `#/manifolds`
   (route, `demos/manifolds.ts`, `collide_with_box` wasm helper); keep About
   `#/math` / `#/roadmap`; refresh this tracker
 - [x] C-faithful menu/info/debug draw polish (Partial / shell — not Missing):
   samples-shell Info panel (title ◀/▶, C source, stats), Debug-draw flag
   toggles via `sim_set_debug_flags`, Solver sleep/warm/continuous, points/text
-  collectors
+  collectors; **Batch D:** all C View-menu flags in `PANEL_FLAG_DEFS` (incl.
+  Chain Normals / Graph Colors / Contact Features / Friction Forces / Anchor A);
+  removed dead `drawSimBodies`
 - [x] Close remaining planned gaps (CreateHuman batch + Cast/Sensor/lifts) — Missing-complete
 - [x] Partial→Exact binding-completeable upgrades (Bodies/Shapes/Sensor Hits/Ball & Chain)
 

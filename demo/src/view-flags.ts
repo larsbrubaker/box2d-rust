@@ -35,17 +35,23 @@ export const VIEW_FLAG_DEFAULTS: Record<string, boolean> = Object.fromEntries(
   VIEW_FLAGS.map((f) => [f.key, f.default]),
 );
 
+/** Debug-draw panel checkboxes — C View menu order + labels (sample.cpp). */
 export const PANEL_FLAG_DEFS: { label: string; viewKey: string }[] = [
   { label: "Shapes", viewKey: "shapes" },
+  { label: "Chain Normals", viewKey: "chainNormals" },
   { label: "Joints", viewKey: "joints" },
-  { label: "Joint extras", viewKey: "jointExtras" },
-  { label: "Contacts", viewKey: "contacts" },
-  { label: "Contact normals", viewKey: "contactNormals" },
-  { label: "Contact forces", viewKey: "contactForces" },
-  { label: "AABBs", viewKey: "bounds" },
-  { label: "Mass axes", viewKey: "mass" },
-  { label: "Body names", viewKey: "bodyNames" },
+  { label: "Joint Extras", viewKey: "jointExtras" },
+  { label: "Bounds", viewKey: "bounds" },
+  { label: "Mass", viewKey: "mass" },
+  { label: "Body Names", viewKey: "bodyNames" },
+  { label: "Graph Colors", viewKey: "graphColors" },
   { label: "Islands", viewKey: "islands" },
+  { label: "Contact Points", viewKey: "contacts" },
+  { label: "Contact Normals", viewKey: "contactNormals" },
+  { label: "Contact Features", viewKey: "contactFeatures" },
+  { label: "Contact Forces", viewKey: "contactForces" },
+  { label: "Friction Forces", viewKey: "frictionForces" },
+  { label: "Anchor A", viewKey: "anchorA" },
 ];
 
 export function maskFromFlags(flags: Record<string, boolean>): number {

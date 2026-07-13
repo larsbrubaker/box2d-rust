@@ -2,93 +2,12 @@
 
 import type { SimWorld } from "../wasm.ts";
 
-export type SimShape =
-  | { kind: "box"; hx: number; hy: number; color: string }
-  | { kind: "circle"; r: number; color: string }
-  | { kind: "capsule"; hl: number; r: number; color: string }
-  | { kind: "chain"; points: number[]; loop: boolean; color: string };
-
-export const COLORS = {
-  ground: "#5a6170",
-  box: "#2563eb",
-  ball: "#15803d",
-  heavy: "#dc2626",
-};
-
 /// Sync the canvas backing store to its CSS layout size.
 export function fitCanvas(canvas: HTMLCanvasElement) {
   const w = Math.max(1, Math.round(canvas.clientWidth));
   const h = Math.max(1, Math.round(canvas.clientHeight));
   if (canvas.width !== w) canvas.width = w;
   if (canvas.height !== h) canvas.height = h;
-}
-
-/// Draw every tracked body. Positions come from the ported engine; shapes are
-/// tracked JS-side as parallel descriptors.
-export function drawSimBodies(
-  canvas: HTMLCanvasElement,
-  scale: number,
-  originY: number,
-  shapes: SimShape[],
-  positions: Float32Array,
-) {
-  const ctx = canvas.getContext("2d")!;
-  const toPx = (x: number, y: number): [number, number] => [
-    canvas.width / 2 + x * scale,
-    canvas.height - originY - y * scale,
-  ];
-
-  for (let i = 0; i < shapes.length; i++) {
-    const shape = shapes[i];
-    const x = positions[3 * i];
-    const y = positions[3 * i + 1];
-    const angle = positions[3 * i + 2];
-    const [px, py] = toPx(x, y);
-
-    ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(-angle);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = shape.color;
-    ctx.fillStyle = shape.color + "1a"; // 10% alpha
-    ctx.beginPath();
-    if (shape.kind === "box") {
-      ctx.rect(-shape.hx * scale, -shape.hy * scale, 2 * shape.hx * scale, 2 * shape.hy * scale);
-    } else if (shape.kind === "circle") {
-      ctx.arc(0, 0, shape.r * scale, 0, 2 * Math.PI);
-      // radius line so rotation is visible
-      ctx.moveTo(0, 0);
-      ctx.lineTo(shape.r * scale, 0);
-    } else if (shape.kind === "capsule") {
-      const hl = shape.hl * scale;
-      const r = shape.r * scale;
-      ctx.arc(-hl, 0, r, Math.PI / 2, -Math.PI / 2);
-      ctx.lineTo(hl, -r);
-      ctx.arc(hl, 0, r, -Math.PI / 2, Math.PI / 2);
-      ctx.closePath();
-    } else {
-      // Chain points are world coordinates on a static body at the origin;
-      // the canvas transform above is already at the body position (0, 0
-      // offset), so undo the translate and draw in canvas space.
-      ctx.restore();
-      ctx.save();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = shape.color;
-      ctx.beginPath();
-      for (let p = 0; p + 1 < shape.points.length; p += 2) {
-        const [cx, cy] = toPx(shape.points[p], shape.points[p + 1]);
-        if (p === 0) ctx.moveTo(cx, cy);
-        else ctx.lineTo(cx, cy);
-      }
-      if (shape.loop) ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
-      continue;
-    }
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
 }
 
 /// Run a simulation render loop with error reporting and a cleanup handle.
