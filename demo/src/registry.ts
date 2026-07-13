@@ -159,8 +159,8 @@ export const SAMPLES: SampleEntry[] = [
     ["Wedge", "live", "continuous", "wedge"],
   ]),
   ...cat("Determinism", "sample_determinism.cpp", [
-    ["Falling Hinges", "planned"],
-    ["SnapShot", "planned"],
+    ["Falling Hinges", "live", "determinism", "falling-hinges"],
+    ["SnapShot", "live", "determinism", "snapshot"],
   ]),
   ...cat("Events", "sample_events.cpp", [
     // Partial: donut path only — CreateHuman not bound
@@ -274,7 +274,9 @@ export const SAMPLES: SampleEntry[] = [
   // Replay is registered via RegisterReplay (sample_replay.cpp), not RegisterSample.
   // Kept as its own category so the Samples tree matches the C Replay menu entry.
   ...cat("Replay", "sample_replay.cpp", [
-    ["Viewer", "planned"],
+    // Route-only (no scene): RegisterReplay single-scene host. Partial — no
+    // inspector outliner/query index/keyframe Load popup (disclosed in page).
+    ["Viewer", "partial", "replay"],
   ]),
 ];
 
