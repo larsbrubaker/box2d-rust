@@ -869,8 +869,6 @@ export interface Box2dWasm {
   geometry_hull_key(key: number): void;
   /** One ConvexHull::Step; `advance` drives auto regenerate when not paused. */
   geometry_hull_step(advance: boolean): Float32Array;
-  /** Labs manifolds leftover helper (route may still load). */
-  collide_with_box(kind: number, bx: number, by: number, angle: number): Float32Array;
   collision_shape_distance(
     ptsA: Float32Array | number[],
     radiusA: number,

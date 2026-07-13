@@ -4,7 +4,7 @@ const CATEGORIES: Array<{ name: string; blurb: string; route?: string }> = [
   { name: "Bodies", blurb: "Body types, sleeping, user data", route: "bodies" },
   { name: "Shapes", blurb: "Circles, capsules, polygons, chains", route: "shapes" },
   { name: "Geometry", blurb: "Hulls, rays, and shape queries", route: "geometry" },
-  { name: "Collision", blurb: "Manifolds, distance, casting", route: "manifolds" },
+  { name: "Collision", blurb: "Manifolds, distance, casting", route: "collision" },
   { name: "Stacking", blurb: "Pyramids, towers, and piles", route: "stacking" },
   { name: "Joints", blurb: "Revolute, prismatic, wheel, weld…", route: "joints" },
   { name: "Continuous", blurb: "Fast bodies without tunneling", route: "continuous" },

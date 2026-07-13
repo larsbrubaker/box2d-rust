@@ -13,9 +13,9 @@ CI drift guard: [`demo/tests/registry.test.ts`](tests/registry.test.ts)
 Runtime twin: `assertRouteScenes(route, SCENES)` (wired per page as categories
 are ported).
 
-**Merge note:** parallel Phase 2 category branches will collide on
-`registry.ts`, `PAGES` in `registry.test.ts`, and this tracker — the
-coordinator owns those merges; keep category edits scoped and additive.
+**Merge note:** parallel Phase 2 category branches collided on `registry.ts`,
+`PAGES` in `registry.test.ts`, and this tracker — coordinator owned those
+merges; category edits stayed scoped and additive.
 
 ## Pin
 
@@ -40,9 +40,9 @@ Inventory at this pin:
 | Partial | Route exists; disclosed divergence from C |
 | Missing (`planned`) | No faithful route yet |
 
-Phase 0 assignment: **Exact 0 · Partial 0 · Missing 139.** Current demo pages
-are invented composites / capability showcases — none are claimed as live or
-partial until a scene is ported 1:1.
+**Current totals:** Exact **92** · Partial **38** · Missing **9** (Phase 2 complete).
+Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
+`PAGES`).
 
 ## Per-category progress
 
@@ -51,7 +51,7 @@ partial until a scene is ported 1:1.
 | Benchmark (`sample_benchmark.cpp`) | 21 | 0 | 17 | 4 | DEBUG/wasm counts disclosed. Exact 0. Partial: Barrel (no Human), Barrel 2.4, Compounds, Tumbler, Washer, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Spinner, Capacity (wall-clock vs profile), Junkyard. Missing: Cast, Rain (CreateHuman), Shape Distance, Sensor |
 | Bodies (`sample_bodies.cpp`) | 9 | 5 | 4 | 0 | Exact: Body Type, Bad, Pivot, Set Velocity, Wake Touching. Partial: Weeble (no mass-data/friction callbacks), Sleep (no sensor events / sleepThreshold / enableSleep), Kinematic (SetTransform snap), Mixed Locks (motionLocks unbound). Invented shower retired from Labs. |
 | Character (`sample_character.cpp`) | 1 | 1 | 0 | 0 | Exact: Mover (C SolveMove + scene) |
-| Collision (`sample_collision.cpp`) | 9 | 8 | 1 | 0 | Exact: Shape Distance, Ray Cast, Cast World, Overlap World, Manifold, Smooth Manifold, Shape Cast, Time of Impact. Partial: Dynamic Tree (C debug 100A-100 grid, not release 1000A-1000). Invented `#/manifolds` retired from Labs. |
+| Collision (`sample_collision.cpp`) | 9 | 8 | 1 | 0 | Exact: Shape Distance, Ray Cast, Cast World, Overlap World, Manifold, Smooth Manifold, Shape Cast, Time of Impact. Partial: Dynamic Tree (C debug 100A-100 grid, not release 1000A-1000). Invented `#/manifolds` fully retired (route + wasm helper gone). |
 | Continuous (`sample_continuous.cpp`) | 15 | 13 | 1 | 1 | Exact: Bounce House, Chain Drop/Slide, Segment Slide, Skinny Box, Ghost Bumps, Speculative Fallback/Sliver/Ghost, Pixel Imperfect, Restitution Threshold, Pinball, Wedge. Partial: Drop (Scene3 ragdoll needs CreateHuman). Missing: Bounce Humans (CreateHuman). Invented bullet/wall composite replaced. |
 | Determinism (`sample_determinism.cpp`) | 2 | 2 | 0 | 0 | Exact: Falling Hinges, SnapShot on `#/determinism` |
 | Events (`sample_events.cpp`) | 12 | 10 | 2 | 0 | Exact: Sensor Bookend, Foot Sensor, Contact, Platformer, Body Move, Sensor Types, Joint, Persistent Contact, Projectile Event, Circle Impulse. Partial: Sensor Funnel (no CreateHuman — donut stand-in), Sensor Hits (prismatic motor reverse via body-x approx). Invented `#/events` composite replaced. |
@@ -65,25 +65,27 @@ partial until a scene is ported 1:1.
 | World (`sample_world.cpp`) | 4 | 2 | 2 | 0 | Exact: Far Pyramid, Far Gate. Partial: Tiles (DEBUG cycleCount=10; CreateHuman→donut), Far Ragdolls (capsule stand-ins). Invented `#/world` composite replaced. |
 | **Total** | **139** | **92** | **38** | **9** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 2/2 |
 
-## Invented demos to retire from Samples nav
+## Non-sample About pages
 
-These routes exist today but are **not** C `RegisterSample` entries. Phase 1
-moved them under **Labs** / **About** in the sidebar; the Samples tree is
-registry-only. Math is under About (not Samples).
+These routes are **not** C `RegisterSample` entries. They live under **About**
+in the sidebar; the Samples tree is registry-only. Phase 3 batch A removed the
+duplicate Labs links that pointed at categories the Samples tree already owns,
+and fully retired `#/manifolds`.
 
 | Route | Why |
 |---|---|
-| `#/math` | No C sample — deterministic math showcase. **Retired from Samples**; About page |
+| `#/math` | No C sample — deterministic math showcase. About page |
 | `#/roadmap` | Meta progress page, not a C sample |
-| `#/manifolds` | **Retired from Labs** — C Manifold / Smooth Manifold live under `#/collision` |
-| Former category composites | All retired — `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark`, `#/robustness`, `#/collision`, `#/issues`, `#/determinism`, `#/replay`, `#/geometry`, `#/character`, `#/world` now host C samples. |
+| ~~`#/manifolds`~~ | **Deleted** — C Manifold / Smooth Manifold live under `#/collision` |
+| Former category composites / Labs dupes | All retired — `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark`, `#/robustness`, `#/collision`, `#/issues`, `#/determinism`, `#/replay`, `#/geometry`, `#/character`, `#/world` are Samples-tree hosts only |
 
 ## Phases
 
-### Phase 0 — Registry + parity contract (this doc) — DONE when landed
+### Phase 0 — Registry + parity contract — DONE
 
 - [x] `demo/src/registry.ts` — full C inventory, pin recorded, helpers + `assertRouteScenes`
-- [x] `demo/tests/registry.test.ts` — internal consistency + empty `PAGES` bidirectional scaffold
+- [x] `demo/tests/registry.test.ts` — internal consistency + `PAGES` bidirectional scaffold
+  (started empty; filled as categories landed in Phase 2)
 - [x] This tracker
 
 ### Phase 1 — Harness parity — DONE on `demo/phase-1-harness`
@@ -98,9 +100,10 @@ Structural blockers before faithful sample ports:
   solids + lines landed. **Deferred:** contacts, mass, bounds, text, chain
   normals, graph colors, islands, joint extras, view-flag menu bar
 - [x] Registry-driven Samples tree (`#sample-tree`) + deep links
-  (`#/<route>/<slug>`); Math retired to About; invented composites under Labs
-- [x] `assertRouteScenes` scaffolding — `stacking.ts` exports empty `SCENES` and
-  calls it; `PAGES` stays empty until the first live/partial multi-scene row
+  (`#/<route>/<slug>`); Math retired to About; invented composites demoted then
+  later replaced by C ports
+- [x] `assertRouteScenes` scaffolding — first live category filled `SCENES` /
+  `PAGES`; contract now covers all multi-scene hosts
 - [x] `bun test` wired in CI (`ci.yml` + `deploy-demo.yml`); live/partial ↔
   scene/PAGES contract with Replay route-only exception
 
@@ -134,40 +137,39 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 | Joint runtime setters / constraint readouts | Joints GUI | Still missing — follow once create surface exists |
 | Custom friction/restitution/filter callbacks | Bodies, Shapes | Still missing — WASM callback bridging later |
 
-### Phase 2 — Category ports
+### Phase 2 — Category ports — DONE
 
-Port one C category at a time (Bodies / Stacking recommended first — small and
-core). For each sample: flip `planned` → `live`/`partial`, set `route`+`scene`,
-implement the scene, keep the parity test green. Update the table above.
-When the first multi-scene page gains live rows: fill `SCENES`, add the route to
-`PAGES` in `registry.test.ts`.
+All 15 categories have registry-backed routes. Totals: **92 live / 38 partial /
+9 planned**. Every multi-scene host exports `SCENES` and is listed in `PAGES`
+(`registry.test.ts`); Replay stays route-only. Remaining planned rows are mostly
+CreateHuman / gear / specialty gaps (Benchmark Cast/Rain/…, Joints ragdolls /
+lifts, Continuous Bounce Humans).
 
-### Phase 3 — Shell polish + retire invented pages
+### Phase 3 — Shell polish + retire invented pages — IN PROGRESS
 
-C-faithful menu/info/debug draw; remove or demote remaining invented composites
-from Samples nav; Math stays optional non-sample.
+- [x] **Batch A:** Remove Labs sidebar duplicates; fully retire `#/manifolds`
+  (route, `demos/manifolds.ts`, `collide_with_box` wasm helper); keep About
+  `#/math` / `#/roadmap`; refresh this tracker
+- [ ] C-faithful menu/info/debug draw polish
+- [ ] Close remaining planned gaps (CreateHuman, etc.) where bindings allow
 
 ## How the parity test tightens
 
-Today (`PAGES = {}`):
-
-- Pin hash, inventory counts, unique names/slugs, sort order, planned-only
-  contract
-- "Every multi-scene registry route is covered" — vacuously true until the first
-  `route`+`scene` lands
-
-When a category is ported:
+`PAGES` lists every multi-scene host. Bidirectional checks:
 
 1. Registry rows gain `route` / `scene` and `live`|`partial`
 2. Page exports `SCENES` and calls `assertRouteScenes(route, SCENES)`
 3. Add `{ route: { scenes: SCENES } }` to `PAGES` in `registry.test.ts`
 4. Bidirectional drift fails CI if either side moves alone
 
+Also enforced: pin hash, inventory counts, unique names/slugs, sort order,
+live/partial ↔ scene/PAGES contract (Replay route-only exception).
+
 ## Decisions (Phase 0)
 
-- **Replay**: included via `RegisterReplay` as category `Replay` / name `Viewer`,
-  status `planned` (same special-case treatment as box3d)
-- **Math**: excluded from the registry; tracked above as invent-to-retire
+- **Replay**: included via `RegisterReplay` as category `Replay` / name `Viewer`
+  (same special-case treatment as box3d); now `partial` route-only
+- **Math**: excluded from the registry; About page only
 - **Many Pyramids**: included (`RegisterSampleWithCapacity`)
-- **Conservative status**: nothing marked live/partial despite partial thematic
-  overlap (e.g. robustness ↔ OverlapRecovery)
+- **Conservative status**: live/partial only with disclosed divergences — no
+  silent thematic overlap claims

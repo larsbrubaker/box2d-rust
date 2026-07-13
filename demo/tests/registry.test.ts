@@ -5,15 +5,13 @@
 // drift fails `bun test`, so a RegisterSample row added without its page scene —
 // or a scene key renamed on only one side — cannot reach main.
 //
-// Phase 1: every registry entry is still `planned` with no `route`/`scene`, and no
-// demo page yet exports a C-faithful `SCENES` table. `PAGES` is therefore empty.
-// As categories are ported:
+// Phase 2 filled `PAGES` for every multi-scene host. As further samples land:
 //   1. Flip entries to live/partial and set route + scene in registry.ts
 //   2. Export `SCENES` from the page and call `assertRouteScenes`
-//   3. Add that route to `PAGES` below
-// The bidirectional checks then tighten automatically. Until then, this file
-// still enforces registry internal consistency, the C pin metadata, and the
-// live/partial ↔ scene/PAGES contract (see ROUTE_ONLY_EXCEPTIONS below).
+//   3. Keep that route in `PAGES` below
+// The bidirectional checks then tighten automatically. This file also enforces
+// registry internal consistency, the C pin metadata, and the live/partial ↔
+// scene/PAGES contract (see ROUTE_ONLY_EXCEPTIONS below).
 
 import { test, expect } from "bun:test";
 import {
@@ -33,9 +31,8 @@ import {
  * implements that are intentionally not backed by a RegisterSample entry (mirrors
  * the `extra` arg to `assertRouteScenes`).
  *
- * Phase 1: empty — no page has a registry-backed scene yet. Do not add invented
- * composite demos here; only add a route when its SCENES map 1:1 to live/partial
- * registry rows.
+ * Every multi-scene C category host is listed. Do not add invented composite
+ * demos here; only registry-backed live/partial scene tables.
  */
 import { SCENES as benchmarkScenes } from "../src/demos/benchmark.ts";
 import { SCENES as bodiesScenes } from "../src/demos/bodies.ts";

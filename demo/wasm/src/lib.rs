@@ -48,7 +48,7 @@ pub fn polygon_points(sides: u32, radius: f32, angle: f32, cx: f32, cy: f32) -> 
 }
 
 // ---------------------------------------------------------------------------
-// Geometry category: Convex Hull (sample_geometry.cpp) + Labs collide helper.
+// Geometry category: Convex Hull (sample_geometry.cpp).
 
 mod collision_queries;
 mod dynamic_tree_demo;

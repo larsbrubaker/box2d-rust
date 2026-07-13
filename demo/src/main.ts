@@ -1,6 +1,6 @@
 // Main entry — SPA shell with registry-driven Samples tree (box3d layout),
-// hash router with per-scene deep links (`#/<route>/<slug>`), and lab pages
-// for invented composites. Math lives under About, not Samples.
+// hash router with per-scene deep links (`#/<route>/<slug>`), and About pages
+// (`#/math`, `#/roadmap`). Invented Labs composites are retired.
 
 import { loadWasm } from "./wasm.ts";
 import {
@@ -35,7 +35,6 @@ const demoModules: Record<string, () => Promise<{ init: DemoInit }>> = {
   benchmark: () => import("./demos/benchmark.ts"),
   replay: () => import("./demos/replay.ts"),
   geometry: () => import("./demos/geometry.ts"),
-  manifolds: () => import("./demos/manifolds.ts"),
   math: () => import("./demos/math.ts"),
   roadmap: () => import("./demos/roadmap.ts"),
 };
@@ -338,8 +337,8 @@ function renderHome(container: HTMLElement) {
         <p>
           Module-by-module Rust port of
           <a href="https://github.com/erincatto/box2d" target="_blank">Box2D v3</a> by Erin Catto.
-          Lab pages under the sidebar exercise the engine today; Phase 2 replaces them with
-          1:1 C sample ports driven by the registry.
+          The Samples tree mirrors Erin Catto's Samples App; each LIVE/PARTIAL row is a
+          registry-backed 1:1 port. About pages cover math determinism and progress.
         </p>
         <p style="margin-top: 12px">
           Ported by <strong>Lars Brubaker</strong>, sponsored by
