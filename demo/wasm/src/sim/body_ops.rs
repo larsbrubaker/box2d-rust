@@ -4,11 +4,11 @@ use super::SimWorld;
 use box2d_rust::body::{
     body_apply_force, body_apply_force_to_center, body_apply_linear_impulse,
     body_apply_linear_impulse_to_center, body_apply_torque, body_disable, body_enable,
-    body_get_angular_velocity, body_get_linear_velocity, body_get_mass, body_get_type,
-    body_is_enabled, body_set_angular_damping, body_set_angular_velocity, body_set_awake,
-    body_set_bullet, body_set_gravity_scale, body_set_linear_damping, body_set_linear_velocity,
-    body_set_motion_locks, body_set_target_transform, body_set_transform, body_set_type,
-    body_wake_touching, destroy_body,
+    body_enable_hit_events, body_get_angular_velocity, body_get_linear_velocity, body_get_mass,
+    body_get_type, body_is_enabled, body_set_angular_damping, body_set_angular_velocity,
+    body_set_awake, body_set_bullet, body_set_gravity_scale, body_set_linear_damping,
+    body_set_linear_velocity, body_set_motion_locks, body_set_target_transform, body_set_transform,
+    body_set_type, body_wake_touching, destroy_body,
 };
 use box2d_rust::joint::joint_is_valid;
 use box2d_rust::math_functions::{make_rot, to_pos, Vec2, WorldTransform};
@@ -255,5 +255,14 @@ impl SimWorld {
             q: make_rot(angle),
         };
         body_set_target_transform(&mut self.world, body_id, target, time_step, wake);
+    }
+
+    /// (b2Body_EnableHitEvents) — toggles hit events on all shapes of the body.
+    pub fn enable_body_hit_events(&mut self, index: usize, flag: bool) {
+        if !self.is_body_alive(index) {
+            return;
+        }
+        let body_id = self.body_id_at(index);
+        body_enable_hit_events(&mut self.world, body_id, flag);
     }
 }

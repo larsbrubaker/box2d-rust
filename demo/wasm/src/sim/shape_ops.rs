@@ -662,4 +662,38 @@ impl SimWorld {
         let body_id = create_body(&mut self.world, &body_def);
         self.track_body(body_id)
     }
+
+    /// Dynamic/static body with CCD flags (Bounce House / Pinball / Drop Scene4).
+    /// (b2BodyDef.isBullet + allowFastRotation + gravityScale + enableSleep)
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_body_ccd(
+        &mut self,
+        x: f32,
+        y: f32,
+        angle: f32,
+        body_type: i32,
+        gravity_scale: f32,
+        is_bullet: bool,
+        allow_fast_rotation: bool,
+        enable_sleep: bool,
+    ) -> usize {
+        use box2d_rust::body::create_body;
+        use box2d_rust::math_functions::{make_rot, to_pos};
+        use box2d_rust::types::{default_body_def, BodyType};
+
+        let mut body_def = default_body_def();
+        body_def.type_ = match body_type {
+            1 => BodyType::Kinematic,
+            2 => BodyType::Dynamic,
+            _ => BodyType::Static,
+        };
+        body_def.position = to_pos(Vec2 { x, y });
+        body_def.rotation = make_rot(angle);
+        body_def.gravity_scale = gravity_scale;
+        body_def.is_bullet = is_bullet;
+        body_def.allow_fast_rotation = allow_fast_rotation;
+        body_def.enable_sleep = enable_sleep;
+        let body_id = create_body(&mut self.world, &body_def);
+        self.track_body(body_id)
+    }
 }

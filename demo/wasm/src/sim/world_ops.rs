@@ -5,8 +5,8 @@
 use super::SimWorld;
 use box2d_rust::world::{
     world_enable_continuous, world_enable_sleeping, world_enable_speculative,
-    world_enable_warm_starting, world_get_gravity, world_is_warm_starting_enabled,
-    world_set_contact_tuning,
+    world_enable_warm_starting, world_get_gravity, world_get_restitution_threshold,
+    world_is_warm_starting_enabled, world_set_contact_tuning, world_set_restitution_threshold,
 };
 use wasm_bindgen::prelude::*;
 
@@ -40,6 +40,16 @@ impl SimWorld {
     /// (b2World_SetContactTuning)
     pub fn set_contact_tuning(&mut self, hertz: f32, damping_ratio: f32, push_velocity: f32) {
         world_set_contact_tuning(&mut self.world, hertz, damping_ratio, push_velocity);
+    }
+
+    /// (b2World_SetRestitutionThreshold) — Continuous Restitution Threshold sample.
+    pub fn set_restitution_threshold(&mut self, value: f32) {
+        world_set_restitution_threshold(&mut self.world, value);
+    }
+
+    /// (b2World_GetRestitutionThreshold)
+    pub fn get_restitution_threshold(&self) -> f32 {
+        world_get_restitution_threshold(&self.world)
     }
 
     /// (b2World_GetGravity) as [gx, gy]

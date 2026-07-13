@@ -271,6 +271,17 @@ export interface SimWorld {
     gravityScale: number,
     enableSleep: boolean,
   ): number;
+  /** Body with isBullet + allowFastRotation (Continuous Bounce House / Pinball). */
+  add_body_ccd(
+    x: number,
+    y: number,
+    angle: number,
+    bodyType: number,
+    gravityScale: number,
+    isBullet: boolean,
+    allowFastRotation: boolean,
+    enableSleep: boolean,
+  ): number;
   add_polygon(
     x: number,
     y: number,
@@ -561,6 +572,8 @@ export interface SimWorld {
     timeStep: number,
     wake: boolean,
   ): void;
+  /** (b2Body_EnableHitEvents) */
+  enable_body_hit_events(index: number, flag: boolean): void;
   apply_force(index: number, fx: number, fy: number, px: number, py: number, wake: boolean): void;
   apply_force_to_center(index: number, fx: number, fy: number, wake: boolean): void;
   apply_torque(index: number, torque: number, wake: boolean): void;
@@ -589,6 +602,9 @@ export interface SimWorld {
   is_warm_starting_enabled(): boolean;
   set_speculative(flag: boolean): void;
   set_contact_tuning(hertz: number, dampingRatio: number, pushVelocity: number): void;
+  /** (b2World_SetRestitutionThreshold) */
+  set_restitution_threshold(value: number): void;
+  get_restitution_threshold(): number;
   get_gravity(): Float32Array;
   snapshot(): Uint8Array;
   restore(image: Uint8Array): boolean;
