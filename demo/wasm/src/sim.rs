@@ -9,6 +9,7 @@
 mod body_ops;
 mod joint_ops;
 mod joints;
+mod shape_ops;
 mod shapes;
 mod world_ops;
 #[cfg(test)]
@@ -20,7 +21,7 @@ use wasm_bindgen::prelude::*;
 
 use box2d_rust::body::{create_body, get_body_full_id, get_body_transform, make_body_id};
 use box2d_rust::geometry::make_box;
-use box2d_rust::id::{BodyId, JointId};
+use box2d_rust::id::{BodyId, JointId, ShapeId};
 use box2d_rust::joint::{
     create_distance_joint, create_revolute_joint, joint_get_body_a, joint_get_body_b,
     joint_get_local_frame_a, joint_get_local_frame_b,
@@ -48,6 +49,8 @@ pub struct SimWorld {
     pub(crate) bodies: Vec<i32>,
     /// Joint ids in creation order; joint_anchors() reports in this order.
     pub(crate) joints: Vec<JointId>,
+    /// Shape ids from attach_*_mat / filter / chain-segment (Shapes samples).
+    pub(crate) shapes: Vec<ShapeId>,
     /// Character mover state (not a body; driven by the mover queries).
     mover_position: m::Pos,
     mover_velocity: m::Vec2,
@@ -93,6 +96,7 @@ impl SimWorld {
             world: World::new(&world_def),
             bodies: Vec::new(),
             joints: Vec::new(),
+            shapes: Vec::new(),
             mover_position: m::POS_ZERO,
             mover_velocity: m::VEC2_ZERO,
             grab: MouseGrab::default(),

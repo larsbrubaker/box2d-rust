@@ -118,6 +118,150 @@ export interface SimWorld {
     friction: number,
     restitution: number,
   ): void;
+  /** Full surface material (rolling + tangent). Returns demo shape index. */
+  attach_box_mat(
+    index: number,
+    hx: number,
+    hy: number,
+    cx: number,
+    cy: number,
+    angle: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    rolling: number,
+    tangent: number,
+  ): number;
+  attach_circle_mat(
+    index: number,
+    cx: number,
+    cy: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    rolling: number,
+    tangent: number,
+  ): number;
+  attach_capsule_mat(
+    index: number,
+    c1x: number,
+    c1y: number,
+    c2x: number,
+    c2y: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    rolling: number,
+    tangent: number,
+  ): number;
+  attach_polygon_mat(
+    index: number,
+    points: Float32Array | number[],
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    rolling: number,
+    tangent: number,
+  ): number;
+  attach_rounded_box_mat(
+    index: number,
+    hx: number,
+    hy: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    rolling: number,
+    tangent: number,
+  ): number;
+  attach_box_filter(
+    index: number,
+    hx: number,
+    hy: number,
+    density: number,
+    categoryBits: number,
+    maskBits: number,
+  ): number;
+  attach_segment_filter(
+    index: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    categoryBits: number,
+    maskBits: number,
+  ): number;
+  attach_segment_invoke(index: number, x1: number, y1: number, x2: number, y2: number): number;
+  attach_box_custom(index: number, hx: number, hy: number, density: number, userData: number): number;
+  attach_chain_segment(
+    index: number,
+    g1x: number,
+    g1y: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    g2x: number,
+    g2y: number,
+  ): number;
+  shape_set_chain_segment(
+    shapeIndex: number,
+    g1x: number,
+    g1y: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    g2x: number,
+    g2y: number,
+  ): void;
+  shape_set_filter(shapeIndex: number, categoryBits: number, maskBits: number): void;
+  shape_get_filter(shapeIndex: number): Uint32Array;
+  shape_set_friction(shapeIndex: number, friction: number): void;
+  shape_set_restitution(shapeIndex: number, restitution: number): void;
+  shape_set_surface(
+    shapeIndex: number,
+    friction: number,
+    restitution: number,
+    rolling: number,
+    tangent: number,
+  ): void;
+  shape_set_circle(shapeIndex: number, cx: number, cy: number, radius: number): void;
+  shape_set_capsule(
+    shapeIndex: number,
+    c1x: number,
+    c1y: number,
+    c2x: number,
+    c2y: number,
+    radius: number,
+  ): void;
+  shape_set_segment(shapeIndex: number, x1: number, y1: number, x2: number, y2: number): void;
+  shape_set_box(shapeIndex: number, hx: number, hy: number): void;
+  body_apply_mass_from_shapes(index: number): void;
+  enable_body_sleep(index: number, enable: boolean): void;
+  apply_wind_to_body(
+    index: number,
+    wx: number,
+    wy: number,
+    drag: number,
+    lift: number,
+    wake: boolean,
+  ): void;
+  /** Chain with per-point materials: mats = [fric,rest,rolling,tangent]*N. */
+  add_chain_mat(points: Float32Array | number[], isLoop: boolean, mats: Float32Array | number[]): number;
+  enable_odd_even_filter(enabled: boolean): void;
+  joint_set_frame_angle_a(jointIndex: number, angle: number): void;
+  add_body_ex(
+    x: number,
+    y: number,
+    angle: number,
+    bodyType: number,
+    gravityScale: number,
+    enableSleep: boolean,
+  ): number;
   add_polygon(
     x: number,
     y: number,

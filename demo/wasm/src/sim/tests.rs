@@ -171,3 +171,30 @@ fn attach_polygon_and_rounded_box() {
     }
     assert!(sim.body_count() >= 3);
 }
+
+#[test]
+fn shape_ops_material_filter_wind() {
+    let mut sim = SimWorld::new(-10.0);
+    let ground = sim.add_body(0.0, 0.0, 0.0, 0);
+    let _seg = sim.attach_segment_filter(ground, -20.0, 0.0, 20.0, 0.0, 0x1, 0xffff_ffff);
+    let body = sim.add_body(0.0, 2.0, 0.0, 2);
+    let shape = sim.attach_box_mat(body, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 0.8, 0.0, 0.1, 2.0);
+    sim.shape_set_surface(shape, 0.5, 0.2, 0.05, 1.0);
+    sim.shape_set_filter(shape, 0x2, 0x1 | 0x4);
+    let f = sim.shape_get_filter(shape);
+    assert_eq!(f[0], 0x2);
+    let belt = sim.add_body(-5.0, 5.0, 0.0, 0);
+    let _ = sim.attach_rounded_box_mat(belt, 10.0, 0.25, 0.25, 0.0, 0.8, 0.0, 0.0, 2.0);
+    sim.apply_wind_to_body(body, 6.0, 0.0, 1.0, 0.75, true);
+    let pts = [0.0_f32, 0.0, 10.0, 0.0, 10.0, 5.0, 0.0, 5.0, -1.0, 2.0];
+    let mats = [
+        0.6, 0.0, 0.0, -10.0, 0.6, 0.0, 0.0, -20.0, 0.6, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.6,
+        0.0, 0.0, 0.0,
+    ];
+    let _chain = sim.add_chain_mat(&pts, true, &mats);
+    sim.enable_odd_even_filter(true);
+    for _ in 0..10 {
+        sim.step(1.0 / 60.0, 4);
+    }
+    sim.enable_odd_even_filter(false);
+}
