@@ -90,15 +90,16 @@ function cat(category: string, cSource: string, specs: Spec[]): SampleEntry[] {
  */
 export const SAMPLES: SampleEntry[] = [
   ...cat("Bodies", "sample_bodies.cpp", [
-    ["Body Type", "planned"],
-    ["Weeble", "planned"],
-    ["Sleep", "planned"],
-    ["Bad", "planned"],
-    ["Pivot", "planned"],
-    ["Kinematic", "planned"],
-    ["Mixed Locks", "planned"],
-    ["Set Velocity", "planned"],
-    ["Wake Touching", "planned"],
+    // live: joints/types/enable match C. partial rows disclose binding gaps.
+    ["Body Type", "live", "bodies", "body-type"],
+    ["Weeble", "partial", "bodies", "weeble"], // no friction/restitution callbacks / SetMassData
+    ["Sleep", "partial", "bodies", "sleep"], // no sensor events / sleepThreshold / enableSleep
+    ["Bad", "live", "bodies", "bad"],
+    ["Pivot", "live", "bodies", "pivot"],
+    ["Kinematic", "partial", "bodies", "kinematic"], // SetTargetTransform → SetTransform snap
+    ["Mixed Locks", "partial", "bodies", "mixed-locks"], // motionLocks unbound
+    ["Set Velocity", "live", "bodies", "set-velocity"],
+    ["Wake Touching", "live", "bodies", "wake-touching"],
   ]),
   ...cat("Benchmark", "sample_benchmark.cpp", [
     ["Barrel", "planned"],

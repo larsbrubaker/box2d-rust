@@ -37,9 +37,10 @@ import {
  * composite demos here; only add a route when its SCENES map 1:1 to live/partial
  * registry rows.
  */
+import { SCENES as bodiesScenes } from "../src/demos/bodies.ts";
+
 const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string[] }> = {
-  // Example (Phase 2 category port):
-  // stacking: { scenes: stackingScenes },
+  bodies: { scenes: bodiesScenes },
 };
 
 /**
@@ -140,9 +141,10 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  expect(stats.live).toBe(0);
-  expect(stats.partial).toBe(0);
-  expect(stats.planned).toBe(139);
+  // Bodies phase-2: 5 live + 4 partial; all other categories still planned.
+  expect(stats.live).toBe(5);
+  expect(stats.partial).toBe(4);
+  expect(stats.planned).toBe(130);
 });
 
 test("category totals match the C pin inventory", () => {
@@ -167,7 +169,13 @@ test("category totals match the C pin inventory", () => {
   expect(categoryOrder()).toEqual(expectedOrder);
   for (const [cat, total] of Object.entries(expected)) {
     expect(categoryStats(cat).total).toBe(total);
-    expect(categoryStats(cat).planned).toBe(total);
+    if (cat === "Bodies") {
+      expect(categoryStats(cat).live).toBe(5);
+      expect(categoryStats(cat).partial).toBe(4);
+      expect(categoryStats(cat).planned).toBe(0);
+    } else {
+      expect(categoryStats(cat).planned).toBe(total);
+    }
   }
 });
 

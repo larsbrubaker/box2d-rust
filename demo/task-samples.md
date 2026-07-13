@@ -49,7 +49,7 @@ partial until a scene is ported 1:1.
 | Category (C file) | Total | Exact | Partial | Missing | Notes |
 |---|---|---|---|---|---|
 | Benchmark (`sample_benchmark.cpp`) | 21 | 0 | 0 | 21 | Includes `RegisterSampleWithCapacity` "Many Pyramids" |
-| Bodies (`sample_bodies.cpp`) | 9 | 0 | 0 | 9 | Current `#/bodies` is an invented shower composite |
+| Bodies (`sample_bodies.cpp`) | 9 | 5 | 4 | 0 | Exact: Body Type, Bad, Pivot, Set Velocity, Wake Touching. Partial: Weeble (no mass-data/friction callbacks), Sleep (no sensor events / sleepThreshold / enableSleep), Kinematic (SetTransform snap), Mixed Locks (motionLocks unbound). Invented shower retired from Labs. |
 | Character (`sample_character.cpp`) | 1 | 0 | 0 | 1 | C has only "Mover" |
 | Collision (`sample_collision.cpp`) | 9 | 0 | 0 | 9 | Manifold / queries live under Collision in C; current `#/manifolds` + `#/geometry` are invented |
 | Continuous (`sample_continuous.cpp`) | 15 | 0 | 0 | 15 | Current `#/continuous` is an invented bullet/wall composite |
