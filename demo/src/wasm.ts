@@ -100,6 +100,20 @@ export interface SimWorld {
     friction: number,
     restitution: number,
   ): void;
+  /** `b2MakeOffsetRoundedBox` + optional `invokeContactCreation`. */
+  attach_offset_rounded_box(
+    index: number,
+    hx: number,
+    hy: number,
+    cx: number,
+    cy: number,
+    angle: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    invokeContactCreation: boolean,
+  ): void;
   attach_circle_hit(
     index: number,
     cx: number,

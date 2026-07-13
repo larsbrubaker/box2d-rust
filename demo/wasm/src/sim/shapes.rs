@@ -274,6 +274,42 @@ impl SimWorld {
         create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
     }
 
+    /// Attach an offset rounded box (`b2MakeOffsetRoundedBox`) in body space.
+    /// `invoke_contact_creation` mirrors `b2ShapeDef.invokeContactCreation`
+    /// (Tiles ground sets this false).
+    #[allow(clippy::too_many_arguments)]
+    pub fn attach_offset_rounded_box(
+        &mut self,
+        index: usize,
+        hx: f32,
+        hy: f32,
+        cx: f32,
+        cy: f32,
+        angle: f32,
+        radius: f32,
+        density: f32,
+        friction: f32,
+        restitution: f32,
+        invoke_contact_creation: bool,
+    ) {
+        use box2d_rust::geometry::make_offset_rounded_box;
+
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = friction;
+        shape_def.material.restitution = restitution;
+        shape_def.invoke_contact_creation = invoke_contact_creation;
+        let polygon = make_offset_rounded_box(
+            hx,
+            hy,
+            Vec2 { x: cx, y: cy },
+            make_rot(angle),
+            radius,
+        );
+        create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+    }
+
     /// Dynamic convex polygon from interleaved world-relative points [x,y]*.
     /// Hull is computed via `b2ComputeHull`; radius is skin radius.
     pub fn add_polygon(

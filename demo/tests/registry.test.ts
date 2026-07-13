@@ -50,6 +50,7 @@ import { SCENES as jointsScenes } from "../src/demos/joints.ts";
 import { SCENES as robustnessScenes } from "../src/demos/robustness.ts";
 import { SCENES as shapesScenes } from "../src/demos/shapes.ts";
 import { SCENES as stackingScenes } from "../src/demos/stacking.ts";
+import { SCENES as worldScenes } from "../src/demos/world.ts";
 
 const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string[] }> = {
   benchmark: { scenes: benchmarkScenes },
@@ -65,6 +66,7 @@ const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string
   robustness: { scenes: robustnessScenes },
   shapes: { scenes: shapesScenes },
   stacking: { scenes: stackingScenes },
+  world: { scenes: worldScenes },
 };
 
 /**
@@ -165,10 +167,10 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2) + Benchmark (0+17) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1) + Character (1); rest planned.
-  expect(stats.live).toBe(90);
-  expect(stats.partial).toBe(36);
-  expect(stats.planned).toBe(13);
+  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2) + Benchmark (0+17) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1) + Character (1) + World (2+2); rest planned.
+  expect(stats.live).toBe(92);
+  expect(stats.partial).toBe(38);
+  expect(stats.planned).toBe(9);
 });
 
 test("category totals match the C pin inventory", () => {
@@ -248,6 +250,10 @@ test("category totals match the C pin inventory", () => {
     } else if (cat === "Geometry") {
       expect(categoryStats(cat).live).toBe(1);
       expect(categoryStats(cat).partial).toBe(0);
+      expect(categoryStats(cat).planned).toBe(0);
+    } else if (cat === "World") {
+      expect(categoryStats(cat).live).toBe(2);
+      expect(categoryStats(cat).partial).toBe(2);
       expect(categoryStats(cat).planned).toBe(0);
     } else {
       expect(categoryStats(cat).planned).toBe(total);

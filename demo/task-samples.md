@@ -62,8 +62,8 @@ partial until a scene is ported 1:1.
 | Robustness (`sample_robustness.cpp`) | 7 | 7 | 0 | 0 | Exact: HighMassRatio1/2/3, Overlap Recovery, Tiny Pyramid, Cart, Multiple Prismatic. Invented composite replaced by multi-scene `#/robustness`. |
 | Shapes (`sample_shapes.cpp`) | 19 | 16 | 3 | 0 | Exact: Chain Segment, Filter, Custom Filter, Restitution, Friction, Rolling Resistance, Conveyor Belt, Tangent Speed, Modify Geometry, Chain Link, Rounded, Ellipse, Offset, Explosion, Recreate Static, Box Restitution. Partial: Chain Shape (no chain_SetSurfaceMaterial), Compound Shapes (approx Body AABBs), Wind (revolute local frames approx). Invented shapes composite replaced. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
-| World (`sample_world.cpp`) | 4 | 0 | 0 | 4 | Current `#/world` is invented |
-| **Total** | **139** | **90** | **36** | **13** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 |
+| World (`sample_world.cpp`) | 4 | 2 | 2 | 0 | Exact: Far Pyramid, Far Gate. Partial: Tiles (DEBUG cycleCount=10; CreateHuman→donut), Far Ragdolls (capsule stand-ins). Invented `#/world` composite replaced. |
+| **Total** | **139** | **92** | **38** | **9** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 2/2 |
 
 ## Invented demos to retire from Samples nav
 
@@ -76,7 +76,7 @@ registry-only. Math is under About (not Samples).
 | `#/math` | No C sample — deterministic math showcase. **Retired from Samples**; About page |
 | `#/roadmap` | Meta progress page, not a C sample |
 | `#/manifolds` | **Retired from Labs** — C Manifold / Smooth Manifold live under `#/collision` |
-| Category composites (`#/world`) | Capability demos / harness previews — replace scene-by-scene as categories are ported. `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark`, `#/robustness`, `#/collision`, `#/issues`, `#/determinism`, `#/replay`, `#/geometry`, `#/character` now host C samples. |
+| Former category composites | All retired — `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark`, `#/robustness`, `#/collision`, `#/issues`, `#/determinism`, `#/replay`, `#/geometry`, `#/character`, `#/world` now host C samples. |
 
 ## Phases
 

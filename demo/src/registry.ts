@@ -267,10 +267,12 @@ export const SAMPLES: SampleEntry[] = [
     ["Card House", "live", "stacking", "card-house"],
   ]),
   ...cat("World", "sample_world.cpp", [
-    ["Tiles", "planned"],
-    ["Far Pyramid", "planned"],
-    ["Far Ragdolls", "planned"],
-    ["Far Gate", "planned"],
+    // Partial: DEBUG cycleCount=10 (C release 600); CreateHuman cycles → donut stand-ins.
+    ["Tiles", "partial", "world", "tiles"],
+    ["Far Pyramid", "live", "world", "far-pyramid"],
+    // Partial: CreateHuman unbound — capsule stand-ins at C 5×5 spawn poses.
+    ["Far Ragdolls", "partial", "world", "far-ragdolls"],
+    ["Far Gate", "live", "world", "far-gate"],
   ]),
   // Replay is registered via RegisterReplay (sample_replay.cpp), not RegisterSample.
   // Kept as its own category so the Samples tree matches the C Replay menu entry.
