@@ -34,6 +34,7 @@ use crate::id::{BodyId, ContactId, JointId, ShapeId};
 use crate::joint::{get_joint_reaction, prepare_joint, solve_joint, warm_start_joint};
 use crate::math_functions::{make_world_transform, offset_pos, TRANSFORM_IDENTITY};
 use crate::solver_set::AWAKE_SET;
+use crate::timer::{get_milliseconds, get_milliseconds_and_reset, get_ticks};
 use crate::types::BodyType;
 use crate::world::World;
 
@@ -67,6 +68,10 @@ pub fn solve(world: &mut World, context: &StepContext) {
         return;
     }
 
+    // Solver setup: buffers, move events, bit sets, island split enqueue/run.
+    // (solver.c: setupTicks → profile.solverSetup)
+    let mut setup_ticks = get_ticks();
+
     // Prepare buffer for bullets (arena in C)
     let mut bullet_bodies: Vec<i32> = Vec::with_capacity(awake_body_count);
 
@@ -98,12 +103,23 @@ pub fn solve(world: &mut World, context: &StepContext) {
 
     // Split an awake island. The C enqueues b2SplitIslandTask to run
     // concurrently with the constraint solve and finishes it before body
-    // finalization; the serial port runs it inline here.
+    // finalization; the serial port runs it inline here. Timing still goes to
+    // split_islands (b2SplitIslandTask) and is also nested in solver_setup
+    // when the split runs synchronously during setup.
     if world.split_island_id != NULL_INDEX {
+        let split_ticks = get_ticks();
         let split_id = world.split_island_id;
         crate::island::split_island(world, split_id);
         world.split_island_id = NULL_INDEX;
+        world.profile.split_islands += get_milliseconds(split_ticks);
     }
+
+    world.profile.solver_setup = get_milliseconds_and_reset(&mut setup_ticks);
+
+    // Constraint solve wall time (prepare → store impulses), matching C's
+    // profile.constraints around b2SolverTask.
+    let mut constraint_ticks = get_ticks();
+    let mut ticks = get_ticks();
 
     // === Prepare constraints ===
     // (stage b2_stagePrepareJoints: colored joints in ascending color order)
@@ -147,11 +163,14 @@ pub fn solve(world: &mut World, context: &StepContext) {
         );
     }
 
+    world.profile.prepare_constraints += get_milliseconds_and_reset(&mut ticks);
+
     // === Sub-step loop ===
     let sub_step_count = context.sub_step_count;
     for _sub_step_index in 0..sub_step_count {
         // Integrate velocities
         integrate_velocities(world, context);
+        world.profile.integrate_velocities += get_milliseconds_and_reset(&mut ticks);
 
         // Warm start constraints: overflow joints, overflow contacts, then
         // each color (joints before contacts, matching the graph block
@@ -173,6 +192,7 @@ pub fn solve(world: &mut World, context: &StepContext) {
                 warm_start_contacts(&mut color_constraints[color_index], states);
             }
         }
+        world.profile.warm_start += get_milliseconds_and_reset(&mut ticks);
 
         // Solve constraints
         for _ in 0..ITERATIONS {
@@ -220,9 +240,11 @@ pub fn solve(world: &mut World, context: &StepContext) {
                 );
             }
         }
+        world.profile.solve_impulses += get_milliseconds_and_reset(&mut ticks);
 
         // Integrate positions
         integrate_positions(world, context);
+        world.profile.integrate_positions += get_milliseconds_and_reset(&mut ticks);
 
         // Relax constraints
         for _ in 0..RELAX_ITERATIONS {
@@ -253,6 +275,7 @@ pub fn solve(world: &mut World, context: &StepContext) {
                 );
             }
         }
+        world.profile.relax_impulses += get_milliseconds_and_reset(&mut ticks);
     }
 
     // Restitution: overflow first, then each color (contacts only)
@@ -269,6 +292,7 @@ pub fn solve(world: &mut World, context: &StepContext) {
             apply_restitution(&mut color_constraints[color_index], states, context);
         }
     }
+    world.profile.apply_restitution += get_milliseconds_and_reset(&mut ticks);
 
     // Store impulses: overflow first (no hit-event flagging in the C overflow
     // path), then the colored contacts with hit-event flagging
@@ -311,8 +335,14 @@ pub fn solve(world: &mut World, context: &StepContext) {
             }
         }
     }
+    world.profile.store_impulses += get_milliseconds_and_reset(&mut ticks);
+
+    // Finish island split (already done inline above in the serial port).
+    world.profile.constraints = get_milliseconds_and_reset(&mut constraint_ticks);
 
     // === Finalize bodies ===
+    let transform_ticks = get_ticks();
+
     // Prepare contact, enlarged body, and island bit sets used in body
     // finalization.
     {
@@ -333,8 +363,11 @@ pub fn solve(world: &mut World, context: &StepContext) {
     // island splitting.
     finalize_bodies(world, context, &mut bullet_bodies);
 
+    world.profile.transforms = get_milliseconds(transform_ticks);
+
     // === Report joint events ===
     {
+        let joint_event_ticks = get_ticks();
         let world_id = world.world_id;
         let word_count = world.task_contexts[0].joint_state_bit_set.block_count();
         for k in 0..word_count {
@@ -361,10 +394,12 @@ pub fn solve(world: &mut World, context: &StepContext) {
                 word &= word - 1;
             }
         }
+        world.profile.joint_events = get_milliseconds(joint_event_ticks);
     }
 
     // === Report hit events ===
     {
+        let hit_ticks = get_ticks();
         debug_assert!(world.contact_hit_events.is_empty());
 
         if world.task_contexts[0].has_hit_events {
@@ -457,10 +492,12 @@ pub fn solve(world: &mut World, context: &StepContext) {
                 }
             }
         }
+        world.profile.hit_events = get_milliseconds(hit_ticks);
     }
 
     // === Refit broad phase ===
     {
+        let refit_ticks = get_ticks();
         world.broad_phase.validate_no_enlarged();
 
         // Enlarge broad-phase proxies and build move array.
@@ -521,10 +558,12 @@ pub fn solve(world: &mut World, context: &StepContext) {
         }
 
         world.broad_phase.validate();
+        world.profile.refit = get_milliseconds(refit_ticks);
     }
 
     // === Bullets ===
     if !bullet_bodies.is_empty() {
+        let bullet_ticks = get_ticks();
         // Fast bullet bodies. Note: a bullet body may be moving slow.
         // (b2BulletBodyTask)
         for &sim_index in &bullet_bodies {
@@ -576,11 +615,13 @@ pub fn solve(world: &mut World, context: &StepContext) {
                 shape_id = world.shapes[shape_id as usize].next_shape_id;
             }
         }
+        world.profile.bullets = get_milliseconds(bullet_ticks);
     }
 
     // === Report sensor hits ===
     // This may include bullet sensor hits.
     {
+        let sensor_hit_ticks = get_ticks();
         let hits = std::mem::take(&mut world.task_contexts[0].sensor_hits);
         for hit in hits {
             let sensor_index = world.shapes[hit.sensor_id as usize].sensor_index;
@@ -592,12 +633,14 @@ pub fn solve(world: &mut World, context: &StepContext) {
             };
             world.sensors[sensor_index as usize].hits.push(shape_ref);
         }
+        world.profile.sensor_hits = get_milliseconds(sensor_hit_ticks);
     }
 
     // === Island sleeping ===
     // This must be done last because putting islands to sleep invalidates the
     // enlarged body bits.
     if world.enable_sleep {
+        let sleep_ticks = get_ticks();
         // Collect split island candidate for the next time step. No need to
         // split if sleeping is disabled.
         debug_assert!(world.split_island_id == NULL_INDEX);
@@ -628,5 +671,6 @@ pub fn solve(world: &mut World, context: &StepContext) {
         }
 
         world.validate_solver_sets();
+        world.profile.sleep_islands = get_milliseconds(sleep_ticks);
     }
 }

@@ -5,7 +5,7 @@
 // of ContactSim pointers, and processes them in the same order: graph colors
 // 0..GRAPH_COLOR_COUNT (overflow included) then the awake set's non-touching
 // contacts. b2World_Step takes &mut World instead of a b2WorldId (no global
-// world registry). Recording (B2_REC) and profiling timers are not ported.
+// world registry). Profiling timers match C (`b2GetTicks` / profile fields).
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
@@ -24,6 +24,7 @@ use crate::math_functions::{
 use crate::sensor::overlap_sensors;
 use crate::solver::{make_soft, solve, StepContext};
 use crate::solver_set::{AWAKE_SET, FIRST_SLEEPING_SET, STATIC_SET};
+use crate::timer::{get_milliseconds, get_ticks};
 use crate::types::BodyType;
 
 /// (static inline b2RelativeCos)
@@ -564,6 +565,8 @@ pub fn world_step(world: &mut World, time_step: f32, sub_step_count: i32) {
 
     world.locked = true;
 
+    let step_ticks = get_ticks();
+
     {
         let static_shape_count = world.broad_phase.trees[BodyType::Static as usize].proxy_count();
         let dynamic_shape_count = world.broad_phase.trees[BodyType::Dynamic as usize].proxy_count();
@@ -587,7 +590,11 @@ pub fn world_step(world: &mut World, time_step: f32, sub_step_count: i32) {
     }
 
     // Update collision pairs and create contacts
-    update_broad_phase_pairs(world);
+    {
+        let pair_ticks = get_ticks();
+        update_broad_phase_pairs(world);
+        world.profile.pairs = get_milliseconds(pair_ticks);
+    }
 
     let sub_step_count = crate::math_functions::max_int(1, sub_step_count);
     let mut context = StepContext {
@@ -621,16 +628,28 @@ pub fn world_step(world: &mut World, time_step: f32, sub_step_count: i32) {
     context.enable_warm_starting = world.enable_warm_starting;
 
     // Narrow phase: update contacts
-    collide(world, &context);
+    {
+        let collide_ticks = get_ticks();
+        collide(world, &context);
+        world.profile.collide = get_milliseconds(collide_ticks);
+    }
 
     // Integrate velocities, solve velocity constraints, and integrate
     // positions.
     if time_step > 0.0 {
+        let solve_ticks = get_ticks();
         solve(world, &context);
+        world.profile.solve = get_milliseconds(solve_ticks);
     }
 
     // Update sensors
-    overlap_sensors(world);
+    {
+        let sensor_ticks = get_ticks();
+        overlap_sensors(world);
+        world.profile.sensors = get_milliseconds(sensor_ticks);
+    }
+
+    world.profile.step = get_milliseconds(step_ticks);
 
     world.locked = false;
 
@@ -717,6 +736,14 @@ mod tests {
         assert!(abs_float(position.x as f32) < 0.01);
         assert!(abs_float(position.y as f32 - 1.00) < 0.01);
         assert!(abs_float(rot_get_angle(rotation)) < 0.01);
+
+        // Profile timings are filled each step (timer.c was dropped earlier).
+        let profile = crate::world::world_get_profile(&world);
+        assert!(profile.step > 0.0);
+        assert!(profile.pairs >= 0.0);
+        assert!(profile.collide >= 0.0);
+        assert!(profile.solve >= 0.0);
+        assert!(profile.sensors >= 0.0);
     }
 
     // Port of test_world.c EmptyWorld: stepping an empty world does nothing.

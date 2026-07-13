@@ -22,7 +22,8 @@ import {
   mountSampleChrome,
   disposeTransport,
   makeCamera,
-  screenToWorld,
+  screenToWorld,
+
   worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
@@ -105,7 +106,7 @@ const SCENE_NOTE: Record<Scene, string> = {
   sensor:
     "Exact: 40×40 sensors + custom filter row + active kill strip. sample_benchmark.cpp Sensor.",
   capacity:
-    "Spawns 200 boxes every 32 steps until wall-clock step >20ms for 60 frames (C uses b2Profile.step).",
+    "Exact: spawns 200 boxes every 32 steps until b2Profile.step >20ms for 60 frames.",
   junkyard: "DEBUG rowCount 2 (C release 40). CreateJunkyard + StepJunkyard pusher.",
 };
 
@@ -994,8 +995,8 @@ function buildSpinner(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
   };
 }
 
-/** Capacity needs step-ms from the page loop — stash on runtime. */
-type CapacityRuntime = SceneRuntime & { setStepMs?: (ms: number) => void };
+/** Capacity gates on `b2Profile.step` from the engine (not wall-clock). */
+type CapacityRuntime = SceneRuntime;
 
 function buildRain(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   // shared/benchmarks.c CreateRain / StepRain — DEBUG constants
@@ -1097,6 +1098,8 @@ function buildCapacityFull(sim: SimWorld, _controls: HTMLElement): CapacityRunti
     afterStep: () => {
       stepCount += 1;
       if (done) return;
+      // C: b2World_GetProfile(m_worldId).step vs 20 ms for 60 consecutive frames
+      lastStepMs = sim.get_profile_step();
       if (lastStepMs > 20) {
         reachCount += 1;
         if (reachCount > 60) done = true;
@@ -1114,11 +1117,8 @@ function buildCapacityFull(sim: SimWorld, _controls: HTMLElement): CapacityRunti
         x += 2.0;
       }
     },
-    setStepMs: (ms: number) => {
-      lastStepMs = ms;
-    },
     readoutExtra: () => [
-      { label: "step ms", value: lastStepMs.toFixed(2) },
+      { label: "profile step ms", value: lastStepMs.toFixed(2) },
       { label: "done", value: done ? "yes" : "no" },
     ],
   };
@@ -1883,8 +1883,6 @@ export function init(container: HTMLElement, initialScene?: string) {
     const t0 = performance.now();
     sim.step(dt, transport.subSteps);
     const stepMs = performance.now() - t0;
-    const cap = runtime as CapacityRuntime;
-    cap.setStepMs?.(stepMs);
     runtime.afterStep?.(dt);
 
     paintSampleDraw(canvas, camera, sim);

@@ -5,8 +5,9 @@
 use super::SimWorld;
 use box2d_rust::world::{
     world_enable_continuous, world_enable_sleeping, world_enable_speculative,
-    world_enable_warm_starting, world_get_gravity, world_get_restitution_threshold,
-    world_is_warm_starting_enabled, world_set_contact_tuning, world_set_restitution_threshold,
+    world_enable_warm_starting, world_get_gravity, world_get_profile,
+    world_get_restitution_threshold, world_is_warm_starting_enabled, world_set_contact_tuning,
+    world_set_restitution_threshold,
 };
 use wasm_bindgen::prelude::*;
 
@@ -56,5 +57,11 @@ impl SimWorld {
     pub fn get_gravity(&self) -> Vec<f32> {
         let g = world_get_gravity(&self.world);
         vec![g.x, g.y]
+    }
+
+    /// `b2Profile.step` from the last `world_step`, in milliseconds.
+    /// (`b2World_GetProfile`)
+    pub fn get_profile_step(&self) -> f32 {
+        world_get_profile(&self.world).step
     }
 }

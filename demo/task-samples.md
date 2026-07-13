@@ -40,7 +40,7 @@ Inventory at this pin:
 | Partial | Route exists; disclosed divergence from C |
 | Missing (`planned`) | No faithful route yet |
 
-**Current totals:** Exact **116** · Partial **23** · Missing **0**.
+**Current totals:** Exact **117** · Partial **22** · Missing **0**.
 Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 `PAGES`).
 
@@ -48,7 +48,7 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 
 | Category (C file) | Total | Exact | Partial | Missing | Notes |
 |---|---|---|---|---|---|
-| Benchmark (`sample_benchmark.cpp`) | 21 | 1 | 20 | 0 | DEBUG/wasm counts disclosed. Exact: Sensor. Partial: Barrel (Human via CreateHuman), Barrel 2.4, Compounds, Tumbler, Washer, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Cast (DEBUG grid/queries), Spinner, Rain (DEBUG CreateRain), Shape Distance (DEBUG count), Capacity (wall-clock vs profile), Junkyard. |
+| Benchmark (`sample_benchmark.cpp`) | 21 | 2 | 19 | 0 | DEBUG/wasm counts disclosed. Exact: Sensor, Capacity (`b2Profile.step` via engine timers). Partial: Barrel (Human via CreateHuman), Barrel 2.4, Compounds, Tumbler, Washer, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Cast (DEBUG grid/queries), Spinner, Rain (DEBUG CreateRain), Shape Distance (DEBUG count), Junkyard. |
 | Bodies (`sample_bodies.cpp`) | 9 | 9 | 0 | 0 | All Exact (Phase 3): Weeble mix callbacks + SetMassData; Sleep sensors/thresholds; Kinematic SetTargetTransform; Mixed Locks motionLocks. |
 | Character (`sample_character.cpp`) | 1 | 1 | 0 | 0 | Exact: Mover (C SolveMove + scene) |
 | Collision (`sample_collision.cpp`) | 9 | 8 | 1 | 0 | Exact: Shape Distance, Ray Cast, Cast World, Overlap World, Manifold, Smooth Manifold, Shape Cast, Time of Impact. Partial: Dynamic Tree (C debug 100A-100 grid, not release 1000A-1000). Invented `#/manifolds` fully retired (route + wasm helper gone). |
@@ -63,7 +63,7 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 | Shapes (`sample_shapes.cpp`) | 19 | 19 | 0 | 0 | All Exact (Phase 3): Chain Shape surface material; Compound ComputeAABB; Wind revolute local frames. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 3 | 1 | 0 | Exact: Far Pyramid, Far Ragdolls (CreateHuman), Far Gate. Partial: Tiles (DEBUG cycleCount=10; CreateHuman Exact). Invented `#/world` composite replaced. |
-| **Total** | **139** | **116** | **23** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 1/20 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 3/1 |
+| **Total** | **139** | **117** | **22** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 2/19 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 3/1 |
 
 ## Non-sample About pages
 
@@ -139,14 +139,13 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 | Joint runtime setters / constraint readouts | Joints GUI | **Done** (`joint_ops` setters + force/torque readouts) |
 | Custom friction/restitution/filter callbacks | Bodies, Shapes | **Done** (wasm callback bridging in `body_ops` / events) |
 | Attach polygon to existing body | Joints (Top Down) | **Done** (`attach_polygon` / `attach_polygon_mat`) |
-| Profile step timings (`b2Profile`) | Benchmark Capacity | Still missing — `world_get_profile` returns zeros (timer never filled) |
 
 ### Phase 2 — Category ports — DONE
 
 All 15 categories have registry-backed routes. Remaining planned gaps closed in
 Phase 3 batch C (Benchmark Cast / Shape Distance / Sensor; Joints Scissor /
-Gear Lift). Phase 3 Partial upgrades brought totals to Exact **116** / Partial
-**23** / Missing **0**.
+Gear Lift). Phase 3 Partial upgrades + Joints Exact + profile timings brought
+totals to Exact **117** / Partial **22** / Missing **0**.
 
 ### Phase 3 — Shell polish + retire invented pages — IN PROGRESS
 
@@ -161,8 +160,7 @@ Replay inspector polish.
 **Audit follow-ups (Jul 2026 consolidated):**
 - **Contact / AABB (lib):** port `b2Contact_IsValid` + `b2Contact_GetData`; port
   `LargeWorldAABBTest` from `test_collision.c`
-- **Profile / Capacity:** fill `b2Profile` timings → upgrade Benchmark Capacity
-  from wall-clock to `profile.step`
+- [x] **Profile / Capacity:** fill `b2Profile` timings; Capacity uses `profile.step` (Exact)
 - ~~**Joints (6 Partials → Exact):** Top Down Friction, Breakable, Separation,
   User Constraint, Driving, Door~~ **Done** on `demo/phase-3-joints-exact`
 - **Replay Viewer:** inspector outliner, per-frame query index, keyframe-policy

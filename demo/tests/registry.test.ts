@@ -164,9 +164,9 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies (9) + Stacking (10) + Joints (22) + Shapes (19) + Continuous (15) + Events (12) + Benchmark (1+20) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1) + Character (1) + World (3+1)
-  expect(stats.live).toBe(116);
-  expect(stats.partial).toBe(23);
+  // Bodies (9) + Stacking (10) + Joints (22) + Shapes (19) + Continuous (15) + Events (12) + Benchmark (2+19) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1) + Character (1) + World (3+1)
+  expect(stats.live).toBe(117);
+  expect(stats.partial).toBe(22);
   expect(stats.planned).toBe(0);
 });
 
@@ -217,8 +217,8 @@ test("category totals match the C pin inventory", () => {
       expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Benchmark") {
-      expect(categoryStats(cat).live).toBe(1);
-      expect(categoryStats(cat).partial).toBe(20);
+      expect(categoryStats(cat).live).toBe(2);
+      expect(categoryStats(cat).partial).toBe(19);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Robustness") {
       expect(categoryStats(cat).live).toBe(7);

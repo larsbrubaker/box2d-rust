@@ -123,7 +123,7 @@ export const SAMPLES: SampleEntry[] = [
     ["Rain", "partial", "benchmark", "rain"], // DEBUG CreateRain/StepRain via CreateHuman
     ["Shape Distance", "partial", "benchmark", "shape-distance"], // DEBUG count 100 (C release 10000)
     ["Sensor", "live", "benchmark", "sensor"],
-    ["Capacity", "partial", "benchmark", "capacity"], // wall-clock vs b2Profile.step
+    ["Capacity", "live", "benchmark", "capacity"],
     ["Junkyard", "partial", "benchmark", "junkyard"], // DEBUG rowCount 2
   ]),
   ...cat("Character", "sample_character.cpp", [

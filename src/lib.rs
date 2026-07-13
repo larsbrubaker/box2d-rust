@@ -37,6 +37,7 @@ pub mod shape;
 pub mod solver;
 pub mod solver_set;
 pub mod table;
+pub mod timer;
 pub mod types;
 pub mod weld_joint;
 pub mod wheel_joint;
