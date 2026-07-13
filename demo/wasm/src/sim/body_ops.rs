@@ -3,17 +3,37 @@
 use super::SimWorld;
 use box2d_rust::body::{
     body_apply_force, body_apply_force_to_center, body_apply_linear_impulse,
-    body_apply_linear_impulse_to_center, body_apply_torque, body_disable, body_enable,
-    body_enable_hit_events, body_get_angular_velocity, body_get_linear_velocity, body_get_mass,
-    body_get_type, body_is_enabled, body_set_angular_damping, body_set_angular_velocity,
-    body_set_awake, body_set_bullet, body_set_gravity_scale, body_set_linear_damping,
-    body_set_linear_velocity, body_set_motion_locks, body_set_target_transform, body_set_transform,
-    body_set_type, body_wake_touching, destroy_body,
+    body_apply_linear_impulse_to_center, body_apply_torque, body_compute_aabb, body_disable,
+    body_enable, body_enable_hit_events, body_get_angular_damping, body_get_angular_velocity,
+    body_get_linear_velocity, body_get_local_point_velocity, body_get_mass, body_get_mass_data,
+    body_get_rotational_inertia, body_get_sleep_threshold, body_get_type,
+    body_get_world_point_velocity, body_is_enabled, body_set_angular_damping,
+    body_set_angular_velocity, body_set_awake, body_set_bullet, body_set_gravity_scale,
+    body_set_linear_damping, body_set_linear_velocity, body_set_mass_data, body_set_motion_locks,
+    body_set_sleep_threshold, body_set_target_transform, body_set_transform, body_set_type,
+    body_wake_touching, destroy_body,
 };
+use box2d_rust::collision::MassData;
 use box2d_rust::joint::joint_is_valid;
 use box2d_rust::math_functions::{make_rot, to_pos, Vec2, WorldTransform};
 use box2d_rust::types::{BodyType, MotionLocks};
+use box2d_rust::world::{world_set_friction_callback, world_set_restitution_callback};
 use wasm_bindgen::prelude::*;
+
+/// C Weeble sample friction callback — constant 0.1 (`sample_bodies.cpp`).
+fn weeble_friction_callback(_friction_a: f32, _ud_a: u64, _friction_b: f32, _ud_b: u64) -> f32 {
+    0.1
+}
+
+/// C Weeble sample restitution callback — constant 1.0 (`sample_bodies.cpp`).
+fn weeble_restitution_callback(
+    _restitution_a: f32,
+    _ud_a: u64,
+    _restitution_b: f32,
+    _ud_b: u64,
+) -> f32 {
+    1.0
+}
 
 /// Demo-index sentinel after `destroy_body` — keeps later indices stable.
 pub(crate) const DESTROYED_BODY_SLOT: i32 = -1;
@@ -217,6 +237,85 @@ impl SimWorld {
     pub fn set_angular_damping(&mut self, index: usize, damping: f32) {
         let body_id = self.body_id_at(index);
         body_set_angular_damping(&mut self.world, body_id, damping);
+    }
+
+    /// (b2Body_GetAngularDamping)
+    pub fn get_angular_damping(&self, index: usize) -> f32 {
+        body_get_angular_damping(&self.world, self.body_id_at(index))
+    }
+
+    /// (b2Body_SetSleepThreshold)
+    pub fn set_sleep_threshold(&mut self, index: usize, threshold: f32) {
+        let body_id = self.body_id_at(index);
+        body_set_sleep_threshold(&mut self.world, body_id, threshold);
+    }
+
+    /// (b2Body_GetSleepThreshold)
+    pub fn get_sleep_threshold(&self, index: usize) -> f32 {
+        body_get_sleep_threshold(&self.world, self.body_id_at(index))
+    }
+
+    /// (b2Body_GetRotationalInertia)
+    pub fn get_rotational_inertia(&self, index: usize) -> f32 {
+        body_get_rotational_inertia(&self.world, self.body_id_at(index))
+    }
+
+    /// (b2Body_SetMassData) — mass, local COM (cx,cy), rotational inertia.
+    pub fn set_mass_data(&mut self, index: usize, mass: f32, cx: f32, cy: f32, inertia: f32) {
+        let body_id = self.body_id_at(index);
+        body_set_mass_data(
+            &mut self.world,
+            body_id,
+            MassData {
+                mass,
+                center: Vec2 { x: cx, y: cy },
+                rotational_inertia: inertia,
+            },
+        );
+    }
+
+    /// (b2Body_GetMassData) as [mass, cx, cy, inertia]
+    pub fn get_mass_data(&self, index: usize) -> Vec<f32> {
+        let md = body_get_mass_data(&self.world, self.body_id_at(index));
+        vec![md.mass, md.center.x, md.center.y, md.rotational_inertia]
+    }
+
+    /// (b2Body_ComputeAABB) as [lowerX, lowerY, upperX, upperY]
+    pub fn body_compute_aabb(&self, index: usize) -> Vec<f32> {
+        let aabb = body_compute_aabb(&self.world, self.body_id_at(index));
+        vec![aabb.lower_bound.x, aabb.lower_bound.y, aabb.upper_bound.x, aabb.upper_bound.y]
+    }
+
+    /// (b2Body_GetLocalPointVelocity) as [vx, vy]
+    pub fn get_local_point_velocity(&self, index: usize, lx: f32, ly: f32) -> Vec<f32> {
+        let v = body_get_local_point_velocity(
+            &self.world,
+            self.body_id_at(index),
+            Vec2 { x: lx, y: ly },
+        );
+        vec![v.x, v.y]
+    }
+
+    /// (b2Body_GetWorldPointVelocity) as [vx, vy]
+    pub fn get_world_point_velocity(&self, index: usize, wx: f32, wy: f32) -> Vec<f32> {
+        let v = body_get_world_point_velocity(
+            &self.world,
+            self.body_id_at(index),
+            to_pos(Vec2 { x: wx, y: wy }),
+        );
+        vec![v.x, v.y]
+    }
+
+    /// Install C Weeble friction/restitution callbacks (constants 0.1 / 1.0).
+    /// Pass `false` to restore default mixing rules.
+    pub fn enable_weeble_mix_callbacks(&mut self, enabled: bool) {
+        if enabled {
+            world_set_friction_callback(&mut self.world, Some(weeble_friction_callback));
+            world_set_restitution_callback(&mut self.world, Some(weeble_restitution_callback));
+        } else {
+            world_set_friction_callback(&mut self.world, None);
+            world_set_restitution_callback(&mut self.world, None);
+        }
     }
 
     /// (b2Body_SetMotionLocks) — linearX/Y + angular as bools.

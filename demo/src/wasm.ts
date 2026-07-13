@@ -274,8 +274,17 @@ export interface SimWorld {
     lift: number,
     wake: boolean,
   ): void;
-  /** Chain with per-point materials: mats = [fric,rest,rolling,tangent]*N. */
+  /** Chain with per-point materials: mats = [fric,rest,rolling,tangent]*N. Returns chain index. */
   add_chain_mat(points: Float32Array | number[], isLoop: boolean, mats: Float32Array | number[]): number;
+  /** (b2Chain_SetSurfaceMaterial) */
+  chain_set_surface(
+    chainIndex: number,
+    friction: number,
+    restitution: number,
+    rolling: number,
+    tangent: number,
+    materialIndex: number,
+  ): void;
   attach_chain(index: number, points: Float32Array | number[], isLoop: boolean): void;
   enable_odd_even_filter(enabled: boolean): void;
   enable_sensor_row_filter(enabled: boolean, filterRow: number): void;
@@ -622,6 +631,7 @@ export interface SimWorld {
   prismatic_set_spring_damping(index: number, damping: number): void;
   prismatic_set_target_translation(index: number, translation: number): void;
   prismatic_set_limits(index: number, lower: number, upper: number): void;
+  prismatic_get_translation(index: number): number;
   prismatic_get_motor_force(index: number): number;
   wheel_enable_limit(index: number, enable: boolean): void;
   wheel_enable_motor(index: number, enable: boolean): void;
@@ -662,6 +672,20 @@ export interface SimWorld {
   get_mass(index: number): number;
   set_linear_damping(index: number, damping: number): void;
   set_angular_damping(index: number, damping: number): void;
+  get_angular_damping(index: number): number;
+  set_sleep_threshold(index: number, threshold: number): void;
+  get_sleep_threshold(index: number): number;
+  get_rotational_inertia(index: number): number;
+  /** (b2Body_SetMassData) */
+  set_mass_data(index: number, mass: number, cx: number, cy: number, inertia: number): void;
+  /** [mass, cx, cy, inertia] */
+  get_mass_data(index: number): Float32Array;
+  /** [lowerX, lowerY, upperX, upperY] */
+  body_compute_aabb(index: number): Float32Array;
+  get_local_point_velocity(index: number, lx: number, ly: number): Float32Array;
+  get_world_point_velocity(index: number, wx: number, wy: number): Float32Array;
+  /** C Weeble friction/restitution callbacks (0.1 / 1.0). */
+  enable_weeble_mix_callbacks(enabled: boolean): void;
   set_motion_locks(index: number, linearX: boolean, linearY: boolean, angular: boolean): void;
   set_target_transform(
     index: number,
@@ -1057,6 +1081,11 @@ export interface Box2dWasm {
   TreeDemo: new () => TreeDemo;
   SimWorld: new (gravityY: number) => SimWorld;
   SimPlayer: { open(data: Uint8Array): SimPlayer | undefined };
+  /** Global view-flag mask (see `view-flags.ts`). */
+  sim_set_debug_flags?(mask: number): void;
+  sim_get_debug_flags?(): number;
+  /** Joint / force draw scales for contact/mass overlays. */
+  sim_set_draw_scales?(joint: number, force: number): void;
 }
 
 let wasmModule: Box2dWasm | null = null;

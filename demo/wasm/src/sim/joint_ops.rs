@@ -25,9 +25,10 @@ use box2d_rust::motor_joint::{
 };
 use box2d_rust::prismatic_joint::{
     prismatic_joint_enable_limit, prismatic_joint_enable_motor, prismatic_joint_enable_spring,
-    prismatic_joint_get_motor_force, prismatic_joint_set_limits, prismatic_joint_set_max_motor_force,
-    prismatic_joint_set_motor_speed, prismatic_joint_set_spring_damping_ratio,
-    prismatic_joint_set_spring_hertz, prismatic_joint_set_target_translation,
+    prismatic_joint_get_motor_force, prismatic_joint_get_translation, prismatic_joint_set_limits,
+    prismatic_joint_set_max_motor_force, prismatic_joint_set_motor_speed,
+    prismatic_joint_set_spring_damping_ratio, prismatic_joint_set_spring_hertz,
+    prismatic_joint_set_target_translation,
 };
 use box2d_rust::revolute_joint::{
     revolute_joint_enable_limit, revolute_joint_enable_motor, revolute_joint_enable_spring,
@@ -607,6 +608,14 @@ impl SimWorld {
             return 0.0;
         }
         prismatic_joint_get_motor_force(&self.world, self.joints[index])
+    }
+
+    /// (b2PrismaticJoint_GetTranslation)
+    pub fn prismatic_get_translation(&self, index: usize) -> f32 {
+        if !joint_alive(self, index) {
+            return 0.0;
+        }
+        prismatic_joint_get_translation(&self.world, self.joints[index])
     }
 
     // --- wheel ---

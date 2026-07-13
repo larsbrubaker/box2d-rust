@@ -27,7 +27,7 @@ use wasm_bindgen::prelude::*;
 
 use box2d_rust::body::{create_body, get_body_full_id, get_body_transform, make_body_id};
 use box2d_rust::geometry::make_box;
-use box2d_rust::id::{BodyId, JointId, ShapeId};
+use box2d_rust::id::{BodyId, ChainId, JointId, ShapeId};
 use box2d_rust::joint::{
     create_distance_joint, create_revolute_joint, joint_get_body_a, joint_get_body_b,
     joint_get_local_frame_a, joint_get_local_frame_b,
@@ -57,6 +57,8 @@ pub struct SimWorld {
     pub(crate) joints: Vec<JointId>,
     /// Shape ids from attach_*_mat / filter / chain-segment (Shapes samples).
     pub(crate) shapes: Vec<ShapeId>,
+    /// Chain ids from `add_chain_mat` / `add_chain*` (Chain Shape surface updates).
+    pub(crate) chains: Vec<ChainId>,
     /// Spawned ragdolls (`shared/human.c` CreateHuman).
     pub(crate) humans: Vec<human::Human>,
     /// Character mover state (not a body; driven by the mover queries).
@@ -101,6 +103,11 @@ impl SimWorld {
         self.joints.len() - 1
     }
 
+    pub(crate) fn track_chain(&mut self, chain_id: ChainId) -> usize {
+        self.chains.push(chain_id);
+        self.chains.len() - 1
+    }
+
     pub(crate) fn body_id_at(&self, index: usize) -> BodyId {
         make_body_id(&self.world, self.bodies[index])
     }
@@ -124,6 +131,7 @@ impl SimWorld {
             bodies: Vec::new(),
             joints: Vec::new(),
             shapes: Vec::new(),
+            chains: Vec::new(),
             humans: Vec::new(),
             mover_position: m::POS_ZERO,
             mover_velocity: m::VEC2_ZERO,

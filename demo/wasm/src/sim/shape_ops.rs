@@ -633,6 +633,7 @@ impl SimWorld {
 
     /// Chain with per-point materials. `mats` is interleaved
     /// [friction, restitution, rolling, tangent] * N (N == point count or 1).
+    /// Returns demo chain index for `chain_set_surface`.
     pub fn add_chain_mat(&mut self, points: &[f32], is_loop: bool, mats: &[f32]) -> usize {
         use box2d_rust::body::create_body;
         use box2d_rust::shape::create_chain;
@@ -660,8 +661,38 @@ impl SimWorld {
                 })
                 .collect();
         }
-        create_chain(&mut self.world, body_id, &chain_def);
-        self.track_body(body_id)
+        let chain_id = create_chain(&mut self.world, body_id, &chain_def);
+        self.track_body(body_id);
+        self.track_chain(chain_id)
+    }
+
+    /// (b2Chain_SetSurfaceMaterial) — update material slot on a tracked chain.
+    pub fn chain_set_surface(
+        &mut self,
+        chain_index: usize,
+        friction: f32,
+        restitution: f32,
+        rolling: f32,
+        tangent: f32,
+        material_index: usize,
+    ) {
+        use box2d_rust::shape::chain_set_surface_material;
+        use box2d_rust::types::default_surface_material;
+
+        if chain_index >= self.chains.len() {
+            return;
+        }
+        let mut mat = default_surface_material();
+        mat.friction = friction;
+        mat.restitution = restitution;
+        mat.rolling_resistance = rolling;
+        mat.tangent_speed = tangent;
+        chain_set_surface_material(
+            &mut self.world,
+            self.chains[chain_index],
+            mat,
+            material_index,
+        );
     }
 
     /// Install C Custom Filter odd/even rule (user_data indices).

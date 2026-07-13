@@ -192,11 +192,59 @@ fn shape_ops_material_filter_wind() {
         0.0, 0.0, 0.0,
     ];
     let _chain = sim.add_chain_mat(&pts, true, &mats);
+    sim.chain_set_surface(_chain, 0.5, 0.1, 0.0, 0.0, 0);
     sim.enable_odd_even_filter(true);
     for _ in 0..10 {
         sim.step(1.0 / 60.0, 4);
     }
     sim.enable_odd_even_filter(false);
+}
+
+#[test]
+fn phase3_exact_upgrade_apis() {
+    // Weeble mass data + mix callbacks; Mixed Locks; Kinematic target; Sleep threshold;
+    // prismatic translation; ComputeAABB.
+    let mut sim = SimWorld::new(-10.0);
+    sim.enable_weeble_mix_callbacks(true);
+    let ground = sim.add_segment(-20.0, 0.0, 20.0, 0.0);
+    let weeble = sim.add_body(0.0, 3.0, 0.25 * std::f32::consts::PI, 2);
+    sim.attach_capsule(weeble, 0.0, -1.0, 0.0, 1.0, 1.0, 1.0, 0.6, 0.0);
+    let mass = sim.get_mass(weeble);
+    let mut inertia = sim.get_rotational_inertia(weeble);
+    inertia += mass * 1.5 * 1.5;
+    sim.set_mass_data(weeble, mass, 0.0, -1.5, inertia);
+    let md = sim.get_mass_data(weeble);
+    assert!((md[2] + 1.5).abs() < 1e-4);
+
+    let locked = sim.add_body(-1.0, 1.0, 0.0, 2);
+    sim.attach_box(locked, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 0.6, 0.0);
+    sim.set_motion_locks(locked, false, false, true);
+
+    let kin = sim.add_body(2.0, 0.0, 0.0, 1);
+    sim.attach_box(kin, 0.1, 1.0, 0.0, 0.0, 0.0, 1.0, 0.6, 0.0);
+    sim.set_target_transform(kin, 1.0, 0.5, 0.1, 1.0 / 60.0, true);
+
+    let pendulum = sim.add_body_sleep_threshold(0.0, 10.0, 0.0, 2, 0.05);
+    assert!((sim.get_sleep_threshold(pendulum) - 0.05).abs() < 1e-6);
+    sim.set_sleep_threshold(pendulum, 0.2);
+    sim.set_angular_damping(pendulum, 0.5);
+    assert!((sim.get_angular_damping(pendulum) - 0.5).abs() < 1e-6);
+
+    let slider = sim.add_body(4.0, 1.0, 0.0, 2);
+    sim.attach_box(slider, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 0.6, 0.0);
+    let j = sim.add_prismatic_joint(
+        ground, slider, 4.0, 1.0, 1.0, 0.0, false, 0.0, 0.0, true, 0.5, 1000.0, false, 0.0, 0.0,
+        false,
+    );
+    let _ = sim.prismatic_get_translation(j);
+    let aabb = sim.body_compute_aabb(slider);
+    assert!(aabb[2] > aabb[0] && aabb[3] > aabb[1]);
+
+    for _ in 0..10 {
+        sim.step(1.0 / 60.0, 4);
+    }
+    sim.enable_weeble_mix_callbacks(false);
+    let _ = locked;
 }
 
 #[test]
