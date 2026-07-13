@@ -84,6 +84,27 @@ fn body_ops_transform_impulse_type() {
 }
 
 #[test]
+fn destroy_body_keeps_demo_indices_stable() {
+    let mut sim = SimWorld::new(-10.0);
+    let ground = sim.add_segment(-10.0, 0.0, 10.0, 0.0);
+    let a = sim.add_box(-1.0, 2.0, 0.5, 0.5, 1.0);
+    let b = sim.add_box(1.0, 2.0, 0.5, 0.5, 1.0);
+    assert_eq!(sim.body_count(), 3);
+    sim.destroy_body(a);
+    // Slot retained; later index still addresses body b.
+    assert_eq!(sim.body_count(), 3);
+    sim.set_linear_velocity(b, 1.0, 0.0);
+    let v = sim.get_linear_velocity(b);
+    assert!(v[0] > 0.0);
+    // Idempotent on already-destroyed slot.
+    sim.destroy_body(a);
+    let _ = ground;
+    for _ in 0..5 {
+        sim.step(1.0 / 60.0, 4);
+    }
+}
+
+#[test]
 fn world_toggles() {
     let mut sim = SimWorld::new(-10.0);
     sim.add_static_box(0.0, -1.0, 10.0, 1.0);

@@ -218,9 +218,14 @@ impl SimWorld {
     }
 
     /// Interleaved [x, y, angle] for every demo body, in creation order.
+    /// Destroyed slots (`destroy_body`) contribute zeros so indices stay stable.
     pub fn positions(&self) -> Vec<f32> {
         let mut out = Vec::with_capacity(3 * self.bodies.len());
         for &body_index in &self.bodies {
+            if body_index == body_ops::DESTROYED_BODY_SLOT {
+                out.extend_from_slice(&[0.0, 0.0, 0.0]);
+                continue;
+            }
             let transform = get_body_transform(&self.world, body_index);
             out.push(transform.p.x as f32);
             out.push(transform.p.y as f32);

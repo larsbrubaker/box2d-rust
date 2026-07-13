@@ -7,10 +7,14 @@ use box2d_rust::body::{
     body_get_angular_velocity, body_get_linear_velocity, body_get_mass, body_get_type,
     body_is_enabled, body_set_angular_velocity, body_set_awake, body_set_gravity_scale,
     body_set_linear_velocity, body_set_transform, body_set_type, body_wake_touching,
+    destroy_body,
 };
 use box2d_rust::math_functions::{make_rot, to_pos, Vec2};
 use box2d_rust::types::BodyType;
 use wasm_bindgen::prelude::*;
+
+/// Demo-index sentinel after `destroy_body` — keeps later indices stable.
+pub(crate) const DESTROYED_BODY_SLOT: i32 = -1;
 
 fn parse_body_type(body_type: i32) -> BodyType {
     match body_type {
@@ -22,6 +26,21 @@ fn parse_body_type(body_type: i32) -> BodyType {
 
 #[wasm_bindgen]
 impl SimWorld {
+    /// Destroy a tracked body and free its demo slot (index stays reserved).
+    /// (b2DestroyBody) Used by Sleep-style mid-scene create/destroy.
+    pub fn destroy_body(&mut self, index: usize) {
+        if index >= self.bodies.len() {
+            return;
+        }
+        let raw = self.bodies[index];
+        if raw == DESTROYED_BODY_SLOT {
+            return;
+        }
+        let body_id = self.body_id_at(index);
+        destroy_body(&mut self.world, body_id);
+        self.bodies[index] = DESTROYED_BODY_SLOT;
+    }
+
     /// Set body origin transform. (b2Body_SetTransform)
     pub fn set_transform(&mut self, index: usize, x: f32, y: f32, angle: f32) {
         let body_id = self.body_id_at(index);
