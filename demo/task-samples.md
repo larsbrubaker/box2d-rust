@@ -108,6 +108,32 @@ Structural blockers before faithful sample ports:
 `SimWorld.mouse_down/move/up/active`, `set_grab_force_scale`, `collect_draw`,
 `draw_polygons/circles/capsules/lines`. Shared surface: `demo/wasm/src/interact/`.
 
+### Binding gaps vs Bodies / Stacking / Shapes / Joints (Phase 1)
+
+Inventory of C APIs those four categories call vs current `SimWorld` wasm surface
+(before `demo/bindings-sample-apis`). Prefer Rust/wasm additions; keep TS churn low.
+
+**Already present (usable for some scenes):** static/dynamic box, circle, capsule,
+chain, hinge (hardcoded falling-hinges tuning), distance joint, bullet + continuous
+toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queries.
+
+| Gap | Needed by | Notes |
+|---|---|---|
+| Prismatic / wheel / weld / motor / filter joints | Joints (+ Bodies slider) | Engine has create_*; only revolute+distance exported |
+| Flexible revolute (limits/motor/spring params) | Joints, Shapes | Current `add_hinge_joint` is sample-specific |
+| Segment shape | Bodies, Stacking, Shapes, Joints | Ground lines / walls |
+| Offset / multi-shape polygons on one body | Shapes (tables/ships) | `make_offset_box` + attach helpers |
+| Polygon from hull points | Shapes | `compute_hull` + `make_polygon` |
+| Body transform / type / enable-disable | Bodies, Shapes | `body_set_transform`, `body_set_type`, enable/disable |
+| Apply force / impulse / set velocities | Bodies, Stacking, Joints | Forces + impulses + lin/ang vel |
+| Sleep / warm starting / speculative toggles | Harness + World samples | Continuous already exported |
+| Contact tuning | Stacking, Joints | `world_set_contact_tuning` |
+| Mouse grab (motor joint + kinematic proxy) | Harness (Sample.cpp) | Not a separate joint type in v3 |
+| Debug draw dump (`world_draw` → buffers) | Harness | Hook for overlay; UI on harness branch |
+| Shape filter / material / morph APIs | Shapes | Lower priority for first ports |
+| Joint runtime setters / constraint readouts | Joints GUI | Can follow once create surface exists |
+| Custom friction/restitution/filter callbacks | Bodies, Shapes | WASM callback bridging later |
+
 ### Phase 2 — Category ports
 
 Port one C category at a time (Bodies / Stacking recommended first — small and
