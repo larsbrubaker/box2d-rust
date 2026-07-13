@@ -102,27 +102,28 @@ export const SAMPLES: SampleEntry[] = [
     ["Wake Touching", "live", "bodies", "wake-touching"],
   ]),
   ...cat("Benchmark", "sample_benchmark.cpp", [
-    ["Barrel", "planned"],
-    ["Barrel 2.4", "planned"],
-    ["Compounds", "planned"],
-    ["Tumbler", "planned"],
-    ["Washer", "planned"],
-    ["Many Tumblers", "planned"],
-    ["Large Pyramid", "planned"],
-    ["Many Pyramids", "planned"],
-    ["CreateDestroy", "planned"],
-    ["Sleep", "planned"],
-    ["Joint Grid", "planned"],
-    ["Smash", "planned"],
-    ["Large Compounds", "planned"],
-    ["Kinematic", "planned"],
-    ["Cast", "planned"],
-    ["Spinner", "planned"],
-    ["Rain", "planned"],
-    ["Shape Distance", "planned"],
-    ["Sensor", "planned"],
-    ["Capacity", "planned"],
-    ["Junkyard", "planned"],
+    // All live ports use C DEBUG / wasm-scaled counts (disclosed) → partial.
+    ["Barrel", "partial", "benchmark", "barrel"], // DEBUG rows/cols; Human shape deferred
+    ["Barrel 2.4", "partial", "benchmark", "barrel-2-4"], // DEBUG numj=5
+    ["Compounds", "partial", "benchmark", "compounds"], // DEBUG 10×40
+    ["Tumbler", "partial", "benchmark", "tumbler"], // DEBUG grid 20
+    ["Washer", "partial", "benchmark", "washer"], // DEBUG grid 20; hit events approx
+    ["Many Tumblers", "partial", "benchmark", "many-tumblers"], // DEBUG 2×2×8
+    ["Large Pyramid", "partial", "benchmark", "large-pyramid"], // DEBUG base 20
+    ["Many Pyramids", "partial", "benchmark", "many-pyramids"], // DEBUG 5×5
+    ["CreateDestroy", "partial", "benchmark", "create-destroy"], // DEBUG base 40
+    ["Sleep", "partial", "benchmark", "sleep"], // DEBUG base 40
+    ["Joint Grid", "partial", "benchmark", "joint-grid"], // DEBUG N=20
+    ["Smash", "partial", "benchmark", "smash"], // DEBUG 20×10
+    ["Large Compounds", "partial", "benchmark", "large-compounds"], // DEBUG ground/span
+    ["Kinematic", "partial", "benchmark", "kinematic"], // DEBUG span 20
+    ["Cast", "planned"], // needs world ray/circle cast + overlap query APIs
+    ["Spinner", "partial", "benchmark", "spinner"], // DEBUG 499; chain friction default
+    ["Rain", "planned"], // needs CreateHuman
+    ["Shape Distance", "planned"], // needs b2ShapeDistance bind
+    ["Sensor", "planned"], // needs custom filter + sensor-event shape flags
+    ["Capacity", "partial", "benchmark", "capacity"], // wall-clock vs b2Profile.step
+    ["Junkyard", "partial", "benchmark", "junkyard"], // DEBUG rowCount 2
   ]),
   ...cat("Character", "sample_character.cpp", [
     ["Mover", "planned"],
