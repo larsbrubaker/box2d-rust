@@ -8,12 +8,15 @@
 
 mod benchmark_ops;
 mod body_ops;
+mod event_attach;
 mod event_ops;
 mod human;
+mod human_create;
 mod joint_ops;
 mod joints;
 mod mover;
 mod query_ops;
+mod shape_mutate;
 mod shape_ops;
 mod shapes;
 #[cfg(test)]
