@@ -267,3 +267,110 @@ fn create_human_spawns_and_destroys() {
     assert!(sim.human_is_spawned(h2));
     sim.destroy_human(h2);
 }
+
+#[test]
+fn pinball_full_scene_a_key_motors_flip() {
+    // Full buildPinball geometry + C Step motor speeds (sample_continuous.cpp:1688-1697).
+    let mut sim = SimWorld::new(-10.0);
+    let ground = sim.add_body(0.0, 0.0, 0.0, 0);
+    sim.attach_chain(
+        ground,
+        &[-8.0, 6.0, -8.0, 20.0, 8.0, 20.0, 8.0, 6.0, 0.0, -2.0],
+        true,
+    );
+
+    let left = sim.add_body_ex(-2.0, 0.0, 0.0, 2, 1.0, false);
+    let right = sim.add_body_ex(2.0, 0.0, 0.0, 2, 1.0, false);
+    sim.attach_box(left, 1.75, 0.2, 0.0, 0.0, 0.0, 1.0, 0.6, 0.0);
+    sim.attach_box(right, 1.75, 0.2, 0.0, 0.0, 0.0, 1.0, 0.6, 0.0);
+    let deg = std::f32::consts::PI / 180.0;
+    let left_j = sim.add_revolute_joint_local(
+        ground,
+        left,
+        -2.0,
+        0.0,
+        0.0,
+        0.0,
+        true,
+        -30.0 * deg,
+        5.0 * deg,
+        true,
+        0.0,
+        1000.0,
+        false,
+        0.0,
+        0.0,
+        false,
+    );
+    let right_j = sim.add_revolute_joint_local(
+        ground,
+        right,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        true,
+        -5.0 * deg,
+        30.0 * deg,
+        true,
+        0.0,
+        1000.0,
+        false,
+        0.0,
+        0.0,
+        false,
+    );
+    for &(sx, sy) in &[(-4.0_f32, 17.0), (4.0, 8.0)] {
+        let sp = sim.add_body(sx, sy, 0.0, 2);
+        sim.attach_box(sp, 1.5, 0.125, 0.0, 0.0, 0.0, 1.0, 0.6, 0.0);
+        sim.attach_box(sp, 0.125, 1.5, 0.0, 0.0, 0.0, 1.0, 0.6, 0.0);
+        let _ = sim.add_revolute_joint_local(
+            ground, sp, sx, sy, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.1, false, 0.0, 0.0, false,
+        );
+    }
+    for &(bx, by) in &[(-4.0_f32, 8.0), (4.0, 17.0)] {
+        let b = sim.add_body(bx, by, 0.0, 0);
+        sim.attach_circle(b, 0.0, 0.0, 1.0, 0.0, 0.6, 1.5);
+    }
+    let ball = sim.add_body_ccd(1.0, 15.0, 0.0, 2, 1.0, true, false, true);
+    sim.attach_circle(ball, 0.0, 0.0, 0.2, 1.0, 0.6, 0.0);
+    let _ = ball;
+
+    // Joint indices must stay stable for demo leftJ/rightJ (first two revolutes).
+    assert_eq!(left_j, 0);
+    assert_eq!(right_j, 1);
+
+    // Rest (A released)
+    for _ in 0..120 {
+        sim.revolute_set_motor_speed(left_j, -10.0);
+        sim.revolute_set_motor_speed(right_j, 10.0);
+        sim.step(1.0 / 60.0, 4);
+    }
+    let rest_l = sim.revolute_get_angle(left_j);
+    let rest_r = sim.revolute_get_angle(right_j);
+    assert!(
+        (rest_l + 30.0 * deg).abs() < 0.05,
+        "left rest ~ -30deg, got {rest_l}"
+    );
+    assert!(
+        (rest_r - 30.0 * deg).abs() < 0.05,
+        "right rest ~ +30deg, got {rest_r}"
+    );
+
+    // Press A
+    for _ in 0..120 {
+        sim.revolute_set_motor_speed(left_j, 20.0);
+        sim.revolute_set_motor_speed(right_j, -20.0);
+        sim.step(1.0 / 60.0, 4);
+    }
+    let flip_l = sim.revolute_get_angle(left_j);
+    let flip_r = sim.revolute_get_angle(right_j);
+    assert!(
+        (flip_l - 5.0 * deg).abs() < 0.05,
+        "left flip ~ +5deg, got {flip_l}"
+    );
+    assert!(
+        (flip_r + 5.0 * deg).abs() < 0.05,
+        "right flip ~ -5deg, got {flip_r}"
+    );
+}

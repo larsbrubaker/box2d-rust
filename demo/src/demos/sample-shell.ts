@@ -463,6 +463,7 @@ export function mountSampleChrome(opts: {
       <tr><td>P</td><td>Pause / resume</td></tr>
       <tr><td>O</td><td>Single step</td></tr>
       <tr><td>R</td><td>Restart sample</td></tr>
+      <tr><td>A</td><td>Flippers (Pinball)</td></tr>
       <tr><td>[ / ]</td><td>Prev / next sample</td></tr>
       <tr><td>Drag</td><td>Grab body</td></tr>
     </table>

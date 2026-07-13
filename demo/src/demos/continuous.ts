@@ -20,7 +20,7 @@ import {
   mountSampleChrome,
   disposeTransport,
   makeCamera,
-  screenToWorld,
+  screenToWorld,
   worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
@@ -98,6 +98,17 @@ interface SceneRuntime {
   dispose?: () => void;
   onKeyDown?: (e: KeyboardEvent) => void;
   onKeyUp?: (e: KeyboardEvent) => void;
+}
+
+/** C Pinball motor speeds: A pressed → ±20, else ∓10 (sample_continuous.cpp:1688-1697). */
+export function pinballMotorSpeeds(aPressed: boolean): { left: number; right: number } {
+  return aPressed ? { left: 20, right: -20 } : { left: -10, right: 10 };
+}
+
+/** True when the event is physical A (C GLFW_KEY_A), including Caps Lock / empty key. */
+export function isPinballFlipperKey(e: Pick<KeyboardEvent, "code" | "key">): boolean {
+  if (e.code === "KeyA") return true;
+  return typeof e.key === "string" && e.key.toLowerCase() === "a";
 }
 
 function applyCamera(camera: SampleCamera, scene: Scene) {
@@ -838,7 +849,7 @@ function buildDrop(sim: SimWorld, controls: HTMLElement, state: DropState, rebui
   };
 }
 
-function buildPinball(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+function buildPinball(sim: SimWorld, controls: HTMLElement, keysDown: Set<string>): SceneRuntime {
   // sample_continuous.cpp:1538-1708
   const ground = sim.add_body(0, 0, 0, BODY_STATIC);
   sim.attach_chain(ground, [-8, 6, -8, 20, 8, 20, 8, 6, 0, -2], true);
@@ -909,25 +920,24 @@ function buildPinball(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   const ball = sim.add_body_ccd(1, 15, 0, BODY_DYNAMIC, 1, true, false, true);
   sim.attach_circle(ball, 0, 0, 0.2, 1.0, FRIC, 0);
 
-  let flip = false;
   controls.appendChild(createInfoBox("Flipper: hold <strong>A</strong>"));
 
+  // C Pinball::Step polls glfwGetKey(A) every frame after Sample::Step
+  // (sample_continuous.cpp:1688-1697). Poll page-level key state so a rebuild
+  // (R) while A is held still drives flippers — edge-triggered scene state
+  // would reset to "released" until the next keydown.
   return {
     beforeStep: () => {
-      if (flip) {
-        sim.revolute_set_motor_speed(leftJ, 20);
-        sim.revolute_set_motor_speed(rightJ, -20);
-      } else {
-        sim.revolute_set_motor_speed(leftJ, -10);
-        sim.revolute_set_motor_speed(rightJ, 10);
-      }
+      const speeds = pinballMotorSpeeds(keysDown.has("KeyA"));
+      sim.revolute_set_motor_speed(leftJ, speeds.left);
+      sim.revolute_set_motor_speed(rightJ, speeds.right);
     },
-    onKeyDown: (e) => {
-      if (e.key.toLowerCase() === "a") flip = true;
-    },
-    onKeyUp: (e) => {
-      if (e.key.toLowerCase() === "a") flip = false;
-    },
+    readoutExtra: () => [
+      {
+        label: "Flippers",
+        value: keysDown.has("KeyA") ? "A held (+20/-20)" : "rest (-10/+10)",
+      },
+    ],
   };
 }
 
@@ -962,6 +972,7 @@ function buildScene(
   state: PageState,
   rebuild: () => void,
   hertz: number,
+  keysDown: Set<string>,
 ): SceneRuntime {
   controls.replaceChildren();
   switch (scene) {
@@ -992,7 +1003,7 @@ function buildScene(
     case "drop":
       return buildDrop(sim, controls, state.drop, rebuild);
     case "pinball":
-      return buildPinball(sim, controls);
+      return buildPinball(sim, controls, keysDown);
     case "wedge":
       return buildWedge(sim, controls);
   }
@@ -1029,12 +1040,16 @@ export function init(container: HTMLElement, initialScene?: string) {
   const sceneControls = document.createElement("div");
   sceneControls.className = "scene-controls";
 
+  // Page-level key set survives scene rebuild (C polls hardware each Step).
+  const keysDown = new Set<string>();
+  canvas.tabIndex = 0;
+
   function rebuild() {
     runtime.dispose?.();
     freeSim(sim);
     sim = new wasm.SimWorld(-10.0);
     applyCamera(camera, scene);
-    runtime = buildScene(scene, sim, sceneControls, state, rebuild, transport.hertz);
+    runtime = buildScene(scene, sim, sceneControls, state, rebuild, transport.hertz, keysDown);
     dropGate = 0;
   }
 
@@ -1043,6 +1058,7 @@ export function init(container: HTMLElement, initialScene?: string) {
   let grabbing = false;
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
+    canvas.focus();
     fitCanvas(canvas);
     const rect = canvas.getBoundingClientRect();
     const px = ((e.clientX - rect.left) / rect.width) * canvas.width;
@@ -1068,10 +1084,23 @@ export function init(container: HTMLElement, initialScene?: string) {
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointercancel", onPointerUp);
 
-  const onKeyDown = (e: KeyboardEvent) => runtime.onKeyDown?.(e);
-  const onKeyUp = (e: KeyboardEvent) => runtime.onKeyUp?.(e);
+  const onKeyDown = (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement | null)?.tagName;
+    if (tag !== "INPUT" && tag !== "TEXTAREA") {
+      if (isPinballFlipperKey(e)) keysDown.add("KeyA");
+      keysDown.add(e.code);
+    }
+    runtime.onKeyDown?.(e);
+  };
+  const onKeyUp = (e: KeyboardEvent) => {
+    if (isPinballFlipperKey(e)) keysDown.delete("KeyA");
+    keysDown.delete(e.code);
+    runtime.onKeyUp?.(e);
+  };
+  const onWindowBlur = () => keysDown.clear();
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("blur", onWindowBlur);
 
   controls.appendChild(
     createDropdown(
@@ -1140,6 +1169,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     runtime.dispose?.();
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
+    window.removeEventListener("blur", onWindowBlur);
     canvas.removeEventListener("pointerdown", onPointerDown);
     canvas.removeEventListener("pointermove", onPointerMove);
     canvas.removeEventListener("pointerup", onPointerUp);
