@@ -956,10 +956,10 @@ function buildSensorHits(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       const kx = p[kin * 3]!;
       if (kx > 1) sim.set_linear_velocity(kin, -0.5, 0);
       else if (kx < -1) sim.set_linear_velocity(kin, 0.5, 0);
-      // Approximate prismatic translation via body x around rest 4
-      const dx = p[dyn * 3]! - 4;
-      if (dx > 1) sim.prismatic_set_motor_speed(joint, -0.5);
-      else if (dx < -1) sim.prismatic_set_motor_speed(joint, 0.5);
+      // Prismatic motor reverse via GetTranslation (:C Sensor Hits)
+      const translation = sim.prismatic_get_translation(joint);
+      if (translation > 1) sim.prismatic_set_motor_speed(joint, -0.5);
+      else if (translation < -1) sim.prismatic_set_motor_speed(joint, 0.5);
     },
     afterStep: () => {
       const begins = sim.sensor_begin_events();

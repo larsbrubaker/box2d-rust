@@ -220,12 +220,19 @@ function buildBodyType(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 }
 
 function buildWeeble(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // sample_bodies.cpp:305-411
-  // PARTIAL: no friction/restitution callbacks (:318-319); no SetMassData COM offset (:351-352).
+  // sample_bodies.cpp:305-411 — Exact: mix callbacks + SetMassData COM offset.
+  sim.enable_weeble_mix_callbacks(true);
   sim.add_segment(-20.0, 0.0, 20.0, 0.0);
 
   const weeble = sim.add_body(0.0, 3.0, 0.25 * Math.PI, BODY_DYNAMIC);
   sim.attach_capsule(weeble, 0.0, -1.0, 0.0, 1.0, 1.0, 1.0, FRIC, 0.0);
+
+  // Parallel-axis COM offset (:343-352)
+  const mass = sim.get_mass(weeble);
+  let inertia = sim.get_rotational_inertia(weeble);
+  const offset = 1.5;
+  inertia += mass * offset * offset;
+  sim.set_mass_data(weeble, mass, 0.0, -offset, inertia);
 
   let explosionMagnitude = 8.0; // :357
   const explosionPosition = { x: 0.0, y: 0.0 }; // :355
@@ -254,15 +261,11 @@ function buildWeeble(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       explosionMagnitude = v;
     }),
   );
-  controls.appendChild(
-    createInfoBox(
-      "<strong>Partial:</strong> friction/restitution callbacks and " +
-        "<code>b2Body_SetMassData</code> (COM offset 1.5) are not bound — " +
-        "self-righting mass tweak is missing. Explode / Teleport match C.",
-    ),
-  );
 
   return {
+    dispose() {
+      sim.enable_weeble_mix_callbacks(false);
+    },
     paintOverlay(ctx, camera, canvas) {
       // DrawCircle explosion marker (:388) — azure
       const c = worldToScreen(camera, canvas, explosionPosition.x, explosionPosition.y);
@@ -272,45 +275,79 @@ function buildWeeble(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       ctx.strokeStyle = "rgba(240,255,255,0.8)";
       ctx.lineWidth = 2;
       ctx.stroke();
+
+      // Local/world point velocity lines (:391-399)
+      const wp = sim.body_world_point(weeble, 0.0, 2.0);
+      const v1 = sim.get_local_point_velocity(weeble, 0.0, 2.0);
+      const v2 = sim.get_world_point_velocity(weeble, wp[0]!, wp[1]!);
+      const a = worldToScreen(camera, canvas, wp[0]!, wp[1]!);
+      const b1 = worldToScreen(camera, canvas, wp[0]! + v1[0]!, wp[1]! + v1[1]!);
+      const b2 = worldToScreen(
+        camera,
+        canvas,
+        wp[0]! + 0.05 + v2[0]!,
+        wp[1]! + v2[1]!,
+      );
+      const a2 = worldToScreen(camera, canvas, wp[0]! + 0.05, wp[1]!);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgb(255,0,0)";
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b1.x, b1.y);
+      ctx.stroke();
+      ctx.strokeStyle = "rgb(0,255,0)";
+      ctx.beginPath();
+      ctx.moveTo(a2.x, a2.y);
+      ctx.lineTo(b2.x, b2.y);
+      ctx.stroke();
     },
   };
 }
 
 function buildSleep(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // sample_bodies.cpp:415-656
-  // PARTIAL: no per-body enableSleep / sleepThreshold / angularDamping setters;
-  // no sensor-shape attach + sensor-event matching; pendulum / sleep flags approximate.
-  const ground = sim.add_segment(-40.0, 0.0, 40.0, 0.0);
+  // sample_bodies.cpp:415-656 — Exact: enableSleep / sensors / sleepThreshold / invokeContact.
+  const ground = sim.add_body(0.0, 0.0, 0.0, BODY_STATIC);
+  const groundShape = sim.attach_segment_ex(
+    ground, -40.0, 0.0, 40.0, 0.0, false, true, false, false, 0, 0,
+  );
 
-  // Sleeping capsules with (unbound) sensors — solid capsules only (:439-457)
+  const sensorIds: number[] = [];
+  const sensorTouching = [false, false];
+
+  // Sleeping capsules with sensors (:439-457)
   for (let i = 0; i < 2; ++i) {
-    const body = sim.add_body(-4.0, 3.0 + 2.0 * i, 0.0, BODY_DYNAMIC);
+    const body = sim.add_body_ex(-4.0, 3.0 + 2.0 * i, 0.0, BODY_DYNAMIC, 1.0, true);
+    sim.set_awake(body, false);
     sim.attach_capsule(body, 0.0, 1.0, 1.0, 1.0, 0.75, 1.0, FRIC, 0.0);
-    sim.set_awake(body, false);
+    const sensor = sim.attach_capsule_ex(
+      body, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, FRIC, 0.0, true, true, false, 0, 0,
+    );
+    sensorIds.push(sensor);
   }
 
-  // Sleep disabled intent — cannot clear enableSleep; leave awake=false (:460-471)
+  // Sleeping body but sleep is disabled (:460-471)
   {
-    const body = sim.add_body(0.0, 3.0, 0.0, BODY_DYNAMIC);
+    const body = sim.add_body_ex(0.0, 3.0, 0.0, BODY_DYNAMIC, 1.0, false);
+    sim.set_awake(body, false);
     sim.attach_circle(body, 1.0, 1.0, 1.0, 1.0, FRIC, 0.0);
-    sim.set_awake(body, false);
   }
 
-  // Awake, sleep disabled intent (:474-485)
+  // Awake, sleep disabled (:474-485)
   {
-    const body = sim.add_body(5.0, 3.0, 0.0, BODY_DYNAMIC);
+    const body = sim.add_body_ex(5.0, 3.0, 0.0, BODY_DYNAMIC, 1.0, false);
     sim.attach_box(body, 1.0, 1.0, 0.0, 1.0, 0.25 * Math.PI, 1.0, FRIC, 0.0);
   }
 
   // Sleeping square (:488-499)
   {
-    const body = sim.add_body(5.0, 1.0, 0.0, BODY_DYNAMIC);
-    sim.attach_box(body, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
+    const body = sim.add_body_ex(5.0, 1.0, 0.0, BODY_DYNAMIC, 1.0, true);
     sim.set_awake(body, false);
+    sim.attach_box(body, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
   }
 
-  // Pendulum capsule (:502-521) — angularDamping/sleepThreshold unbound
-  const pendulum = sim.add_body(0.0, 100.0, 0.0, BODY_DYNAMIC);
+  // Pendulum capsule (:502-521)
+  const pendulum = sim.add_body_sleep_threshold(0.0, 100.0, 0.0, BODY_DYNAMIC, 0.05);
+  sim.set_angular_damping(pendulum, 0.5);
   sim.attach_capsule(pendulum, 0.0, 0.0, 90.0, 0.0, 0.25, 1.0, FRIC, 0.0);
   sim.add_revolute_joint(
     ground, pendulum, 0.0, 100.0,
@@ -319,18 +356,32 @@ function buildSleep(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 
   // Sleeping box for contact-destroyed wake (:524-535)
   {
-    const body = sim.add_body(-10.0, 1.0, 0.0, BODY_DYNAMIC);
-    sim.attach_box(body, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
+    const body = sim.add_body_ex(-10.0, 1.0, 0.0, BODY_DYNAMIC, 1.0, true);
     sim.set_awake(body, false);
+    sim.attach_box(body, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
   }
 
   let invoker: number | null = null;
 
+  controls.appendChild(
+    createSlider("sleep velocity", 0, 1, sim.get_sleep_threshold(pendulum), 0.01, (v) => {
+      sim.set_sleep_threshold(pendulum, v);
+      sim.set_awake(pendulum, true);
+    }),
+  );
+  controls.appendChild(
+    createSlider("angular damping", 0, 2, sim.get_angular_damping(pendulum), 0.01, (v) => {
+      sim.set_angular_damping(pendulum, v);
+    }),
+  );
+
   const toggleBtn = createButton("Create", () => {
     if (invoker === null) {
-      // :544-551 — offset box 2×0.1 at 0.25π
+      // :544-551 — offset box 2×0.1 at 0.25π with invokeContactCreation
       invoker = sim.add_body(-10.5, 3.0, 0.0, BODY_STATIC);
-      sim.attach_box(invoker, 2.0, 0.1, 0.0, 0.0, 0.25 * Math.PI, 0.0, FRIC, 0.0);
+      sim.attach_offset_rounded_box(
+        invoker, 2.0, 0.1, 0.0, 0.0, 0.25 * Math.PI, 0.0, 0.0, FRIC, 0.0, true,
+      );
       toggleBtn.textContent = "Destroy";
     } else {
       sim.destroy_body(invoker);
@@ -339,16 +390,31 @@ function buildSleep(sim: SimWorld, controls: HTMLElement): SceneRuntime {
     }
   });
   controls.appendChild(toggleBtn);
-  controls.appendChild(
-    createInfoBox(
-      "<strong>Partial:</strong> sensor events, <code>enableSleep</code>, " +
-        "sleep threshold / angular damping setters, and " +
-        "<code>invokeContactCreation</code> are unbound. Create/Destroy uses " +
-        "<code>destroy_body</code>. Layout positions match C.",
-    ),
-  );
 
-  return {};
+  return {
+    afterStep() {
+      const begins = sim.sensor_begin_events();
+      for (let i = 0; i + 1 < begins.length; i += 2) {
+        const sensor = begins[i]!;
+        const visitor = begins[i + 1]!;
+        if (visitor !== groundShape) continue;
+        if (sensor === sensorIds[0]) sensorTouching[0] = true;
+        else if (sensor === sensorIds[1]) sensorTouching[1] = true;
+      }
+      const ends = sim.sensor_end_events();
+      for (let i = 0; i + 1 < ends.length; i += 2) {
+        const sensor = ends[i]!;
+        const visitor = ends[i + 1]!;
+        if (visitor !== groundShape) continue;
+        if (sensor === sensorIds[0]) sensorTouching[0] = false;
+        else if (sensor === sensorIds[1]) sensorTouching[1] = false;
+      }
+    },
+    readoutExtra: () => [
+      { label: "sensor touch 0", value: String(sensorTouching[0]) },
+      { label: "sensor touch 1", value: String(sensorTouching[1]) },
+    ],
+  };
 }
 
 function buildBad(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
@@ -413,22 +479,14 @@ function buildPivot(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
   };
 }
 
-function buildKinematic(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // sample_bodies.cpp:809-875
-  // PARTIAL: SetTargetTransform unbound — snap pose via SetTransform each step.
+function buildKinematic(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
+  // sample_bodies.cpp:809-875 — Exact: SetTargetTransform.
   const amplitude = 2.0; // :821
   const body = sim.add_body(2.0 * amplitude, 0.0, 0.0, BODY_KINEMATIC);
   sim.attach_box(body, 0.1, 1.0, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
 
   let time = 0.0;
   let target = { x: 2.0 * amplitude, y: 0.0, angle: 0.0 };
-
-  controls.appendChild(
-    createInfoBox(
-      "<strong>Partial:</strong> <code>b2Body_SetTargetTransform</code> is unbound; " +
-        "pose is snapped with <code>SetTransform</code> (no interpolated motor velocity).",
-    ),
-  );
 
   return {
     beforeStep(dt) {
@@ -438,7 +496,7 @@ function buildKinematic(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       const pointY = amplitude * Math.sin(2.0 * time);
       const rotation = 2.0 * time;
       target = { x: pointX, y: pointY, angle: rotation };
-      sim.set_transform(body, pointX, pointY, rotation);
+      sim.set_target_transform(body, pointX, pointY, rotation, dt, true);
       time += dt;
     },
     paintOverlay(ctx, camera, canvas) {
@@ -472,9 +530,8 @@ function buildKinematic(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   };
 }
 
-function buildMixedLocks(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // sample_bodies.cpp:880-985
-  // PARTIAL: motionLocks (linearX/Y, angularZ) not exposed on add_body.
+function buildMixedLocks(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
+  // sample_bodies.cpp:880-985 — Exact: motionLocks via set_motion_locks.
   sim.add_segment(-40.0, 0.0, 40.0, 0.0);
 
   // static at (2,1) (:905-911)
@@ -492,33 +549,30 @@ function buildMixedLocks(sim: SimWorld, controls: HTMLElement): SceneRuntime {
     const b = sim.add_body(1.0, 3.0, 0.0, BODY_DYNAMIC);
     sim.attach_box(b, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
   }
-  // angular z (-1,1) (:934-942) — lock unbound
+  // angular z (-1,1) (:934-942)
   {
     const b = sim.add_body(-1.0, 1.0, 0.0, BODY_DYNAMIC);
     sim.attach_box(b, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
+    sim.set_motion_locks(b, false, false, true);
   }
   // linear x (-2,2) (:945-953)
   {
     const b = sim.add_body(-2.0, 2.0, 0.0, BODY_DYNAMIC);
     sim.attach_box(b, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
+    sim.set_motion_locks(b, true, false, false);
   }
   // lin y ang z (-1,2.5) (:956-964)
   {
     const b = sim.add_body(-1.0, 2.5, 0.0, BODY_DYNAMIC);
     sim.attach_box(b, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
+    sim.set_motion_locks(b, false, true, true);
   }
   // full (0,1) (:968-977)
   {
     const b = sim.add_body(0.0, 1.0, 0.0, BODY_DYNAMIC);
     sim.attach_box(b, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, FRIC, 0.0);
+    sim.set_motion_locks(b, true, true, true);
   }
-
-  controls.appendChild(
-    createInfoBox(
-      "<strong>Partial:</strong> <code>motionLocks</code> (linear X/Y, angular Z) " +
-        "are not bound — every dynamic box is fully free. Positions match C.",
-    ),
-  );
 
   return {};
 }

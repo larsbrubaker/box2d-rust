@@ -164,9 +164,9 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies (5+4) + Stacking (10) + Joints (15+7) + Shapes (16+3) + Continuous (15) + Events (11+1) + Benchmark (1+20) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1) + Character (1) + World (3+1)
-  expect(stats.live).toBe(101);
-  expect(stats.partial).toBe(38);
+  // Bodies (9) + Stacking (10) + Joints (16+6) + Shapes (19) + Continuous (15) + Events (12) + Benchmark (1+20) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1) + Character (1) + World (3+1)
+  expect(stats.live).toBe(110);
+  expect(stats.partial).toBe(29);
   expect(stats.planned).toBe(0);
 });
 
@@ -193,28 +193,28 @@ test("category totals match the C pin inventory", () => {
   for (const [cat, total] of Object.entries(expected)) {
     expect(categoryStats(cat).total).toBe(total);
     if (cat === "Bodies") {
-      expect(categoryStats(cat).live).toBe(5);
-      expect(categoryStats(cat).partial).toBe(4);
+      expect(categoryStats(cat).live).toBe(9);
+      expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Stacking") {
       expect(categoryStats(cat).live).toBe(10);
       expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Joints") {
-      expect(categoryStats(cat).live).toBe(15);
-      expect(categoryStats(cat).partial).toBe(7);
+      expect(categoryStats(cat).live).toBe(16);
+      expect(categoryStats(cat).partial).toBe(6);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Shapes") {
-      expect(categoryStats(cat).live).toBe(16);
-      expect(categoryStats(cat).partial).toBe(3);
+      expect(categoryStats(cat).live).toBe(19);
+      expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Continuous") {
       expect(categoryStats(cat).live).toBe(15);
       expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Events") {
-      expect(categoryStats(cat).live).toBe(11);
-      expect(categoryStats(cat).partial).toBe(1);
+      expect(categoryStats(cat).live).toBe(12);
+      expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Benchmark") {
       expect(categoryStats(cat).live).toBe(1);

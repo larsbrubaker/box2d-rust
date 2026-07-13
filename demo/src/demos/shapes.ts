@@ -167,16 +167,17 @@ function makeRng(seed = 12345) {
 // ---------------------------------------------------------------------------
 
 function buildChainShape(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // sample_shapes.cpp:19-221
+  // sample_shapes.cpp:19-221 — Exact: chain_SetSurfaceMaterial on friction slider.
   let shapeType: "circle" | "capsule" | "box" = "circle";
   let friction = 0.2;
   let restitution = 0.0;
   let bodyId = -1;
   let shapeId = -1;
+  let chainId = -1;
 
   function createScene() {
     const mats = [friction, restitution, 0, 0];
-    sim.add_chain_mat(CHAIN_SHAPE_POINTS, true, mats);
+    chainId = sim.add_chain_mat(CHAIN_SHAPE_POINTS, true, mats);
   }
 
   function launch() {
@@ -194,7 +195,6 @@ function buildChainShape(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   createScene();
   launch();
 
-  // Friction / restitution: update live shape; chain rebuilt via Restart for exact C chain_SetSurfaceMaterial.
   controls.appendChild(
     createDropdown(
       "Shape",
@@ -213,13 +213,14 @@ function buildChainShape(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   controls.appendChild(
     createSlider("Friction", 0, 1, friction, 0.01, (v) => {
       friction = v;
-      if (shapeId >= 0) sim.shape_set_friction(shapeId, friction);
+      if (shapeId >= 0) sim.shape_set_surface(shapeId, friction, restitution, 0, 0);
+      if (chainId >= 0) sim.chain_set_surface(chainId, friction, restitution, 0, 0, 0);
     }),
   );
   controls.appendChild(
     createSlider("Restitution", 0, 2, restitution, 0.1, (v) => {
       restitution = v;
-      if (shapeId >= 0) sim.shape_set_restitution(shapeId, restitution);
+      if (shapeId >= 0) sim.shape_set_surface(shapeId, friction, restitution, 0, 0);
     }),
   );
   controls.appendChild(createButton("Launch", () => launch()));
@@ -228,17 +229,18 @@ function buildChainShape(sim: SimWorld, controls: HTMLElement): SceneRuntime {
     paintOverlay: (ctx, camera, canvas) => {
       // C DrawLine axes at origin (:204-205)
       const o = worldToScreen(camera, canvas, 0, 0);
-      const rx = worldToScreen(camera, canvas, 0.5, 0);
-      const gy = worldToScreen(camera, canvas, 0, 0.5);
+      const x = worldToScreen(camera, canvas, 0.5, 0);
+      const y = worldToScreen(camera, canvas, 0, 0.5);
+      ctx.lineWidth = 2;
       ctx.strokeStyle = "#ff0000";
       ctx.beginPath();
       ctx.moveTo(o.x, o.y);
-      ctx.lineTo(rx.x, rx.y);
+      ctx.lineTo(x.x, x.y);
       ctx.stroke();
       ctx.strokeStyle = "#00ff00";
       ctx.beginPath();
       ctx.moveTo(o.x, o.y);
-      ctx.lineTo(gy.x, gy.y);
+      ctx.lineTo(y.x, y.y);
       ctx.stroke();
     },
   };
@@ -365,27 +367,15 @@ function buildCompoundShapes(sim: SimWorld, controls: HTMLElement): SceneRuntime
   return {
     paintOverlay: (ctx, camera, canvas) => {
       if (!drawAabb) return;
-      // Approximate body AABB from pose + extents (C uses b2Body_ComputeAABB).
-      const drawBox = (id: number, hx: number, hy: number) => {
-        const p = posOf(sim, id);
-        const c = worldToScreen(camera, canvas, p.x, p.y);
-        const s = (2 * hy * canvas.height) / (2 * camera.zoom);
-        ctx.strokeStyle = "#ffff00";
-        ctx.strokeRect(c.x - s * (hx / hy), c.y - s, 2 * s * (hx / hy), 2 * s);
-      };
-      drawBox(table1, 3.5, 4.0);
-      drawBox(table2, 3.5, 4.0);
-      drawBox(ship1, 2.0, 4.0);
-      drawBox(ship2, 2.0, 4.0);
+      ctx.strokeStyle = "#ffff00";
+      ctx.lineWidth = 1;
+      for (const id of [table1, table2, ship1, ship2]) {
+        const aabb = sim.body_compute_aabb(id);
+        const lo = worldToScreen(camera, canvas, aabb[0]!, aabb[1]!);
+        const hi = worldToScreen(camera, canvas, aabb[2]!, aabb[3]!);
+        ctx.strokeRect(lo.x, hi.y, hi.x - lo.x, lo.y - hi.y);
+      }
     },
-    readoutExtra: () => [
-      {
-        label: "AABBs",
-        value: drawAabb
-          ? "approx overlay (partial: no b2Body_ComputeAABB binding)"
-          : "off",
-      },
-    ],
   };
 }
 
@@ -877,14 +867,13 @@ function buildWind(
       sim.attach_capsule(b, 0, -radius, 0, radius, 0.25 * radius, 20.0, FRIC, 0);
     else sim.attach_box(b, 0.25 * radius, 1.25 * radius, 0, 0, 0, 20.0, FRIC, 0);
 
-    // Revolute spring joint (:2110-2149)
+    // Revolute spring joint (:2110-2149) — local frames Exact via add_revolute_joint_local
     const ax = 0;
     const ay = i === 0 ? 2.0 + radius : -radius;
-    // For i>0, localFrameA on previous body at (0,-radius), localFrameB at (0,radius)
-    // add_revolute_joint uses world pivot — approximate with world point on body
-    const pivotY = 2.0 - 2.0 * radius * i + radius;
-    sim.add_revolute_joint(
-      prev, b, 0, pivotY,
+    const bx = 0;
+    const by = radius;
+    sim.add_revolute_joint_local(
+      prev, b, ax, ay, bx, by,
       false, 0, 0, false, 0, 0, true, 0.1, 0.0, false,
     );
     bodies.push(b);

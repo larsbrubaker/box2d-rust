@@ -806,7 +806,7 @@ function buildBridge(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 }
 
 function buildBallAndChain(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // :1248-1354 — m_count typically 30
+  // :1248-1354 — Exact: category/mask 0x1↔0x2 (not groupIndex approx).
   const ground = sim.add_body(0, 0, 0, BODY_STATIC);
   let frictionTorque = 100;
   const count = 30;
@@ -815,8 +815,7 @@ function buildBallAndChain(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   let prev = ground;
   for (let i = 0; i < count; i++) {
     const body = sim.add_body((1 + 2 * i) * hx, count * hx, 0, BODY_DYNAMIC);
-    // groupIndex -1 ≈ no link-link collision (C uses category/mask bits)
-    sim.attach_capsule_filtered(body, -hx, 0, hx, 0, 0.125, 20, FRIC, 0, -1);
+    sim.attach_capsule_ex(body, -hx, 0, hx, 0, 0.125, 20, FRIC, 0, false, false, false, 0x1, 0x2);
     const j = sim.add_revolute_joint(
       prev,
       body,
@@ -837,7 +836,7 @@ function buildBallAndChain(sim: SimWorld, controls: HTMLElement): SceneRuntime {
     prev = body;
   }
   const ball = sim.add_body((1 + 2 * count) * hx + 4 - hx, count * hx, 0, BODY_DYNAMIC);
-  sim.attach_circle(ball, 0, 0, 4, 20, FRIC, 0);
+  sim.attach_circle_ex(ball, 0, 0, 4, 20, FRIC, 0, 0, false, false, false, false, 0x2, 0x1);
   const jBall = sim.add_revolute_joint(
     prev,
     ball,

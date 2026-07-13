@@ -90,14 +90,15 @@ function cat(category: string, cSource: string, specs: Spec[]): SampleEntry[] {
  */
 export const SAMPLES: SampleEntry[] = [
   ...cat("Bodies", "sample_bodies.cpp", [
-    // live: joints/types/enable match C. partial rows disclose binding gaps.
+    // Exact: joints/types/enable match C; Weeble mix callbacks + SetMassData; Sleep sensors;
+    // Kinematic SetTargetTransform; Mixed Locks motionLocks.
     ["Body Type", "live", "bodies", "body-type"],
-    ["Weeble", "partial", "bodies", "weeble"], // no friction/restitution callbacks / SetMassData
-    ["Sleep", "partial", "bodies", "sleep"], // no sensor events / sleepThreshold / enableSleep
+    ["Weeble", "live", "bodies", "weeble"],
+    ["Sleep", "live", "bodies", "sleep"],
     ["Bad", "live", "bodies", "bad"],
     ["Pivot", "live", "bodies", "pivot"],
-    ["Kinematic", "partial", "bodies", "kinematic"], // SetTargetTransform → SetTransform snap
-    ["Mixed Locks", "partial", "bodies", "mixed-locks"], // motionLocks unbound
+    ["Kinematic", "live", "bodies", "kinematic"],
+    ["Mixed Locks", "live", "bodies", "mixed-locks"],
     ["Set Velocity", "live", "bodies", "set-velocity"],
     ["Wake Touching", "live", "bodies", "wake-touching"],
   ]),
@@ -172,8 +173,8 @@ export const SAMPLES: SampleEntry[] = [
     ["Sensor Types", "live", "events", "sensor-types"],
     ["Joint", "live", "events", "joint"],
     ["Persistent Contact", "live", "events", "persistent-contact"],
-    // Partial: prismatic motor reverse uses body-x approx (no GetTranslation bind)
-    ["Sensor Hits", "partial", "events", "sensor-hits"],
+    // Exact: prismatic GetTranslation motor reverse
+    ["Sensor Hits", "live", "events", "sensor-hits"],
     ["Projectile Event", "live", "events", "projectile-event"],
     ["Circle Impulse", "live", "events", "circle-impulse"],
   ]),
@@ -199,8 +200,8 @@ export const SAMPLES: SampleEntry[] = [
     ["Prismatic", "live", "joints", "prismatic"],
     ["Wheel", "live", "joints", "wheel"],
     ["Bridge", "live", "joints", "bridge"],
-    // Partial: category/mask filter bits → groupIndex -1 approximation for link-link
-    ["Ball & Chain", "partial", "joints", "ball-chain"],
+    // Exact: category/mask filter bits 0x1↔0x2
+    ["Ball & Chain", "live", "joints", "ball-chain"],
     ["Cantilever", "live", "joints", "cantilever"],
     ["Motion Locks", "live", "joints", "motion-locks"],
     // Partial: force-threshold break on 2 joints; C six-joint gallery incomplete
@@ -230,11 +231,11 @@ export const SAMPLES: SampleEntry[] = [
     ["Multiple Prismatic", "live", "robustness", "multiple-prismatic"],
   ]),
   ...cat("Shapes", "sample_shapes.cpp", [
-    // partial: friction slider updates dynamic shape only (no chain_SetSurfaceMaterial bind)
-    ["Chain Shape", "partial", "shapes", "chain-shape"],
+    // Exact: chain_SetSurfaceMaterial live update
+    ["Chain Shape", "live", "shapes", "chain-shape"],
     ["Chain Segment", "live", "shapes", "chain-segment"],
-    // partial: Body AABBs overlay approximates extents (no b2Body_ComputeAABB)
-    ["Compound Shapes", "partial", "shapes", "compound-shapes"],
+    // Exact: b2Body_ComputeAABB overlay
+    ["Compound Shapes", "live", "shapes", "compound-shapes"],
     ["Filter", "live", "shapes", "filter"],
     ["Custom Filter", "live", "shapes", "custom-filter"],
     ["Restitution", "live", "shapes", "restitution"],
@@ -250,8 +251,8 @@ export const SAMPLES: SampleEntry[] = [
     ["Explosion", "live", "shapes", "explosion"],
     ["Recreate Static", "live", "shapes", "recreate-static"],
     ["Box Restitution", "live", "shapes", "box-restitution"],
-    // partial: hanging chain revolute local frames approximated via world pivot
-    ["Wind", "partial", "shapes", "wind"],
+    // Exact: revolute local frames via add_revolute_joint_local
+    ["Wind", "live", "shapes", "wind"],
   ]),
   ...cat("Stacking", "sample_stacking.cpp", [
     ["Single Box", "live", "stacking", "single-box"],
