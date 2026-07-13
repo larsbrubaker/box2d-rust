@@ -119,20 +119,20 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 
 | Gap | Needed by | Notes |
 |---|---|---|
-| Prismatic / wheel / weld / motor / filter joints | Joints (+ Bodies slider) | Engine has create_*; only revolute+distance exported |
-| Flexible revolute (limits/motor/spring params) | Joints, Shapes | Current `add_hinge_joint` is sample-specific |
-| Segment shape | Bodies, Stacking, Shapes, Joints | Ground lines / walls |
-| Offset / multi-shape polygons on one body | Shapes (tables/ships) | `make_offset_box` + attach helpers |
-| Polygon from hull points | Shapes | `compute_hull` + `make_polygon` |
-| Body transform / type / enable-disable | Bodies, Shapes | `body_set_transform`, `body_set_type`, enable/disable |
-| Apply force / impulse / set velocities | Bodies, Stacking, Joints | Forces + impulses + lin/ang vel |
-| Sleep / warm starting / speculative toggles | Harness + World samples | Continuous already exported |
-| Contact tuning | Stacking, Joints | `world_set_contact_tuning` |
-| Mouse grab (motor joint + kinematic proxy) | Harness (Sample.cpp) | Not a separate joint type in v3 |
-| Debug draw dump (`world_draw` → buffers) | Harness | Hook for overlay; UI on harness branch |
-| Shape filter / material / morph APIs | Shapes | Lower priority for first ports |
-| Joint runtime setters / constraint readouts | Joints GUI | Can follow once create surface exists |
-| Custom friction/restitution/filter callbacks | Bodies, Shapes | WASM callback bridging later |
+| Prismatic / wheel / weld / motor / filter joints | Joints (+ Bodies slider) | **Done** on `demo/bindings-sample-apis` |
+| Flexible revolute (limits/motor/spring params) | Joints, Shapes | **Done** (`add_revolute_joint` / angled) |
+| Segment shape | Bodies, Stacking, Shapes, Joints | **Done** (`add_segment` / `attach_segment`) |
+| Offset / multi-shape polygons on one body | Shapes (tables/ships) | **Done** (`add_body` + `attach_*`) |
+| Polygon from hull points | Shapes | **Done** (`add_polygon`) |
+| Body transform / type / enable-disable | Bodies, Shapes | **Done** |
+| Apply force / impulse / set velocities | Bodies, Stacking, Joints | **Done** |
+| Sleep / warm starting / speculative toggles | Harness + World samples | **Done** (continuous was already present) |
+| Contact tuning | Stacking, Joints | **Done** |
+| Mouse grab (motor joint + kinematic proxy) | Harness (Sample.cpp) | **Done** (`mouse_down`/`move`/`up`) |
+| Debug draw dump (`world_draw` → buffers) | Harness | **Done** hook (`debug_draw` / flags); UI on harness branch |
+| Shape filter / material / morph APIs | Shapes | Still missing — lower priority for first ports |
+| Joint runtime setters / constraint readouts | Joints GUI | Still missing — follow once create surface exists |
+| Custom friction/restitution/filter callbacks | Bodies, Shapes | Still missing — WASM callback bridging later |
 
 ### Phase 2 — Category ports
 
