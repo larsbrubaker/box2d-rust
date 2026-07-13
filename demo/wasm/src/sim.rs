@@ -10,6 +10,8 @@ mod body_ops;
 mod joints;
 mod shapes;
 mod world_ops;
+#[cfg(test)]
+mod tests;
 
 use box2d_rust::collision::Capsule;
 use box2d_rust::math_functions as m;
