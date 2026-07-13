@@ -10,6 +10,7 @@ mod body_ops;
 mod event_ops;
 mod joint_ops;
 mod joints;
+mod query_ops;
 mod shape_ops;
 mod shapes;
 mod world_ops;

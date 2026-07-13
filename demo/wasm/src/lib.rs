@@ -51,9 +51,12 @@ pub fn polygon_points(sides: u32, radius: f32, angle: f32, cx: f32, cy: f32) -> 
 // Geometry demo: a small scene queried with the ported geometry + distance
 // modules. World units are meters; the page scales to pixels.
 
+mod collision_queries;
+mod dynamic_tree_demo;
 mod geometry_demo;
 mod interact;
 mod replay;
 mod sim;
 
+pub use dynamic_tree_demo::TreeDemo;
 pub use sim::SimWorld;
