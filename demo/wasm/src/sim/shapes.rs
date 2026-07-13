@@ -3,13 +3,15 @@
 use super::SimWorld;
 use box2d_rust::body::create_body;
 use box2d_rust::collision::{Capsule, Circle, Segment};
-use box2d_rust::geometry::{make_box, make_offset_box, make_polygon};
+use box2d_rust::geometry::{make_box, make_offset_box, make_polygon, make_rounded_box};
 use box2d_rust::hull::compute_hull;
 use box2d_rust::math_functions::{make_rot, to_pos, Vec2};
 use box2d_rust::shape::{
     create_capsule_shape, create_circle_shape, create_polygon_shape, create_segment_shape,
+    shape_get_user_data,
 };
 use box2d_rust::types::{default_body_def, default_shape_def, BodyType};
+use box2d_rust::world::world_get_contact_events;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -117,6 +119,32 @@ impl SimWorld {
         create_circle_shape(&mut self.world, body_id, &shape_def, &circle);
     }
 
+    /// Attach a circle with hit events and shape user-data (Circle Stack).
+    pub fn attach_circle_hit(
+        &mut self,
+        index: usize,
+        cx: f32,
+        cy: f32,
+        radius: f32,
+        density: f32,
+        friction: f32,
+        restitution: f32,
+        user_data: u32,
+    ) {
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = friction;
+        shape_def.material.restitution = restitution;
+        shape_def.enable_hit_events = true;
+        shape_def.user_data = u64::from(user_data);
+        let circle = Circle {
+            center: Vec2 { x: cx, y: cy },
+            radius,
+        };
+        create_circle_shape(&mut self.world, body_id, &shape_def, &circle);
+    }
+
     /// Attach a capsule in body-local space.
     pub fn attach_capsule(
         &mut self,
@@ -154,6 +182,51 @@ impl SimWorld {
         create_segment_shape(&mut self.world, body_id, &shape_def, &segment);
     }
 
+    /// Attach a convex polygon from interleaved body-local points [x,y]*.
+    pub fn attach_polygon(
+        &mut self,
+        index: usize,
+        points: &[f32],
+        radius: f32,
+        density: f32,
+        friction: f32,
+        restitution: f32,
+    ) {
+        let verts: Vec<Vec2> = points
+            .chunks_exact(2)
+            .map(|p| Vec2 { x: p[0], y: p[1] })
+            .collect();
+        let hull = compute_hull(&verts);
+        let polygon = make_polygon(&hull, radius);
+
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = friction;
+        shape_def.material.restitution = restitution;
+        create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+    }
+
+    /// Attach a rounded box (`b2MakeRoundedBox`) centered on the body.
+    pub fn attach_rounded_box(
+        &mut self,
+        index: usize,
+        hx: f32,
+        hy: f32,
+        radius: f32,
+        density: f32,
+        friction: f32,
+        restitution: f32,
+    ) {
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = friction;
+        shape_def.material.restitution = restitution;
+        let polygon = make_rounded_box(hx, hy, radius);
+        create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+    }
+
     /// Dynamic convex polygon from interleaved world-relative points [x,y]*.
     /// Hull is computed via `b2ComputeHull`; radius is skin radius.
     pub fn add_polygon(
@@ -183,6 +256,18 @@ impl SimWorld {
         shape_def.material.friction = 0.3;
         create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
         self.track_body(body_id)
+    }
+
+    /// Hit events from the last step as shape user-data pairs `[userA, userB]*`
+    /// (Circle Stack text readout).
+    pub fn hit_event_user_pairs(&self) -> Vec<i32> {
+        let contact_events = world_get_contact_events(&self.world);
+        let mut out = Vec::with_capacity(2 * contact_events.hit_events.len());
+        for hit in contact_events.hit_events {
+            out.push(shape_get_user_data(&self.world, hit.shape_id_a) as i32);
+            out.push(shape_get_user_data(&self.world, hit.shape_id_b) as i32);
+        }
+        out
     }
 
     /// Kinematic box (moving platforms). Returns the demo body index.

@@ -123,3 +123,43 @@ fn world_toggles() {
         sim.step(1.0 / 60.0, 4);
     }
 }
+
+#[test]
+fn destroy_body_marks_slot_not_alive() {
+    let mut sim = SimWorld::new(-10.0);
+    sim.add_static_box(0.0, -1.0, 20.0, 1.0);
+    let a = sim.add_box(-1.0, 2.0, 0.5, 0.5, 1.0);
+    let b = sim.add_box(1.0, 2.0, 0.5, 0.5, 1.0);
+    assert_eq!(sim.body_count(), 3);
+    assert!(sim.is_body_alive(a));
+    sim.destroy_body(a);
+    assert!(!sim.is_body_alive(a));
+    assert!(sim.is_body_alive(b));
+    // Slot retained (Bodies semantics) — body_count still includes the hole.
+    assert_eq!(sim.body_count(), 3);
+    for _ in 0..10 {
+        sim.step(1.0 / 60.0, 4);
+    }
+}
+
+#[test]
+fn attach_polygon_and_rounded_box() {
+    let mut sim = SimWorld::new(-10.0);
+    let ground = sim.add_segment(-10.0, 0.0, 10.0, 0.0);
+    let arch = sim.add_body(0.0, 0.0, 0.0, 2);
+    sim.attach_polygon(
+        arch,
+        &[1.0, 0.0, 2.0, 0.0, 2.0, 1.0, 1.0, 1.0],
+        0.0,
+        1.0,
+        0.6,
+        0.0,
+    );
+    let rounded = sim.add_body(0.0, 2.0, 0.0, 2);
+    sim.attach_rounded_box(rounded, 0.45, 0.45, 0.05, 1.0, 0.3, 0.0);
+    let _ = ground;
+    for _ in 0..20 {
+        sim.step(1.0 / 60.0, 4);
+    }
+    assert!(sim.body_count() >= 3);
+}

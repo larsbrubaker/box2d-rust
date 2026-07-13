@@ -246,6 +246,7 @@ impl SimWorld {
         self.world.contact_id_pool.id_count()
     }
 
+    /// Demo body slots in creation order (includes holes from `destroy_body`).
     pub fn body_count(&self) -> usize {
         self.bodies.len()
     }

@@ -5,10 +5,11 @@ use box2d_rust::body::{
     body_apply_force, body_apply_force_to_center, body_apply_linear_impulse,
     body_apply_linear_impulse_to_center, body_apply_torque, body_disable, body_enable,
     body_get_angular_velocity, body_get_linear_velocity, body_get_mass, body_get_type,
-    body_is_enabled, body_set_angular_velocity, body_set_awake, body_set_gravity_scale,
-    body_set_linear_velocity, body_set_transform, body_set_type, body_wake_touching,
-    destroy_body,
+    body_is_enabled, body_set_angular_velocity, body_set_awake, body_set_bullet,
+    body_set_gravity_scale, body_set_linear_velocity, body_set_transform, body_set_type,
+    body_wake_touching, destroy_body,
 };
+use box2d_rust::joint::joint_is_valid;
 use box2d_rust::math_functions::{make_rot, to_pos, Vec2};
 use box2d_rust::types::BodyType;
 use wasm_bindgen::prelude::*;
@@ -27,7 +28,8 @@ fn parse_body_type(body_type: i32) -> BodyType {
 #[wasm_bindgen]
 impl SimWorld {
     /// Destroy a tracked body and free its demo slot (index stays reserved).
-    /// (b2DestroyBody) Used by Sleep-style mid-scene create/destroy.
+    /// (b2DestroyBody) Used by Sleep / Vertical Stack mid-scene destroy.
+    /// Stale joint demo entries are pruned; mouse grab is revalidated.
     pub fn destroy_body(&mut self, index: usize) {
         if index >= self.bodies.len() {
             return;
@@ -39,6 +41,14 @@ impl SimWorld {
         let body_id = self.body_id_at(index);
         destroy_body(&mut self.world, body_id);
         self.bodies[index] = DESTROYED_BODY_SLOT;
+        self.joints
+            .retain(|&jid| joint_is_valid(&self.world, jid));
+        self.grab.validate(&mut self.world);
+    }
+
+    /// Whether the demo index still refers to a live body.
+    pub fn is_body_alive(&self, index: usize) -> bool {
+        index < self.bodies.len() && self.bodies[index] != DESTROYED_BODY_SLOT
     }
 
     /// Set body origin transform. (b2Body_SetTransform)
@@ -185,5 +195,14 @@ impl SimWorld {
             Vec2 { x: ix, y: iy },
             wake,
         );
+    }
+
+    /// (b2Body_SetBullet)
+    pub fn set_bullet(&mut self, index: usize, flag: bool) {
+        if !self.is_body_alive(index) {
+            return;
+        }
+        let body_id = self.body_id_at(index);
+        body_set_bullet(&mut self.world, body_id, flag);
     }
 }

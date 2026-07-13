@@ -69,6 +69,33 @@ export interface SimWorld {
     restitution: number,
   ): void;
   attach_segment(index: number, x1: number, y1: number, x2: number, y2: number): void;
+  attach_rounded_box(
+    index: number,
+    hx: number,
+    hy: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+  ): void;
+  attach_circle_hit(
+    index: number,
+    cx: number,
+    cy: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    userData: number,
+  ): void;
+  attach_polygon(
+    index: number,
+    points: Float32Array | number[],
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+  ): void;
   add_polygon(
     x: number,
     y: number,
@@ -191,6 +218,8 @@ export interface SimWorld {
   joint_anchors(): Float32Array;
 
   // --- body ops ---
+  set_bullet(index: number, flag: boolean): void;
+  is_body_alive(index: number): boolean;
   destroy_body(index: number): void;
   set_transform(index: number, x: number, y: number, angle: number): void;
   set_body_type(index: number, bodyType: number): void;
@@ -225,6 +254,7 @@ export interface SimWorld {
   enable_sensor_visitor(index: number): void;
   event_counts(): Uint32Array;
   hit_events(): Float32Array;
+  hit_event_user_pairs(): Int32Array;
   add_bullet(x: number, y: number, radius: number, vx: number, vy: number): number;
   /** Prefer this over set_continuous_collision (same C API). */
   set_continuous(flag: boolean): void;
