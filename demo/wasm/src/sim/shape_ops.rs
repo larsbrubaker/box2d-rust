@@ -21,6 +21,10 @@ use wasm_bindgen::prelude::*;
 // for the odd/even Custom Filter sample (set while that scene is active).
 thread_local! {
     static FILTER_WORLD: Cell<*mut box2d_rust::world::World> = const { Cell::new(std::ptr::null_mut()) };
+    /// Benchmark Sensor filter row (`sample_benchmark.cpp` Filter).
+    static SENSOR_FILTER_ROW: Cell<i32> = const { Cell::new(0) };
+    /// 0 = none, 1 = odd/even, 2 = sensor-row.
+    static FILTER_MODE: Cell<u8> = const { Cell::new(0) };
 }
 
 fn odd_even_filter_live(shape_a: ShapeId, shape_b: ShapeId, _ctx: u64) -> bool {
@@ -37,6 +41,37 @@ fn odd_even_filter_live(shape_a: ShapeId, shape_b: ShapeId, _ctx: u64) -> bool {
             return true;
         }
         ((a & 1) + (b & 1)) != 1
+    })
+}
+
+/// Pack `ShapeUserData { row, active }` into shape user_data bits.
+pub(crate) fn pack_sensor_ud(row: i32, active: bool) -> u64 {
+    ((row as u64) << 1) | u64::from(active)
+}
+
+fn unpack_sensor_ud(ud: u64) -> (i32, bool) {
+    ((ud >> 1) as i32, (ud & 1) != 0)
+}
+
+/// Benchmark Sensor custom filter (`sample_benchmark.cpp:1984-2001`).
+fn sensor_row_filter_live(shape_a: ShapeId, shape_b: ShapeId, _ctx: u64) -> bool {
+    FILTER_WORLD.with(|cell| {
+        let ptr = cell.get();
+        if ptr.is_null() {
+            return true;
+        }
+        // SAFETY: pointer set only while SimWorld lives and sensor filter is on.
+        let world = unsafe { &*ptr };
+        use box2d_rust::shape::{shape_get_user_data, shape_is_sensor};
+        let ud = if shape_is_sensor(world, shape_a) {
+            shape_get_user_data(world, shape_a)
+        } else if shape_is_sensor(world, shape_b) {
+            shape_get_user_data(world, shape_b)
+        } else {
+            return true;
+        };
+        let (row, active) = unpack_sensor_ud(ud);
+        active || row != SENSOR_FILTER_ROW.get()
     })
 }
 
@@ -633,11 +668,201 @@ impl SimWorld {
     pub fn enable_odd_even_filter(&mut self, enabled: bool) {
         self.refresh_filter_world_ptr();
         if enabled {
+            FILTER_MODE.set(1);
             world_set_custom_filter_callback(&mut self.world, Some(odd_even_filter_live), 0);
         } else {
+            FILTER_MODE.set(0);
             world_set_custom_filter_callback(&mut self.world, None, 0);
             FILTER_WORLD.with(|cell| cell.set(std::ptr::null_mut()));
         }
+    }
+
+    /// Benchmark Sensor custom filter — packs row/active in shape user_data.
+    /// (`sample_benchmark.cpp` FilterFcn).
+    pub fn enable_sensor_row_filter(&mut self, enabled: bool, filter_row: i32) {
+        self.refresh_filter_world_ptr();
+        SENSOR_FILTER_ROW.set(filter_row);
+        if enabled {
+            FILTER_MODE.set(2);
+            world_set_custom_filter_callback(&mut self.world, Some(sensor_row_filter_live), 0);
+        } else {
+            FILTER_MODE.set(0);
+            world_set_custom_filter_callback(&mut self.world, None, 0);
+            FILTER_WORLD.with(|cell| cell.set(std::ptr::null_mut()));
+        }
+    }
+
+    /// Offset polygon sensor with user_data + optional custom filter + color.
+    /// Returns demo shape index. (`BenchmarkSensor` ground sensors).
+    #[allow(clippy::too_many_arguments)]
+    pub fn attach_sensor_ud(
+        &mut self,
+        index: usize,
+        hx: f32,
+        hy: f32,
+        cx: f32,
+        cy: f32,
+        angle: f32,
+        radius: f32,
+        is_sensor: bool,
+        enable_sensor: bool,
+        enable_custom_filter: bool,
+        user_data: u32,
+        custom_color: u32,
+    ) -> usize {
+        use box2d_rust::geometry::{make_offset_box, make_offset_rounded_box};
+        use box2d_rust::math_functions::make_rot;
+        use box2d_rust::shape::create_polygon_shape;
+
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.is_sensor = is_sensor;
+        shape_def.enable_sensor_events = enable_sensor;
+        shape_def.enable_custom_filtering = enable_custom_filter;
+        shape_def.user_data = u64::from(user_data);
+        shape_def.material.custom_color = custom_color;
+        let polygon = if radius > 0.0 {
+            make_offset_rounded_box(hx, hy, Vec2 { x: cx, y: cy }, make_rot(angle), radius)
+        } else {
+            make_offset_box(hx, hy, Vec2 { x: cx, y: cy }, make_rot(angle))
+        };
+        let sid = create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+        self.track_shape(sid)
+    }
+
+    /// (b2Shape_SetSurfaceMaterial.customColor) — Sensor visitor highlight.
+    pub fn shape_set_custom_color(&mut self, shape_index: usize, custom_color: u32) {
+        if shape_index >= self.shapes.len() {
+            return;
+        }
+        let mut mat = box2d_rust::shape::shape_get_surface_material(
+            &self.world,
+            self.shapes[shape_index],
+        );
+        mat.custom_color = custom_color;
+        shape_set_surface_material(&mut self.world, self.shapes[shape_index], mat);
+    }
+
+    /// Pack row/active for Benchmark Sensor shape user_data.
+    pub fn pack_sensor_user_data(row: i32, active: bool) -> u32 {
+        pack_sensor_ud(row, active) as u32
+    }
+
+    /// Static/dynamic box with category + custom color (Benchmark Cast grid).
+    pub fn attach_box_category_color(
+        &mut self,
+        index: usize,
+        hx: f32,
+        hy: f32,
+        category_bits: u32,
+        custom_color: u32,
+    ) -> usize {
+        use box2d_rust::shape::create_polygon_shape;
+
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.filter = Filter {
+            category_bits: u64::from(category_bits),
+            mask_bits: box2d_rust::dynamic_tree::DEFAULT_MASK_BITS,
+            group_index: 0,
+        };
+        shape_def.material.custom_color = custom_color;
+        let polygon = make_box(hx, hy);
+        let sid = create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+        self.track_shape(sid)
+    }
+
+    /// Chain with a single custom color (Gear Lift ground).
+    pub fn add_chain_color(
+        &mut self,
+        points: &[f32],
+        is_loop: bool,
+        friction: f32,
+        custom_color: u32,
+    ) -> usize {
+        use box2d_rust::body::create_body;
+        use box2d_rust::shape::create_chain;
+        use box2d_rust::types::{default_body_def, default_chain_def};
+
+        let body_def = default_body_def();
+        let body_id = create_body(&mut self.world, &body_def);
+        let mut chain_def = default_chain_def();
+        chain_def.is_loop = is_loop;
+        chain_def.points = points
+            .chunks_exact(2)
+            .map(|p| Vec2 { x: p[0], y: p[1] })
+            .collect();
+        chain_def.materials = vec![SurfaceMaterial {
+            friction,
+            restitution: 0.0,
+            rolling_resistance: 0.0,
+            tangent_speed: 0.0,
+            user_material_id: 0,
+            custom_color,
+        }];
+        create_chain(&mut self.world, body_id, &chain_def);
+        self.track_body(body_id)
+    }
+
+    /// Offset rounded box with color (Gear Lift teeth). Returns shape index.
+    #[allow(clippy::too_many_arguments)]
+    pub fn attach_offset_rounded_box_color(
+        &mut self,
+        index: usize,
+        hx: f32,
+        hy: f32,
+        cx: f32,
+        cy: f32,
+        angle: f32,
+        radius: f32,
+        density: f32,
+        friction: f32,
+        custom_color: u32,
+    ) -> usize {
+        use box2d_rust::geometry::make_offset_rounded_box;
+        use box2d_rust::math_functions::make_rot;
+        use box2d_rust::shape::create_polygon_shape;
+
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = friction;
+        shape_def.material.custom_color = custom_color;
+        let polygon = make_offset_rounded_box(
+            hx,
+            hy,
+            Vec2 { x: cx, y: cy },
+            make_rot(angle),
+            radius,
+        );
+        let sid = create_polygon_shape(&mut self.world, body_id, &shape_def, &polygon);
+        self.track_shape(sid)
+    }
+
+    /// Body with sleep threshold (Scissor Lift dynamics).
+    pub fn add_body_sleep_threshold(
+        &mut self,
+        x: f32,
+        y: f32,
+        angle: f32,
+        body_type: i32,
+        sleep_threshold: f32,
+    ) -> usize {
+        use box2d_rust::body::create_body;
+        use box2d_rust::math_functions::{make_rot, to_pos};
+        use box2d_rust::types::{default_body_def, BodyType};
+
+        let mut body_def = default_body_def();
+        body_def.type_ = match body_type {
+            1 => BodyType::Kinematic,
+            2 => BodyType::Dynamic,
+            _ => BodyType::Static,
+        };
+        body_def.position = to_pos(Vec2 { x, y });
+        body_def.rotation = make_rot(angle);
+        body_def.sleep_threshold = sleep_threshold;
+        let body_id = create_body(&mut self.world, &body_def);
+        self.track_body(body_id)
     }
 
     /// Set weld/revolute local frame A angle (Explosion spinning welds).

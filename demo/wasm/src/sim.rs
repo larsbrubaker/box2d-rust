@@ -6,6 +6,7 @@
 // sibling modules (joints / shapes / body_ops / world_ops) so this file
 // stays under the 800-line limit.
 
+mod benchmark_ops;
 mod body_ops;
 mod event_ops;
 mod human;

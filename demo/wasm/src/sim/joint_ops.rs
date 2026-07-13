@@ -5,16 +5,17 @@
 use super::SimWorld;
 use box2d_rust::body::body_get_local_point;
 use box2d_rust::distance_joint::{
-    distance_joint_enable_limit, distance_joint_enable_spring, distance_joint_set_length,
-    distance_joint_set_length_range, distance_joint_set_spring_damping_ratio,
+    distance_joint_enable_limit, distance_joint_enable_motor, distance_joint_enable_spring,
+    distance_joint_set_length, distance_joint_set_length_range, distance_joint_set_max_motor_force,
+    distance_joint_set_motor_speed, distance_joint_set_spring_damping_ratio,
     distance_joint_set_spring_force_range, distance_joint_set_spring_hertz,
 };
 use box2d_rust::joint::{
     create_distance_joint, create_motor_joint, create_prismatic_joint, create_revolute_joint,
-    create_weld_joint, destroy_joint, joint_get_constraint_force, joint_get_constraint_torque,
-    joint_get_linear_separation, joint_get_angular_separation, joint_set_collide_connected,
-    joint_set_constraint_tuning, joint_set_force_threshold, joint_set_torque_threshold,
-    joint_wake_bodies,
+    create_weld_joint, create_wheel_joint, destroy_joint, joint_get_constraint_force,
+    joint_get_constraint_torque, joint_get_linear_separation, joint_get_angular_separation,
+    joint_set_collide_connected, joint_set_constraint_tuning, joint_set_force_threshold,
+    joint_set_torque_threshold, joint_wake_bodies,
 };
 use box2d_rust::math_functions::{
     inv_mul_rot, length, make_rot, make_rot_from_unit_vector, normalize, sub_pos, to_pos, Vec2,
@@ -37,7 +38,7 @@ use box2d_rust::revolute_joint::{
 };
 use box2d_rust::types::{
     default_distance_joint_def, default_motor_joint_def, default_prismatic_joint_def,
-    default_revolute_joint_def, default_weld_joint_def,
+    default_revolute_joint_def, default_weld_joint_def, default_wheel_joint_def,
 };
 use box2d_rust::weld_joint::{
     weld_joint_set_angular_damping_ratio, weld_joint_set_angular_hertz,
@@ -374,6 +375,101 @@ impl SimWorld {
             return;
         }
         distance_joint_set_length_range(&mut self.world, self.joints[index], min_l, max_l);
+    }
+    pub fn distance_enable_motor(&mut self, index: usize, enable: bool) {
+        if !joint_alive(self, index) {
+            return;
+        }
+        distance_joint_enable_motor(&mut self.world, self.joints[index], enable);
+    }
+    pub fn distance_set_motor_speed(&mut self, index: usize, speed: f32) {
+        if !joint_alive(self, index) {
+            return;
+        }
+        distance_joint_set_motor_speed(&mut self.world, self.joints[index], speed);
+    }
+    pub fn distance_set_max_motor_force(&mut self, index: usize, force: f32) {
+        if !joint_alive(self, index) {
+            return;
+        }
+        distance_joint_set_max_motor_force(&mut self.world, self.joints[index], force);
+    }
+
+    /// Distance joint with body-local anchors + motor (Scissor Lift).
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_distance_joint_local_motor(
+        &mut self,
+        index_a: usize,
+        index_b: usize,
+        ax: f32,
+        ay: f32,
+        bx: f32,
+        by: f32,
+        length_override: f32,
+        enable_spring: bool,
+        hertz: f32,
+        damping_ratio: f32,
+        enable_limit: bool,
+        min_length: f32,
+        max_length: f32,
+        enable_motor: bool,
+        motor_speed: f32,
+        max_motor_force: f32,
+        collide_connected: bool,
+    ) -> usize {
+        let mut joint_def = default_distance_joint_def();
+        joint_def.base.body_id_a = self.body_id_at(index_a);
+        joint_def.base.body_id_b = self.body_id_at(index_b);
+        joint_def.base.local_frame_a.p = to_pos(Vec2 { x: ax, y: ay });
+        joint_def.base.local_frame_b.p = to_pos(Vec2 { x: bx, y: by });
+        joint_def.base.collide_connected = collide_connected;
+        joint_def.length = if length_override > 0.0 {
+            length_override
+        } else {
+            length(sub_pos(
+                to_pos(Vec2 { x: bx, y: by }),
+                to_pos(Vec2 { x: ax, y: ay }),
+            ))
+        };
+        joint_def.enable_spring = enable_spring;
+        joint_def.hertz = hertz;
+        joint_def.damping_ratio = damping_ratio;
+        joint_def.enable_limit = enable_limit;
+        joint_def.min_length = min_length;
+        joint_def.max_length = max_length;
+        joint_def.enable_motor = enable_motor;
+        joint_def.motor_speed = motor_speed;
+        joint_def.max_motor_force = max_motor_force;
+        let joint_id = create_distance_joint(&mut self.world, &joint_def);
+        self.track_joint(joint_id)
+    }
+
+    /// Wheel joint with body-local anchors (Scissor Lift). Axis = local +X of A.
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_wheel_joint_local(
+        &mut self,
+        index_a: usize,
+        index_b: usize,
+        ax: f32,
+        ay: f32,
+        bx: f32,
+        by: f32,
+        enable_spring: bool,
+        hertz: f32,
+        damping_ratio: f32,
+        collide_connected: bool,
+    ) -> usize {
+        let mut joint_def = default_wheel_joint_def();
+        joint_def.base.body_id_a = self.body_id_at(index_a);
+        joint_def.base.body_id_b = self.body_id_at(index_b);
+        joint_def.base.local_frame_a.p = to_pos(Vec2 { x: ax, y: ay });
+        joint_def.base.local_frame_b.p = to_pos(Vec2 { x: bx, y: by });
+        joint_def.base.collide_connected = collide_connected;
+        joint_def.enable_spring = enable_spring;
+        joint_def.hertz = hertz;
+        joint_def.damping_ratio = damping_ratio;
+        let joint_id = create_wheel_joint(&mut self.world, &joint_def);
+        self.track_joint(joint_id)
     }
 
     // --- revolute setters ---
