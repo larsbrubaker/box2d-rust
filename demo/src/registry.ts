@@ -193,8 +193,9 @@ export const SAMPLES: SampleEntry[] = [
   ...cat("Joints", "sample_joints.cpp", [
     ["Distance Joint", "live", "joints", "distance-joint"],
     ["Motor Joint", "live", "joints", "motor-joint"],
-    // Partial: remainder==3 RandomPolygon branch uses square (hull attach not wired for mid-body)
-    ["Top Down Friction", "partial", "joints", "top-down-friction"],
+    // Exact: RandomPolygon via attach_polygon; 6-joint Breakable; 5-joint Separation;
+    // dual-anchor User Constraint; Driving teeter/bridge/chain/chase; Door spring hinge
+    ["Top Down Friction", "live", "joints", "top-down-friction"],
     ["Filter Joint", "live", "joints", "filter-joint"],
     ["Revolute", "live", "joints", "revolute"],
     ["Prismatic", "live", "joints", "prismatic"],
@@ -204,21 +205,16 @@ export const SAMPLES: SampleEntry[] = [
     ["Ball & Chain", "live", "joints", "ball-chain"],
     ["Cantilever", "live", "joints", "cantilever"],
     ["Motion Locks", "live", "joints", "motion-locks"],
-    // Partial: force-threshold break on 2 joints; C six-joint gallery incomplete
-    ["Breakable", "partial", "joints", "breakable"],
-    // Partial: HUD separations only — C Separation construction not fully mirrored
-    ["Separation", "partial", "joints", "separation"],
-    // Partial: simplified impulse constraint toward (0,5); C has richer dual-impulse setup
-    ["User Constraint", "partial", "joints", "user-constraint"],
-    // Partial: Car + bumps; missing teeter/bridge/truck/chase-cam extras
-    ["Driving", "partial", "joints", "driving"],
+    ["Breakable", "live", "joints", "breakable"],
+    ["Separation", "live", "joints", "separation"],
+    ["User Constraint", "live", "joints", "user-constraint"],
+    ["Driving", "live", "joints", "driving"],
     ["Ragdoll", "live", "joints", "ragdoll"],
     ["Soft Body", "live", "joints", "soft-body"],
     ["Doohickey", "live", "joints", "doohickey"],
     ["Scissor Lift", "live", "joints", "scissor-lift"],
     ["Gear Lift", "live", "joints", "gear-lift"],
-    // Partial: single hinged panel; C two-joint/latch extras missing
-    ["Door", "partial", "joints", "door"],
+    ["Door", "live", "joints", "door"],
     ["Scale Ragdoll", "live", "joints", "scale-ragdoll"],
   ]),
   ...cat("Robustness", "sample_robustness.cpp", [

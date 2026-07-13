@@ -20,7 +20,8 @@ import {
   mountSampleChrome,
   disposeTransport,
   makeCamera,
-  screenToWorld,
+  screenToWorld,
+  worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
 
@@ -94,13 +95,13 @@ const CAMERAS: Record<Scene, { cx: number; cy: number; zoom: number }> = {
   "soft-body": { cx: 0, cy: 5, zoom: 25 * 0.25 }, // :2663-2664
   doohickey: { cx: 0, cy: 5, zoom: 25 * 0.35 }, // :2696-2697
   breakable: { cx: 0, cy: 8, zoom: 25 * 0.7 }, // :1752-1753
-  separation: { cx: 0, cy: 8, zoom: 25 * 0.5 }, // approx
-  "user-constraint": { cx: 0, cy: 5, zoom: 25 * 0.35 },
+  separation: { cx: 0, cy: 8, zoom: 25 }, // :1984-1985
+  "user-constraint": { cx: 3, cy: -1, zoom: 25 * 0.15 }, // :2205-2206
   driving: { cx: 0, cy: 5, zoom: 25 * 0.4 }, // :2326-2327
   ragdoll: { cx: 0, cy: 12, zoom: 16.0 }, // :2578-2579 (else branch zoom 16)
   "scissor-lift": { cx: 0, cy: 9, zoom: 25 * 0.4 }, // :2742-2743
   "gear-lift": { cx: 0, cy: 6, zoom: 7.0 }, // :2960-2961
-  door: { cx: 0, cy: 2.5, zoom: 25 * 0.2 },
+  door: { cx: 0, cy: 0, zoom: 4 }, // :3285-3286
   "scale-ragdoll": { cx: 0, cy: 4.5, zoom: 6.0 }, // :3408-3409
 };
 
@@ -113,6 +114,7 @@ const PI = Math.PI;
 interface SceneRuntime {
   beforeStep?: (dt: number) => void;
   afterStep?: (dt: number) => void;
+  updateCamera?: (camera: SampleCamera) => void;
   paintOverlay?: (ctx: CanvasRenderingContext2D, camera: SampleCamera, canvas: HTMLCanvasElement) => void;
   readoutExtra?: () => { label: string; value: string }[];
   dispose?: () => void;
@@ -355,7 +357,7 @@ function buildMotorJoint(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 }
 
 function buildTopDownFriction(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // :418-523
+  // sample_joints.cpp:415-523 TopDownFriction — RandomPolygon via attach_polygon
   const ground = sim.add_body(0, 0, 0, BODY_STATIC);
   sim.attach_segment(ground, -10, 0, 10, 0);
   sim.attach_segment(ground, -10, 0, -10, 20);
@@ -368,21 +370,19 @@ function buildTopDownFriction(sim: SimWorld, controls: HTMLElement): SceneRuntim
   let y = 15;
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
-      const body = sim.add_body(x, y, 0, BODY_DYNAMIC);
-      sim.set_gravity_scale(body, 0);
+      const body = sim.add_body_ex(x, y, 0, BODY_DYNAMIC, 0, true);
       const rem = (n * i + j) % 4;
       if (rem === 0) sim.attach_capsule(body, -0.25, 0, 0.25, 0, 0.25, 1, FRIC, 0.8);
       else if (rem === 1) sim.attach_circle(body, 0, 0, 0.35, 1, FRIC, 0.8);
       else if (rem === 2) sim.attach_box(body, 0.35, 0.35, 0, 0, 0, 1, FRIC, 0.8);
       else {
+        // C RandomPolygon(0.75) then poly.radius = 0.1 (:485-487 / utils.c:18)
         const pts: number[] = [];
         const count = 3 + (rng.next() % 6);
         for (let k = 0; k < count; k++) {
           pts.push(rng.range(-0.75, 0.75), rng.range(-0.75, 0.75));
         }
-        // Fall back to square via attach if hull fails — use add_polygon at body origin then destroy empty? Simpler: box.
-        sim.attach_box(body, 0.35, 0.35, 0, 0, 0, 1, FRIC, 0.8);
-        void pts;
+        sim.attach_polygon(body, pts, 0.1, 1, FRIC, 0.8);
       }
       sim.add_motor_joint(ground, body, 0, 0, 0, 0, 0, 0, 10, 10, true);
       x += 1;
@@ -1098,203 +1098,561 @@ function buildDoohickey(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildBreakable(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // Simplified Breakable gallery: distance + revolute with force thresholds.
-  // Partial: full 6-joint C gallery + mid-step destroy loop not fully mirrored.
-  const ground = sim.add_segment(-20, 0, 20, 0);
-  let threshold = 1000;
-  const joints: number[] = [];
-  const a = sim.add_body(-4, 5, 0, BODY_DYNAMIC);
-  sim.attach_box(a, 0.5, 0.5, 0, 0, 0, 1, FRIC, 0);
-  const j1 = sim.add_distance_joint_ex(ground, a, -4, 8, -4, 5.5, 2.5, false, 0, 0, 0, 0, false, 0, 0, false);
-  sim.joint_set_force_threshold(j1, threshold);
-  joints.push(j1);
+  // sample_joints.cpp:1739-1968 BreakableJoint — 6-joint gallery + force break
+  const ground = sim.add_body(0, 0, 0, BODY_STATIC);
+  sim.attach_segment(ground, -40, 0, 40, 0);
 
-  const b = sim.add_body(4, 5, 0, BODY_DYNAMIC);
-  sim.attach_box(b, 0.5, 1, 0, 0, 0, 1, FRIC, 0);
-  const j2 = sim.add_revolute_joint(ground, b, 4, 6, false, 0, 0, false, 0, 0, false, 0, 0, false);
-  sim.joint_set_force_threshold(j2, threshold);
-  joints.push(j2);
+  let breakForce = 1000;
+  let gravityY = sim.get_gravity()[1] ?? -10;
+  const joints: (number | null)[] = [];
+  const labelPos: { x: number; y: number }[] = [];
+
+  let positionX = -12.5;
+  const positionY = 10;
+
+  // distance (:1776-1795)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    const length = 2;
+    const pivot1x = positionX;
+    const pivot1y = positionY + 1 + length;
+    joints.push(
+      sim.add_distance_joint_ex(
+        ground, body, pivot1x, pivot1y, positionX, positionY + 1, length,
+        false, 0, 0, 0, 0, false, 0, 0, true,
+      ),
+    );
+    labelPos.push({ x: pivot1x, y: pivot1y });
+  }
+  positionX += 5;
+
+  // motor (:1800-1816)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    joints.push(
+      sim.add_motor_joint_local(ground, body, positionX, positionY, 0, 0, 0, 0, 0, 0, 0, 0, 1000, 20, true),
+    );
+    labelPos.push({ x: positionX, y: positionY });
+  }
+  positionX += 5;
+
+  // prismatic (:1821-1837)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    const pivotX = positionX - 1;
+    const pivotY = positionY;
+    joints.push(
+      sim.add_prismatic_joint(ground, body, pivotX, pivotY, 1, 0, false, 0, 0, false, 0, 0, false, 0, 0, true),
+    );
+    labelPos.push({ x: pivotX, y: pivotY });
+  }
+  positionX += 5;
+
+  // revolute (:1842-1858)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    const pivotX = positionX - 1;
+    const pivotY = positionY;
+    joints.push(
+      sim.add_revolute_joint(ground, body, pivotX, pivotY, false, 0, 0, false, 0, 0, false, 0, 0, true),
+    );
+    labelPos.push({ x: pivotX, y: pivotY });
+  }
+  positionX += 5;
+
+  // weld (:1863-1879)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    const pivotX = positionX - 1;
+    const pivotY = positionY;
+    joints.push(sim.add_weld_joint(ground, body, pivotX, pivotY, 0, 0, 0, 0, true));
+    labelPos.push({ x: pivotX, y: pivotY });
+  }
+  positionX += 5;
+
+  // wheel (:1884-1908)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    const pivotX = positionX - 1;
+    const pivotY = positionY;
+    joints.push(
+      sim.add_wheel_joint(ground, body, pivotX, pivotY, 0, 1, true, -1, 1, true, 1, 10, true, 1, 0.7, true),
+    );
+    labelPos.push({ x: pivotX, y: pivotY });
+  }
+
+  const forces: { x: number; y: number }[] = joints.map(() => ({ x: 0, y: 0 }));
 
   controls.appendChild(
-    createSlider("Force threshold", 100, 5000, threshold, 50, (v) => {
-      threshold = v;
-      for (const j of joints) sim.joint_set_force_threshold(j, v);
+    createSlider("break force", 0, 10000, breakForce, 1, (v) => {
+      breakForce = v;
     }),
   );
   controls.appendChild(
-    createInfoBox("Partial: Breakable — force thresholds set; C's full six-joint break loop + torque paths not fully ported."),
+    createSlider("gravity", -50, 50, gravityY, 0.1, (v) => {
+      gravityY = v;
+      sim.set_gravity(0, v);
+    }),
   );
 
   return {
-    afterStep() {
+    // C Step checks forces then Sample::Step (:1933-1956)
+    beforeStep() {
+      const threshSq = breakForce * breakForce;
       for (let i = 0; i < joints.length; i++) {
-        const j = joints[i]!;
+        const j = joints[i];
+        if (j == null) continue;
         const ft = sim.joint_constraint_ft(j);
-        const mag = Math.hypot(ft[0]!, ft[1]!);
-        if (mag > threshold) {
+        const fx = ft[0]!;
+        const fy = ft[1]!;
+        if (fx * fx + fy * fy > threshSq) {
           sim.destroy_joint(j);
-          joints[i] = -1;
+          joints[i] = null;
+        } else {
+          forces[i] = { x: fx, y: fy };
         }
+      }
+    },
+    paintOverlay(ctx, camera, canvas) {
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "12px monospace";
+      for (let i = 0; i < joints.length; i++) {
+        if (joints[i] == null) continue;
+        const pos = worldToScreen(camera, canvas, labelPos[i]!.x, labelPos[i]!.y);
+        const f = forces[i]!;
+        ctx.fillText(`(${f.x.toFixed(1)}, ${f.y.toFixed(1)})`, pos.x, pos.y);
       }
     },
   };
 }
 
 function buildSeparation(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // Separation readout sample — weld + distance with soft params.
-  const ground = sim.add_segment(-10, 0, 10, 0);
-  const a = sim.add_body(-2, 4, 0, BODY_DYNAMIC);
-  sim.attach_box(a, 0.5, 0.5, 0, 0, 0, 1, FRIC, 0);
-  const j = sim.add_weld_joint(ground, a, -2, 3, 2, 2, 0.7, 0.7, false);
-  const b = sim.add_body(2, 5, 0, BODY_DYNAMIC);
-  sim.attach_circle(b, 0, 0, 0.5, 1, FRIC, 0);
-  const j2 = sim.add_distance_joint_ex(ground, b, 2, 8, 2, 5, 3, true, 4, 0.7, 1000, 100, false, 0, 0, false);
-  controls.appendChild(createInfoBox("Separation — linear/angular joint separation HUD (C Separation sample)."));
+  // sample_joints.cpp:1971-2194 JointSeparation — 5 joints + separation overlays
+  const ground = sim.add_body(0, 0, 0, BODY_STATIC);
+  sim.attach_segment(ground, -40, 0, 40, 0);
+
+  const bodies: number[] = [];
+  const joints: number[] = [];
+  const labelPos: { x: number; y: number }[] = [];
+
+  let positionX = -20;
+  const positionY = 10;
+
+  // distance (:2003-2022)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    bodies.push(body);
+    const length = 2;
+    const pivot1x = positionX;
+    const pivot1y = positionY + 1 + length;
+    joints.push(
+      sim.add_distance_joint_ex(
+        ground, body, pivot1x, pivot1y, positionX, positionY + 1, length,
+        false, 0, 0, 0, 0, false, 0, 0, true,
+      ),
+    );
+    labelPos.push({ x: pivot1x, y: pivot1y });
+  }
+  positionX += 10;
+
+  // prismatic (:2027-2043)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    bodies.push(body);
+    const pivotX = positionX - 1;
+    const pivotY = positionY;
+    joints.push(
+      sim.add_prismatic_joint(ground, body, pivotX, pivotY, 1, 0, false, 0, 0, false, 0, 0, false, 0, 0, true),
+    );
+    labelPos.push({ x: pivotX, y: pivotY });
+  }
+  positionX += 10;
+
+  // revolute (:2048-2064)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    bodies.push(body);
+    const pivotX = positionX - 1;
+    const pivotY = positionY;
+    joints.push(
+      sim.add_revolute_joint(ground, body, pivotX, pivotY, false, 0, 0, false, 0, 0, false, 0, 0, true),
+    );
+    labelPos.push({ x: pivotX, y: pivotY });
+  }
+  positionX += 10;
+
+  // weld (:2069-2085)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    bodies.push(body);
+    const pivotX = positionX - 1;
+    const pivotY = positionY;
+    joints.push(sim.add_weld_joint(ground, body, pivotX, pivotY, 0, 0, 0, 0, true));
+    labelPos.push({ x: pivotX, y: pivotY });
+  }
+  positionX += 10;
+
+  // wheel (:2090-2114)
+  {
+    const body = sim.add_body_ex(positionX, positionY, 0, BODY_DYNAMIC, 1, false);
+    sim.attach_box(body, 1, 1, 0, 0, 0, 1, FRIC, 0);
+    bodies.push(body);
+    const pivotX = positionX - 1;
+    const pivotY = positionY;
+    joints.push(
+      sim.add_wheel_joint(ground, body, pivotX, pivotY, 0, 1, true, -1, 1, true, 1, 10, true, 1, 0.7, true),
+    );
+    labelPos.push({ x: pivotX, y: pivotY });
+  }
+
+  let impulse = 500;
+  let jointHertz = 60;
+  let jointDamping = 2;
+  let gravityY = sim.get_gravity()[1] ?? -10;
+
+  const applyTuning = () => {
+    for (const j of joints) sim.joint_set_constraint_tuning(j, jointHertz, jointDamping);
+  };
+
+  controls.appendChild(
+    createSlider("gravity", -500, 500, gravityY, 1, (v) => {
+      gravityY = v;
+      sim.set_gravity(0, v);
+    }),
+  );
+  controls.appendChild(createSlider("magnitude", 0, 1000, impulse, 1, (v) => { impulse = v; }));
+  controls.appendChild(
+    createSlider("hertz", 15, 120, jointHertz, 1, (v) => {
+      jointHertz = v;
+      applyTuning();
+    }),
+  );
+  controls.appendChild(
+    createSlider("damping", 0, 10, jointDamping, 0.1, (v) => {
+      jointDamping = v;
+      applyTuning();
+    }),
+  );
+  controls.appendChild(
+    createButton("impulse", () => {
+      for (const b of bodies) {
+        const wp = sim.body_world_point(b, 1, 1);
+        sim.apply_linear_impulse(b, impulse, -impulse, wp[0]!, wp[1]!, true);
+      }
+    }),
+  );
+
   return {
-    readoutExtra: () => {
-      const s1 = sim.joint_separations(j);
-      const s2 = sim.joint_separations(j2);
-      return [
-        { label: "weld lin/ang", value: `${s1[0]!.toFixed(3)} / ${s1[1]!.toFixed(3)}` },
-        { label: "dist lin/ang", value: `${s2[0]!.toFixed(3)} / ${s2[1]!.toFixed(3)}` },
-      ];
+    paintOverlay(ctx, camera, canvas) {
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "12px monospace";
+      for (let i = 0; i < joints.length; i++) {
+        const sep = sim.joint_separations(joints[i]!);
+        const linear = sep[0]!;
+        const angularDeg = (180 * sep[1]!) / PI;
+        const pos = worldToScreen(camera, canvas, labelPos[i]!.x, labelPos[i]!.y);
+        ctx.fillText(`${linear.toFixed(2)} m, ${angularDeg.toFixed(1)} deg`, pos.x, pos.y);
+      }
     },
   };
 }
 
 function buildUserConstraint(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // User Constraint — soft manual constraint via impulses (sample_joints UserConstraint).
-  sim.add_segment(-20, 0, 20, 0);
-  const body = sim.add_body(0, 5, 0, BODY_DYNAMIC);
-  sim.attach_box(body, 1, 0.5, 0, 0, 0, 1, FRIC, 0);
-  let impulses = [0, 0];
-  controls.appendChild(createInfoBox("User Constraint — applies corrective impulses toward (0, 5) each step."));
+  // sample_joints.cpp:2197-2315 UserConstraint — dual-anchor soft tether solver
+  const body = sim.add_body_ex(0, 0, 0, BODY_DYNAMIC, 1, true);
+  sim.set_angular_damping(body, 0.5);
+  sim.set_linear_damping(body, 0.2);
+  sim.attach_box(body, 1, 0.5, 0, 0, 0, 20, FRIC, 0);
+
+  const localAnchors = [
+    { x: 1, y: -0.5 },
+    { x: 1, y: 0.5 },
+  ];
+  const impulses = [0, 0];
+  let lastInvTimeStep = 60;
+  const lineColors = ["#E0FFFF", "#EE82EE"]; // light cyan / violet when taut
+  const drawLines: { ax: number; ay: number; bx: number; by: number; color: string }[] = [
+    { ax: 3, ay: 0, bx: 0, by: 0, color: lineColors[0]! },
+    { ax: 3, ay: 0, bx: 0, by: 0, color: lineColors[0]! },
+  ];
+
+  const softHertz = 3;
+  const zeta = 0.7;
+  const maxForce = 1000;
+
+  controls.appendChild(
+    createInfoBox("User Constraint — soft dual-anchor tethers to (3,0); forces shown in readout."),
+  );
+
   return {
+    // C applies after Sample::Step when not paused (:2226-2303)
     afterStep(dt) {
       if (dt <= 0) return;
-      const p = sim.positions();
-      const x = p[body * 3]!;
-      const y = p[body * 3 + 1]!;
-      const dx = 0 - x;
-      const dy = 5 - y;
-      impulses = [dx * 50, dy * 50];
-      sim.apply_linear_impulse_to_center(body, impulses[0]!, impulses[1]!, true);
+      const timeStep = dt;
+      lastInvTimeStep = 1 / timeStep;
+      const omega = 2 * PI * softHertz;
+      const sigma = 2 * zeta + timeStep * omega;
+      const s = timeStep * omega * sigma;
+      const impulseCoefficient = 1 / (1 + s);
+      const massCoefficient = s * impulseCoefficient;
+      const biasCoefficient = omega / sigma;
+
+      const mass = sim.get_mass(body);
+      const invMass = mass < 0.0001 ? 0 : 1 / mass;
+      const inertiaTensor = sim.get_rotational_inertia(body);
+      const invI = inertiaTensor < 0.0001 ? 0 : 1 / inertiaTensor;
+
+      let vx = sim.get_linear_velocity(body)[0]!;
+      let vy = sim.get_linear_velocity(body)[1]!;
+      let omegaB = sim.get_angular_velocity(body);
+      const pos = sim.positions();
+      const pBx = pos[body * 3]!;
+      const pBy = pos[body * 3 + 1]!;
+
+      for (let i = 0; i < 2; i++) {
+        const anchorA = { x: 3, y: 0 };
+        const anchorB = sim.body_world_point(body, localAnchors[i]!.x, localAnchors[i]!.y);
+        const bx = anchorB[0]!;
+        const by = anchorB[1]!;
+        const dx = bx - anchorA.x;
+        const dy = by - anchorA.y;
+        const slackLength = 1;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const C = length - slackLength;
+        if (C < 0 || length < 0.001) {
+          drawLines[i] = { ax: anchorA.x, ay: anchorA.y, bx, by, color: lineColors[0]! };
+          impulses[i] = 0;
+          continue;
+        }
+        drawLines[i] = { ax: anchorA.x, ay: anchorA.y, bx, by, color: lineColors[1]! };
+        const axisX = dx / length;
+        const axisY = dy / length;
+        const rBx = bx - pBx;
+        const rBy = by - pBy;
+        const Jb = rBx * axisY - rBy * axisX;
+        const K = invMass + Jb * invI * Jb;
+        const invK = K < 0.0001 ? 0 : 1 / K;
+        const Cdot = vx * axisX + vy * axisY + Jb * omegaB;
+        const impulse = -massCoefficient * invK * (Cdot + biasCoefficient * C);
+        const appliedImpulse = Math.max(-maxForce * timeStep, Math.min(0, impulse));
+        vx += invMass * appliedImpulse * axisX;
+        vy += invMass * appliedImpulse * axisY;
+        omegaB += appliedImpulse * invI * Jb;
+        impulses[i] = appliedImpulse;
+      }
+
+      sim.set_linear_velocity(body, vx, vy);
+      sim.set_angular_velocity(body, omegaB);
+      void impulseCoefficient;
     },
-    readoutExtra: () => [
-      { label: "impulse", value: `{${impulses[0]!.toFixed(1)}, ${impulses[1]!.toFixed(1)}}` },
-    ],
+    paintOverlay(ctx, camera, canvas) {
+      const o = worldToScreen(camera, canvas, 0, 0);
+      const ox = worldToScreen(camera, canvas, 1, 0);
+      const oy = worldToScreen(camera, canvas, 0, 1);
+      ctx.strokeStyle = "#22c55e";
+      ctx.beginPath();
+      ctx.moveTo(o.x, o.y);
+      ctx.lineTo(ox.x, ox.y);
+      ctx.moveTo(o.x, o.y);
+      ctx.lineTo(oy.x, oy.y);
+      ctx.stroke();
+      for (const line of drawLines) {
+        const a = worldToScreen(camera, canvas, line.ax, line.ay);
+        const b = worldToScreen(camera, canvas, line.bx, line.by);
+        ctx.strokeStyle = line.color;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    },
+    readoutExtra: () => {
+      const f0 = impulses[0]! * lastInvTimeStep;
+      const f1 = impulses[1]! * lastInvTimeStep;
+      return [{ label: "forces", value: `${f0.toPrecision(6)}, ${f1.toPrecision(6)}` }];
+    },
   };
 }
 
 function buildDriving(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // Partial: terrain + Car::Spawn inline; no Truck / teeter extras from full C Driving.
+  // sample_joints.cpp:2318-2569 Driving — chain terrain, teeter, bridge, boxes, Car
   const ground = sim.add_body(0, 0, 0, BODY_STATIC);
-  const pts: number[] = [];
-  // Simplified ground: flat + bumps
-  pts.push(-20, 0, 20, 0);
-  let x = 20;
+
+  // Chain loop filled reverse (:2336-2367)
+  const points: number[] = new Array(25 * 2);
+  let count = 24;
+  points[count * 2] = -20;
+  points[count * 2 + 1] = -20;
+  count--;
+  points[count * 2] = -20;
+  points[count * 2 + 1] = 0;
+  count--;
+  points[count * 2] = 20;
+  points[count * 2 + 1] = 0;
+  count--;
+
   const hs = [0.25, 1, 4, 0, 0, -1, -2, -2, -1.25, 0];
+  let x = 20;
+  const dx = 5;
   for (let j = 0; j < 2; j++) {
     for (let i = 0; i < 10; i++) {
-      pts.push(x, 0, x + 5, hs[i]!);
-      x += 5;
+      points[count * 2] = x + dx;
+      points[count * 2 + 1] = hs[i]!;
+      count--;
+      x += dx;
     }
   }
-  for (let i = 0; i + 3 < pts.length; i += 4) {
-    sim.attach_segment(ground, pts[i]!, pts[i + 1]!, pts[i + 2]!, pts[i + 3]!);
-  }
-  sim.attach_segment(ground, x, 0, x + 40, 0);
-  sim.attach_segment(ground, x + 40, 0, x + 50, 5);
-  sim.attach_segment(ground, x + 60, 0, x + 100, 0);
+  points[count * 2] = x + 40;
+  points[count * 2 + 1] = 0;
+  count--;
+  points[count * 2] = x + 40;
+  points[count * 2 + 1] = -20;
+  count--;
+  sim.attach_chain(ground, points, true);
 
-  // Car at origin (car.cpp Spawn scale=1)
+  // flat after bridge / jump / corner (:2369-2387)
+  x += 80;
+  sim.attach_segment(ground, x, 0, x + 40, 0);
+  x += 40;
+  sim.attach_segment(ground, x, 0, x + 10, 5);
+  x += 20;
+  sim.attach_segment(ground, x, 0, x + 40, 0);
+  x += 40;
+  sim.attach_segment(ground, x, 0, x, 20);
+
+  // Teeter (:2390-2412)
+  {
+    const teeter = sim.add_body(140, 1, 0, BODY_DYNAMIC);
+    sim.set_angular_velocity(teeter, 1);
+    sim.attach_box(teeter, 10, 0.25, 0, 0, 0, 1, FRIC, 0);
+    sim.add_revolute_joint(
+      ground, teeter, 140, 1, true, (-8 * PI) / 180, (8 * PI) / 180,
+      false, 0, 0, false, 0, 0, false,
+    );
+  }
+
+  // Bridge N=20 (:2414-2449)
+  {
+    const N = 20;
+    let prev = ground;
+    for (let i = 0; i < N; i++) {
+      const body = sim.add_body(161 + 2 * i, -0.125, 0, BODY_DYNAMIC);
+      sim.attach_capsule(body, -1, 0, 1, 0, 0.125, 1, FRIC, 0);
+      sim.add_revolute_joint(prev, body, 160 + 2 * i, -0.125, false, 0, 0, false, 0, 0, false, 0, 0, false);
+      prev = body;
+    }
+    sim.add_revolute_joint(prev, ground, 160 + 2 * N, -0.125, false, 0, 0, true, 0, 50, false, 0, 0, false);
+  }
+
+  // Boxes (:2451-2483)
+  for (let i = 0; i < 5; i++) {
+    const box = sim.add_body(230, 0.5 + i, 0, BODY_DYNAMIC);
+    sim.attach_box(box, 0.5, 0.5, 0, 0, 0, 0.25, 0.25, 0.25);
+  }
+
+  // Car::Spawn (:2485-2493 / car.cpp:21)
   const scale = 1;
   let hertz = 5;
   let damping = 0.7;
-  let torque = 2.5;
-  let speed = 0;
-  const chassisVerts = [-1.5, -0.5, 1.5, -0.5, 1.5, 0, 0, 0.9, -1.15, 0.9, -1.5, 0.2].map(
-    (v, i) => v * 0.85 * scale * (i % 2 === 0 ? 1 : 1),
+  let torque = 5;
+  let speed = 35;
+  let throttle = 0;
+
+  const verts = [-1.5, -0.5, 1.5, -0.5, 1.5, 0, 0, 0.9, -1.15, 0.9, -1.5, 0.2].map(
+    (v) => v * 0.85 * scale,
   );
-  const chassis = sim.add_polygon(0, 1 * scale, 0, chassisVerts, 0.15 * scale, 1 / scale);
-  const rear = sim.add_body(-1 * scale, 0.35 * scale, 0, BODY_DYNAMIC);
+  const chassis = sim.add_body(0, 1 * scale, 0, BODY_DYNAMIC);
+  sim.attach_polygon(chassis, verts, 0.15 * scale, 1 / scale, 0.2, 0);
+  const rear = sim.add_body_ccd(-1 * scale, 0.35 * scale, 0, BODY_DYNAMIC, 1, false, true, true);
   sim.attach_circle_rolling(rear, 0, 0, 0.4 * scale, 2 / scale, 1.5, 0, 0.1);
-  const front = sim.add_body(1 * scale, 0.4 * scale, 0, BODY_DYNAMIC);
+  const front = sim.add_body_ccd(1 * scale, 0.4 * scale, 0, BODY_DYNAMIC, 1, false, true, true);
   sim.attach_circle_rolling(front, 0, 0, 0.4 * scale, 2 / scale, 1.5, 0, 0.1);
   const rearAxle = sim.add_wheel_joint(
-    chassis,
-    rear,
-    -1 * scale,
-    0.35 * scale,
-    0,
-    1,
-    true,
-    -0.25 * scale,
-    0.25 * scale,
-    true,
-    0,
-    torque,
-    true,
-    hertz,
-    damping,
-    false,
+    chassis, rear, -1 * scale, 0.35 * scale, 0, 1, true, -0.25 * scale, 0.25 * scale,
+    true, 0, torque, true, hertz, damping, false,
   );
   const frontAxle = sim.add_wheel_joint(
-    chassis,
-    front,
-    1 * scale,
-    0.4 * scale,
-    0,
-    1,
-    true,
-    -0.25 * scale,
-    0.25 * scale,
-    true,
-    0,
-    torque,
-    true,
-    hertz,
-    damping,
-    false,
+    chassis, front, 1 * scale, 0.4 * scale, 0, 1, true, -0.25 * scale, 0.25 * scale,
+    true, 0, torque, true, hertz, damping, false,
   );
 
   const keys = new Set<string>();
   const onKey = (e: KeyboardEvent) => {
-    if (e.type === "keydown") keys.add(e.key);
-    else keys.delete(e.key);
+    if (e.type === "keydown") keys.add(e.key.toLowerCase());
+    else keys.delete(e.key.toLowerCase());
   };
   window.addEventListener("keydown", onKey);
   window.addEventListener("keyup", onKey);
 
-  controls.appendChild(createSlider("Hertz", 0, 20, hertz, 0.5, (v) => {
-    hertz = v;
-    sim.wheel_set_spring_hertz(rearAxle, v);
-    sim.wheel_set_spring_hertz(frontAxle, v);
-  }));
-  controls.appendChild(createSlider("Damping", 0, 2, damping, 0.1, (v) => {
-    damping = v;
-    sim.wheel_set_spring_damping(rearAxle, v);
-    sim.wheel_set_spring_damping(frontAxle, v);
-  }));
-  controls.appendChild(createSlider("Torque", 0, 20, torque, 0.5, (v) => {
-    torque = v;
-    sim.wheel_set_max_motor_torque(rearAxle, v);
-    sim.wheel_set_max_motor_torque(frontAxle, v);
-  }));
   controls.appendChild(
-    createInfoBox(
-      "Partial: Driving — Car spawn + bumpy ground; WASD throttle. Missing C teeter/bridge/truck extras and chase-cam polish.",
-    ),
+    createSlider("Spring Hertz", 0, 20, hertz, 1, (v) => {
+      hertz = v;
+      sim.wheel_set_spring_hertz(rearAxle, v);
+      sim.wheel_set_spring_hertz(frontAxle, v);
+    }),
   );
+  controls.appendChild(
+    createSlider("Damping Ratio", 0, 10, damping, 0.1, (v) => {
+      damping = v;
+      sim.wheel_set_spring_damping(rearAxle, v);
+      sim.wheel_set_spring_damping(frontAxle, v);
+    }),
+  );
+  controls.appendChild(
+    createSlider("Speed", 0, 50, speed, 1, (v) => {
+      speed = v;
+      sim.wheel_set_motor_speed(rearAxle, throttle * speed);
+      sim.wheel_set_motor_speed(frontAxle, throttle * speed);
+    }),
+  );
+  controls.appendChild(
+    createSlider("Torque", 0, 10, torque, 0.1, (v) => {
+      torque = v;
+      sim.wheel_set_max_motor_torque(rearAxle, v);
+      sim.wheel_set_max_motor_torque(frontAxle, v);
+    }),
+  );
+  controls.appendChild(createInfoBox("Keys: left = a, brake = s, right = d"));
 
   return {
     beforeStep() {
-      let throttle = 0;
-      if (keys.has("a") || keys.has("ArrowLeft")) throttle = 1;
-      if (keys.has("d") || keys.has("ArrowRight")) throttle = -1;
-      speed = throttle * 35;
-      sim.wheel_set_motor_speed(rearAxle, speed);
-      sim.wheel_set_motor_speed(frontAxle, speed);
+      if (keys.has("a")) {
+        throttle = 1;
+        sim.wheel_set_motor_speed(rearAxle, speed);
+        sim.wheel_set_motor_speed(frontAxle, speed);
+      }
+      if (keys.has("s")) {
+        throttle = 0;
+        sim.wheel_set_motor_speed(rearAxle, 0);
+        sim.wheel_set_motor_speed(frontAxle, 0);
+      }
+      if (keys.has("d")) {
+        throttle = -1;
+        sim.wheel_set_motor_speed(rearAxle, -speed);
+        sim.wheel_set_motor_speed(frontAxle, -speed);
+      }
+    },
+    updateCamera(camera) {
+      const pos = sim.positions();
+      camera.centerX = pos[chassis * 3]!;
+    },
+    readoutExtra: () => {
+      const v = sim.get_linear_velocity(chassis);
+      const kph = v[0]! * 3.6;
+      return [
+        { label: "Keys", value: "a / s / d" },
+        { label: "speed in kph", value: kph.toPrecision(2) },
+      ];
     },
     dispose() {
       window.removeEventListener("keydown", onKey);
@@ -1304,30 +1662,72 @@ function buildDriving(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 }
 
 function buildDoor(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // Door — revolute hinge with motor (simplified from C Door sample).
+  // sample_joints.cpp:3277-3398 Door — single revolute spring hinge + impulse
   const ground = sim.add_body(0, 0, 0, BODY_STATIC);
-  sim.attach_box(ground, 10, 0.25, 0, 0, 0, 0, FRIC, 0);
-  const door = sim.add_body(1, 1.5, 0, BODY_DYNAMIC);
-  sim.attach_box(door, 1, 0.1, 0, 0, 0, 1, FRIC, 0);
-  let motor = true;
-  let speed = 0;
-  const j = sim.add_revolute_joint(ground, door, 0, 1.5, true, -0.5 * PI, 0.5 * PI, true, speed, 100, false, 0, 0, false);
+
+  let enableLimit = true;
+  let impulse = 50000;
+  let translationError = 0;
+  let jointHertz = 240;
+  let jointDamping = 1;
+
+  const door = sim.add_body_ex(0, 1.5, 0, BODY_DYNAMIC, 0, true);
+  sim.attach_box(door, 0.1, 1.5, 0, 0, 0, 1000, FRIC, 0);
+
+  // local frames: A (0,0), B (0,-1.5) via world pivot (0,0)
+  const j = sim.add_revolute_joint(
+    ground, door, 0, 0, true, -0.5 * PI, 0.5 * PI, false, 0, 0, true, 1, 0.5, false,
+  );
+  sim.revolute_set_target_angle(j, 0);
+  sim.joint_set_constraint_tuning(j, jointHertz, jointDamping);
+  if (!enableLimit) sim.revolute_enable_limit(j, false);
+
   controls.appendChild(
-    createCheckbox("Motor", motor, (en) => {
-      motor = en;
-      sim.revolute_enable_motor(j, en);
+    createButton("impulse", () => {
+      const wp = sim.body_world_point(door, 0, 1.5);
+      sim.apply_linear_impulse(door, impulse, 0, wp[0]!, wp[1]!, true);
+      translationError = 0;
     }),
   );
   controls.appendChild(
-    createSlider("Speed", -5, 5, speed, 0.5, (v) => {
-      speed = v;
-      sim.revolute_set_motor_speed(j, v);
+    createSlider("magnitude", 1000, 100000, impulse, 1000, (v) => {
+      impulse = v;
     }),
   );
   controls.appendChild(
-    createInfoBox("Partial: Door — single hinged panel; C Door has two-joint / latch extras not yet ported."),
+    createSlider("hertz", 15, 480, jointHertz, 1, (v) => {
+      jointHertz = v;
+      sim.joint_set_constraint_tuning(j, jointHertz, jointDamping);
+    }),
   );
-  return {};
+  controls.appendChild(
+    createSlider("damping", 0, 10, jointDamping, 0.1, (v) => {
+      jointDamping = v;
+      sim.joint_set_constraint_tuning(j, jointHertz, jointDamping);
+    }),
+  );
+  controls.appendChild(
+    createCheckbox("limit", enableLimit, (en) => {
+      enableLimit = en;
+      sim.revolute_enable_limit(j, en);
+    }),
+  );
+
+  return {
+    afterStep() {
+      const sep = sim.joint_separations(j);
+      translationError = Math.max(translationError, sep[0]!);
+    },
+    paintOverlay(ctx, camera, canvas) {
+      const wp = sim.body_world_point(door, 0, 1.5);
+      const s = worldToScreen(camera, canvas, wp[0]!, wp[1]!);
+      ctx.fillStyle = "#bdb76b"; // dark khaki
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 5, 0, 2 * PI);
+      ctx.fill();
+    },
+    readoutExtra: () => [{ label: "translation error", value: String(translationError) }],
+  };
 }
 
 function buildRagdoll(sim: SimWorld, controls: HTMLElement): SceneRuntime {
@@ -2226,6 +2626,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     sim.step(dt, transport.subSteps);
     runtime.afterStep?.(dt);
 
+    runtime.updateCamera?.(camera);
     paintSampleDraw(canvas, camera, sim);
     const ctx = canvas.getContext("2d");
     if (ctx && runtime.paintOverlay) runtime.paintOverlay(ctx, camera, canvas);

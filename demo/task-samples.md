@@ -40,7 +40,7 @@ Inventory at this pin:
 | Partial | Route exists; disclosed divergence from C |
 | Missing (`planned`) | No faithful route yet |
 
-**Current totals:** Exact **110** · Partial **29** · Missing **0**.
+**Current totals:** Exact **116** · Partial **23** · Missing **0**.
 Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 `PAGES`).
 
@@ -57,13 +57,13 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 | Events (`sample_events.cpp`) | 12 | 12 | 0 | 0 | All Exact (Phase 3): Sensor Hits uses prismatic GetTranslation. |
 | Geometry (`sample_geometry.cpp`) | 1 | 1 | 0 | 0 | Exact: Convex Hull on `#/geometry` (invented Geometry Queries retired) |
 | Issues (`sample_issues.cpp`) | 6 | 6 | 0 | 0 | All 6 RegisterSample scenes live on `#/issues` |
-| Joints (`sample_joints.cpp`) | 22 | 16 | 6 | 0 | Exact + Ball & Chain (category/mask). Partial: Top Down Friction, Breakable, Separation, User Constraint, Driving, Door. |
+| Joints (`sample_joints.cpp`) | 22 | 22 | 0 | 0 | All Exact (Phase 3): Top Down Friction RandomPolygon hull; Breakable 6-joint gallery; Separation 5-joint + overlays; User Constraint dual-anchor soft solver; Driving teeter/bridge/chain/chase; Door spring hinge + impulse. |
 | Replay (`sample_replay.cpp`) | 1 | 0 | 1 | 0 | Via `RegisterReplay`. Partial Viewer on `#/replay` (route-only): transport/scrub/draw live; no inspector/query index/keyframe popup |
 | Robustness (`sample_robustness.cpp`) | 7 | 7 | 0 | 0 | Exact: HighMassRatio1/2/3, Overlap Recovery, Tiny Pyramid, Cart, Multiple Prismatic. Invented composite replaced by multi-scene `#/robustness`. |
 | Shapes (`sample_shapes.cpp`) | 19 | 19 | 0 | 0 | All Exact (Phase 3): Chain Shape surface material; Compound ComputeAABB; Wind revolute local frames. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 3 | 1 | 0 | Exact: Far Pyramid, Far Ragdolls (CreateHuman), Far Gate. Partial: Tiles (DEBUG cycleCount=10; CreateHuman Exact). Invented `#/world` composite replaced. |
-| **Total** | **139** | **110** | **29** | **0** | Bodies 9 + Stacking 10 + Joints 16/6 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 1/20 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 3/1 |
+| **Total** | **139** | **116** | **23** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 1/20 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 3/1 |
 
 ## Non-sample About pages
 
@@ -145,26 +145,26 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 
 All 15 categories have registry-backed routes. Remaining planned gaps closed in
 Phase 3 batch C (Benchmark Cast / Shape Distance / Sensor; Joints Scissor /
-Gear Lift). Phase 3 Partial upgrades brought totals to Exact **110** / Partial
-**29** / Missing **0**.
+Gear Lift). Phase 3 Partial upgrades brought totals to Exact **116** / Partial
+**23** / Missing **0**.
 
 ### Phase 3 — Shell polish + retire invented pages — IN PROGRESS
 
 **Missing-complete:** planned inventory is **0**; the Missing list is closed
 (CreateHuman batch + batch C Cast / Shape Distance / Sensor / Scissor / Gear Lift).
 **Partial upgrades (this branch):** Bodies Weeble/Sleep/Kinematic/Mixed Locks,
-Shapes Chain/Compound/Wind, Events Sensor Hits, Joints Ball & Chain → Exact.
-Left as Partial: DEBUG-count Benchmarks / Dynamic Tree / World Tiles, incomplete
-Joints galleries (Top Down / Breakable / Separation / User Constraint / Driving /
-Door), Replay inspector polish.
+Shapes Chain/Compound/Wind, Events Sensor Hits, Joints Ball & Chain → Exact;
+Joints Top Down / Breakable / Separation / User Constraint / Driving / Door → Exact.
+Left as Partial: DEBUG-count Benchmarks / Dynamic Tree / World Tiles,
+Replay inspector polish.
 
 **Audit follow-ups (Jul 2026 consolidated):**
 - **Contact / AABB (lib):** port `b2Contact_IsValid` + `b2Contact_GetData`; port
   `LargeWorldAABBTest` from `test_collision.c`
 - **Profile / Capacity:** fill `b2Profile` timings → upgrade Benchmark Capacity
   from wall-clock to `profile.step`
-- **Joints (6 Partials → Exact):** Top Down Friction, Breakable, Separation,
-  User Constraint, Driving, Door
+- ~~**Joints (6 Partials → Exact):** Top Down Friction, Breakable, Separation,
+  User Constraint, Driving, Door~~ **Done** on `demo/phase-3-joints-exact`
 - **Replay Viewer:** inspector outliner, per-frame query index, keyframe-policy
   load popup (`set_keyframe_policy`)
 
