@@ -594,6 +594,124 @@ export interface SimWorld {
   event_counts(): Uint32Array;
   hit_events(): Float32Array;
   hit_event_user_pairs(): Int32Array;
+
+  // --- Events sample APIs (event_ops) ---
+  attach_box_ex(
+    index: number,
+    hx: number,
+    hy: number,
+    cx: number,
+    cy: number,
+    angle: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    isSensor: boolean,
+    enableSensor: boolean,
+    enableContact: boolean,
+    enableHit: boolean,
+    enablePresolve: boolean,
+    category: number,
+    mask: number,
+  ): number;
+  attach_rounded_box_ex(
+    index: number,
+    hx: number,
+    hy: number,
+    radius: number,
+    density: number,
+    isSensor: boolean,
+    enableSensor: boolean,
+  ): number;
+  attach_circle_ex(
+    index: number,
+    cx: number,
+    cy: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    rolling: number,
+    isSensor: boolean,
+    enableSensor: boolean,
+    enableContact: boolean,
+    enableHit: boolean,
+    category: number,
+    mask: number,
+  ): number;
+  attach_capsule_ex(
+    index: number,
+    c1x: number,
+    c1y: number,
+    c2x: number,
+    c2y: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    isSensor: boolean,
+    enableSensor: boolean,
+    enableContact: boolean,
+    category: number,
+    mask: number,
+  ): number;
+  attach_segment_ex(
+    index: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    isSensor: boolean,
+    enableSensor: boolean,
+    enableContact: boolean,
+    enablePresolve: boolean,
+    category: number,
+    mask: number,
+  ): number;
+  attach_chain_ex(
+    index: number,
+    points: Float32Array | number[],
+    isLoop: boolean,
+    category: number,
+    mask: number,
+    enableSensor: boolean,
+    friction: number,
+  ): void;
+  shape_enable_sensor_events(shapeIndex: number, flag: boolean): void;
+  shape_are_sensor_events_enabled(shapeIndex: number): boolean;
+  shape_is_valid(shapeIndex: number): boolean;
+  shape_index1(shapeIndex: number): number;
+  destroy_shape(shapeIndex: number, updateBodyMass: boolean): void;
+  apply_mass_from_shapes(index: number): void;
+  body_set_user_data(index: number, data: number): void;
+  body_set_name(index: number, name: string): void;
+  joint_set_user_data(index: number, data: number): void;
+  enable_platformer_presolve(playerShapeIndex: number): void;
+  clear_presolve(): void;
+  sensor_begin_events(): Int32Array;
+  sensor_end_events(): Int32Array;
+  sensor_begin_visitor_bodies(): Int32Array;
+  contact_begin_events(): Int32Array;
+  contact_end_events(): Int32Array;
+  hit_events_ex(): Float32Array;
+  body_move_events(): Float32Array;
+  joint_events(): Int32Array;
+  destroy_joint_if_valid(index: number): void;
+  contact_is_valid(index1: number, generation: number): boolean;
+  contact_manifold(index1: number, generation: number): Float32Array;
+  contact_draw_data(index1: number, generation: number): Float32Array;
+  sensor_visitor_centers(shapeIndex: number): Float32Array;
+  sensor_visitor_names(shapeIndex: number): string;
+  cast_ray_closest(ox: number, oy: number, tx: number, ty: number): Float32Array;
+  contact_begin_bodies(): Int32Array;
+  absorb_body_shapes(dest: number, src: number): void;
+  set_mass_data_scale(index: number, mass: number): void;
+  body_world_center(index: number): Float32Array;
+  shape_body_index(shapeIndex: number): number;
+  shape_enable_contact_events(shapeIndex: number, flag: boolean): void;
+  shape_enable_hit_events(shapeIndex: number, flag: boolean): void;
+  shape_enable_presolve_events(shapeIndex: number, flag: boolean): void;
+  sensor_begin_user_data_for(sensorShape: number): Uint32Array;
   add_bullet(x: number, y: number, radius: number, vx: number, vy: number): number;
   /** Prefer this over set_continuous_collision (same C API). */
   set_continuous(flag: boolean): void;

@@ -39,6 +39,7 @@ import {
  */
 import { SCENES as bodiesScenes } from "../src/demos/bodies.ts";
 import { SCENES as continuousScenes } from "../src/demos/continuous.ts";
+import { SCENES as eventsScenes } from "../src/demos/events.ts";
 import { SCENES as jointsScenes } from "../src/demos/joints.ts";
 import { SCENES as shapesScenes } from "../src/demos/shapes.ts";
 import { SCENES as stackingScenes } from "../src/demos/stacking.ts";
@@ -46,6 +47,7 @@ import { SCENES as stackingScenes } from "../src/demos/stacking.ts";
 const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string[] }> = {
   bodies: { scenes: bodiesScenes },
   continuous: { scenes: continuousScenes },
+  events: { scenes: eventsScenes },
   joints: { scenes: jointsScenes },
   shapes: { scenes: shapesScenes },
   stacking: { scenes: stackingScenes },
@@ -149,10 +151,10 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1); rest planned.
-  expect(stats.live).toBe(55);
-  expect(stats.partial).toBe(15);
-  expect(stats.planned).toBe(69);
+  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2); rest planned.
+  expect(stats.live).toBe(65);
+  expect(stats.partial).toBe(17);
+  expect(stats.planned).toBe(57);
 });
 
 test("category totals match the C pin inventory", () => {
@@ -197,6 +199,10 @@ test("category totals match the C pin inventory", () => {
       expect(categoryStats(cat).live).toBe(13);
       expect(categoryStats(cat).partial).toBe(1);
       expect(categoryStats(cat).planned).toBe(1);
+    } else if (cat === "Events") {
+      expect(categoryStats(cat).live).toBe(10);
+      expect(categoryStats(cat).partial).toBe(2);
+      expect(categoryStats(cat).planned).toBe(0);
     } else {
       expect(categoryStats(cat).planned).toBe(total);
     }
