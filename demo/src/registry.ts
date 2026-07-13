@@ -179,7 +179,8 @@ export const SAMPLES: SampleEntry[] = [
     ["Circle Impulse", "live", "events", "circle-impulse"],
   ]),
   ...cat("Geometry", "sample_geometry.cpp", [
-    ["Convex Hull", "planned"],
+    // Exact: Generate / Auto / Bulk + b2ComputeHull / b2ValidateHull + C camera.
+    ["Convex Hull", "live", "geometry", "convex-hull"],
   ]),
   ...cat("Issues", "sample_issues.cpp", [
     ["Bad Steiner", "live", "issues", "bad-steiner"],

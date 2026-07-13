@@ -43,6 +43,7 @@ import { SCENES as collisionScenes } from "../src/demos/collision.ts";
 import { SCENES as continuousScenes } from "../src/demos/continuous.ts";
 import { SCENES as determinismScenes } from "../src/demos/determinism.ts";
 import { SCENES as eventsScenes } from "../src/demos/events.ts";
+import { SCENES as geometryScenes } from "../src/demos/geometry.ts";
 import { SCENES as issuesScenes } from "../src/demos/issues.ts";
 import { SCENES as jointsScenes } from "../src/demos/joints.ts";
 import { SCENES as robustnessScenes } from "../src/demos/robustness.ts";
@@ -56,6 +57,7 @@ const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string
   continuous: { scenes: continuousScenes },
   determinism: { scenes: determinismScenes },
   events: { scenes: eventsScenes },
+  geometry: { scenes: geometryScenes },
   issues: { scenes: issuesScenes },
   joints: { scenes: jointsScenes },
   robustness: { scenes: robustnessScenes },
@@ -161,10 +163,10 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2) + Benchmark (0+17) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1); rest planned.
-  expect(stats.live).toBe(88);
+  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2) + Benchmark (0+17) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1); rest planned.
+  expect(stats.live).toBe(89);
   expect(stats.partial).toBe(36);
-  expect(stats.planned).toBe(15);
+  expect(stats.planned).toBe(14);
 });
 
 test("category totals match the C pin inventory", () => {
@@ -236,6 +238,10 @@ test("category totals match the C pin inventory", () => {
     } else if (cat === "Replay") {
       expect(categoryStats(cat).live).toBe(0);
       expect(categoryStats(cat).partial).toBe(1);
+      expect(categoryStats(cat).planned).toBe(0);
+    } else if (cat === "Geometry") {
+      expect(categoryStats(cat).live).toBe(1);
+      expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else {
       expect(categoryStats(cat).planned).toBe(total);

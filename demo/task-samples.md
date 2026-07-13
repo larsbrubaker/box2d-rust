@@ -55,7 +55,7 @@ partial until a scene is ported 1:1.
 | Continuous (`sample_continuous.cpp`) | 15 | 13 | 1 | 1 | Exact: Bounce House, Chain Drop/Slide, Segment Slide, Skinny Box, Ghost Bumps, Speculative Fallback/Sliver/Ghost, Pixel Imperfect, Restitution Threshold, Pinball, Wedge. Partial: Drop (Scene3 ragdoll needs CreateHuman). Missing: Bounce Humans (CreateHuman). Invented bullet/wall composite replaced. |
 | Determinism (`sample_determinism.cpp`) | 2 | 2 | 0 | 0 | Exact: Falling Hinges, SnapShot on `#/determinism` |
 | Events (`sample_events.cpp`) | 12 | 10 | 2 | 0 | Exact: Sensor Bookend, Foot Sensor, Contact, Platformer, Body Move, Sensor Types, Joint, Persistent Contact, Projectile Event, Circle Impulse. Partial: Sensor Funnel (no CreateHuman — donut stand-in), Sensor Hits (prismatic motor reverse via body-x approx). Invented `#/events` composite replaced. |
-| Geometry (`sample_geometry.cpp`) | 1 | 0 | 0 | 1 | Convex Hull only |
+| Geometry (`sample_geometry.cpp`) | 1 | 1 | 0 | 0 | Exact: Convex Hull on `#/geometry` (invented Geometry Queries retired) |
 | Issues (`sample_issues.cpp`) | 6 | 6 | 0 | 0 | All 6 RegisterSample scenes live on `#/issues` |
 | Joints (`sample_joints.cpp`) | 22 | 11 | 7 | 4 | Exact: Distance, Motor, Filter, Revolute, Prismatic, Wheel, Bridge, Cantilever, Motion Locks, Soft Body, Doohickey. Partial: Top Down Friction, Ball & Chain, Breakable, Separation, User Constraint, Driving, Door. Missing: Ragdoll, Scissor Lift, Gear Lift, Scale Ragdoll. Invented composite retired. |
 | Replay (`sample_replay.cpp`) | 1 | 0 | 1 | 0 | Via `RegisterReplay`. Partial Viewer on `#/replay` (route-only): transport/scrub/draw live; no inspector/query index/keyframe popup |
@@ -63,7 +63,7 @@ partial until a scene is ported 1:1.
 | Shapes (`sample_shapes.cpp`) | 19 | 16 | 3 | 0 | Exact: Chain Segment, Filter, Custom Filter, Restitution, Friction, Rolling Resistance, Conveyor Belt, Tangent Speed, Modify Geometry, Chain Link, Rounded, Ellipse, Offset, Explosion, Recreate Static, Box Restitution. Partial: Chain Shape (no chain_SetSurfaceMaterial), Compound Shapes (approx Body AABBs), Wind (revolute local frames approx). Invented shapes composite replaced. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 0 | 0 | 4 | Current `#/world` is invented |
-| **Total** | **139** | **88** | **36** | **15** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 |
+| **Total** | **139** | **89** | **36** | **14** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 |
 
 ## Invented demos to retire from Samples nav
 
@@ -75,8 +75,8 @@ registry-only. Math is under About (not Samples).
 |---|---|
 | `#/math` | No C sample — deterministic math showcase. **Retired from Samples**; About page |
 | `#/roadmap` | Meta progress page, not a C sample |
-| `#/manifolds` | **Retired from Labs** � C Manifold / Smooth Manifold live under `#/collision` |
-| Category composites (`#/world`, `#/character`, `#/geometry`) | Capability demos / harness previews � replace scene-by-scene as categories are ported. `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark`, `#/robustness`, `#/collision`, `#/issues`, `#/determinism`, `#/replay` now host C samples. |
+| `#/manifolds` | **Retired from Labs** — C Manifold / Smooth Manifold live under `#/collision` |
+| Category composites (`#/world`, `#/character`) | Capability demos / harness previews — replace scene-by-scene as categories are ported. `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark`, `#/robustness`, `#/collision`, `#/issues`, `#/determinism`, `#/replay`, `#/geometry` now host C samples. |
 
 ## Phases
 

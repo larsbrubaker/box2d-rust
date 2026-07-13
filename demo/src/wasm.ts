@@ -828,9 +828,13 @@ export interface Box2dWasm {
   compute_cos_sin(radians: number): Float32Array;
   atan2(y: number, x: number): number;
   polygon_points(sides: number, radius: number, angle: number, cx: number, cy: number): Float32Array;
-  scene_shape(index: number): Float32Array;
-  ray_cast_scene(ox: number, oy: number, tx: number, ty: number): Float32Array;
-  closest_points(bx: number, by: number): Float32Array;
+  /** Convex Hull sample (sample_geometry.cpp) — reset RNG + first Generate. */
+  geometry_hull_reset(): Float32Array;
+  /** Keyboard A/B/G as uppercase ASCII code points. */
+  geometry_hull_key(key: number): void;
+  /** One ConvexHull::Step; `advance` drives auto regenerate when not paused. */
+  geometry_hull_step(advance: boolean): Float32Array;
+  /** Labs manifolds leftover helper (route may still load). */
   collide_with_box(kind: number, bx: number, by: number, angle: number): Float32Array;
   collision_shape_distance(
     ptsA: Float32Array | number[],

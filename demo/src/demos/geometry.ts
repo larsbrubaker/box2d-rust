@@ -1,202 +1,253 @@
-// Geometry Queries — ray casts and GJK closest points tracking the cursor.
+// Geometry — Convex Hull from sample_geometry.cpp (the only RegisterSample in
+// that file). Point generation, b2ComputeHull, and b2ValidateHull run in wasm;
+// this page orbits the C camera and draws hull / input points.
 
-import { createInfoBox, createReadout, updateReadout } from "../controls.ts";
+import {
+  createButton,
+  createButtonGroup,
+  createInfoBox,
+  createReadout,
+  createSeparator,
+  updateReadout,
+} from "../controls.ts";
+import { assertRouteScenes } from "../registry.ts";
 import { getWasm } from "../wasm.ts";
 import { demoPage, fitCanvas, runSimLoop } from "./sim-common.ts";
+import {
+  createSampleTransport,
+  disposeTransport,
+  makeCamera,
+  worldToScreen,
+  type SampleCamera,
+} from "./sample-shell.ts";
 
-const GEO_SCALE = 80;
+/** Registry scene keys — must match slugify(C name) / registry.ts. */
+export const SCENES = ["convex-hull"] as const;
+export type Scene = (typeof SCENES)[number];
 
-export function init(container: HTMLElement) {
+assertRouteScenes("geometry", SCENES);
+
+const SCENE_LABEL: Record<Scene, string> = {
+  "convex-hull": "Convex Hull",
+};
+
+/** C camera (sample_geometry.cpp:25-26). */
+const CAMERA = { cx: 0.5, cy: 0.0, zoom: 25.0 * 0.3 };
+
+// C debug palette (types.h)
+const C_GRAY = "#808080";
+const C_BLUE = "#0000FF";
+const C_GREEN = "#008000";
+const C_WHITE = "#FFFFFF";
+
+interface HullFrame {
+  generation: number;
+  pointCount: number;
+  valid: boolean;
+  hullCount: number;
+  auto: boolean;
+  bulk: boolean;
+  points: Float32Array;
+  hull: Float32Array;
+}
+
+function parseFrame(data: Float32Array): HullFrame {
+  const generation = data[0]!;
+  const pointCount = data[1]! | 0;
+  const valid = data[2]! === 1.0;
+  const hullCount = data[3]! | 0;
+  const auto = data[4]! === 1.0;
+  const bulk = data[5]! === 1.0;
+  let off = 6;
+  const points = data.subarray(off, off + pointCount * 2);
+  off += pointCount * 2;
+  const hull = data.subarray(off, off + hullCount * 2);
+  return { generation, pointCount, valid, hullCount, auto, bulk, points, hull };
+}
+
+function applyCamera(camera: SampleCamera) {
+  camera.centerX = CAMERA.cx;
+  camera.centerY = CAMERA.cy;
+  camera.zoom = CAMERA.zoom;
+}
+
+function drawPoint(
+  ctx: CanvasRenderingContext2D,
+  camera: SampleCamera,
+  canvas: HTMLCanvasElement,
+  x: number,
+  y: number,
+  radiusPx: number,
+  color: string,
+) {
+  const p = worldToScreen(camera, canvas, x, y);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, radiusPx, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawHullPolygon(
+  ctx: CanvasRenderingContext2D,
+  camera: SampleCamera,
+  canvas: HTMLCanvasElement,
+  hull: Float32Array,
+  count: number,
+) {
+  if (count < 2) return;
+  ctx.beginPath();
+  for (let i = 0; i < count; i++) {
+    const p = worldToScreen(camera, canvas, hull[2 * i]!, hull[2 * i + 1]!);
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = C_GRAY;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+export function init(container: HTMLElement, _initialScene?: string) {
   const wasm = getWasm();
   const { canvas, controls } = demoPage(
     container,
-    "Geometry Queries",
-    "A ray from the left edge tracks the cursor and is cast against every shape with the " +
-      "ported b2RayCastPolygon / b2RayCastCircle / b2RayCastCapsule / b2RayCastSegment — the " +
-      "pentagon comes from b2ComputeHull. The probe triangle reports GJK closest points from " +
-      "b2ShapeDistance.",
-    "Move your mouse over the canvas",
+    "Geometry",
+    "C <code>sample_geometry.cpp</code> — Convex Hull (b2ComputeHull / b2ValidateHull).",
+    "G generate · A auto · B bulk · P pause · O step · R restart",
   );
+
+  const camera: SampleCamera = makeCamera();
+  applyCamera(camera);
+  const transport = createSampleTransport();
+
+  let frame = parseFrame(wasm.geometry_hull_reset());
 
   controls.appendChild(
     createInfoBox(
-      "Red dots are ray hits with their surface normals. The dashed green line is the " +
-        "closest-point witness between the probe triangle and the nearest shape.",
+      "Blue dots are the random input vertices; green dots are the hull. " +
+        "Gray outline is <code>b2ComputeHull</code>. Bulk mode stress-tests validation.",
     ),
   );
+  controls.appendChild(createSeparator());
+
+  // Single C sample — still expose the scene label for deep-link consistency.
+  controls.appendChild(
+    createButtonGroup(
+      SCENES.map((s) => ({ label: SCENE_LABEL[s], value: s })),
+      "convex-hull",
+      () => {
+        /* only one scene */
+      },
+    ),
+  );
+  controls.appendChild(createSeparator());
+  transport.mountControls(controls, () => {
+    frame = parseFrame(wasm.geometry_hull_reset());
+  });
+  controls.appendChild(createSeparator());
+
+  const actions = document.createElement("div");
+  actions.className = "scene-controls";
+  actions.appendChild(
+    createButton("Generate (G)", () => {
+      wasm.geometry_hull_key(0x47);
+      frame = parseFrame(wasm.geometry_hull_step(false));
+    }),
+  );
+  actions.appendChild(
+    createButton("Auto (A)", () => {
+      wasm.geometry_hull_key(0x41);
+      frame = parseFrame(wasm.geometry_hull_step(false));
+    }),
+  );
+  actions.appendChild(
+    createButton("Bulk (B)", () => {
+      wasm.geometry_hull_key(0x42);
+      frame = parseFrame(wasm.geometry_hull_step(true));
+    }),
+  );
+  controls.appendChild(actions);
+  controls.appendChild(createSeparator());
   const readout = createReadout();
   controls.appendChild(readout);
 
-  // Static scene geometry, fetched once from the Rust port.
-  const polygon = wasm.scene_shape(0);
-  const circle = wasm.scene_shape(1);
-  const capsule = wasm.scene_shape(2);
-  const segment = wasm.scene_shape(3);
+  const onKey = (e: KeyboardEvent) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    const k = e.key.toUpperCase();
+    if (k === "G") {
+      wasm.geometry_hull_key(0x47);
+      frame = parseFrame(wasm.geometry_hull_step(false));
+    } else if (k === "A") {
+      wasm.geometry_hull_key(0x41);
+      frame = parseFrame(wasm.geometry_hull_step(false));
+    } else if (k === "B") {
+      wasm.geometry_hull_key(0x42);
+      // Bulk runs inside step (C Step when m_bulk).
+      frame = parseFrame(wasm.geometry_hull_step(true));
+    }
+  };
+  window.addEventListener("keydown", onKey);
 
-  const worldToCanvas = (x: number, y: number): [number, number] => [
-    canvas.width / 2 + x * GEO_SCALE,
-    canvas.height / 2 - y * GEO_SCALE,
-  ];
-  const canvasToWorld = (px: number, py: number): [number, number] => [
-    (px - canvas.width / 2) / GEO_SCALE,
-    (canvas.height / 2 - py) / GEO_SCALE,
-  ];
-
-  let target: [number, number] = [1.0, -0.5];
-  canvas.addEventListener("mousemove", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * canvas.width;
-    const py = ((e.clientY - rect.top) / rect.height) * canvas.height;
-    target = canvasToWorld(px, py);
-  });
-
-  const ACCENT = "#2563eb";
-  const SHAPE = "#5a6170";
-  const HIT = "#dc2626";
-  const GOOD = "#15803d";
-
+  const unbindKeys = transport.bindKeys();
   const ctx = canvas.getContext("2d")!;
-
-  function moveTo(x: number, y: number) {
-    const [px, py] = worldToCanvas(x, y);
-    ctx.moveTo(px, py);
-  }
-  function lineTo(x: number, y: number) {
-    const [px, py] = worldToCanvas(x, y);
-    ctx.lineTo(px, py);
-  }
-  function dot(x: number, y: number, color: string, r = 4) {
-    const [px, py] = worldToCanvas(x, y);
-    ctx.beginPath();
-    ctx.arc(px, py, r, 0, 2 * Math.PI);
-    ctx.fillStyle = color;
-    ctx.fill();
-  }
-
-  function drawScene() {
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = SHAPE;
-    ctx.fillStyle = "rgba(90, 97, 112, 0.08)";
-
-    // Polygon
-    ctx.beginPath();
-    moveTo(polygon[0], polygon[1]);
-    for (let i = 1; i < polygon.length / 2; i++) {
-      lineTo(polygon[2 * i], polygon[2 * i + 1]);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Circle
-    {
-      const [px, py] = worldToCanvas(circle[0], circle[1]);
-      ctx.beginPath();
-      ctx.arc(px, py, circle[2] * GEO_SCALE, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    // Capsule: two circles + connecting lines
-    {
-      const [c1x, c1y] = worldToCanvas(capsule[0], capsule[1]);
-      const [c2x, c2y] = worldToCanvas(capsule[2], capsule[3]);
-      const r = capsule[4] * GEO_SCALE;
-      const angle = Math.atan2(c2y - c1y, c2x - c1x);
-      ctx.beginPath();
-      ctx.arc(c1x, c1y, r, angle + Math.PI / 2, angle - Math.PI / 2);
-      ctx.arc(c2x, c2y, r, angle - Math.PI / 2, angle + Math.PI / 2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    // Segment
-    ctx.beginPath();
-    moveTo(segment[0], segment[1]);
-    lineTo(segment[2], segment[3]);
-    ctx.stroke();
-  }
 
   const stop = runSimLoop(() => {
     fitCanvas(canvas);
+    const dt = transport.consumeStepDt();
+    const advance = dt > 0;
+    // Always step so HUD/flags stay current; auto only advances when not paused.
+    frame = parseFrame(wasm.geometry_hull_step(advance));
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawScene();
+    ctx.fillStyle = "#1a1d23";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Ray from a fixed origin on the left toward the cursor, extended 12 m.
-    const origin: [number, number] = [-5.2, 0.0];
-    const dx = target[0] - origin[0];
-    const dy = target[1] - origin[1];
-    const len = Math.hypot(dx, dy) || 1;
-    const tx = (dx / len) * 12;
-    const ty = (dy / len) * 12;
+    drawHullPolygon(ctx, camera, canvas, frame.hull, frame.hullCount);
 
-    const results = wasm.ray_cast_scene(origin[0], origin[1], tx, ty);
-
-    // Find nearest hit to clip the drawn ray.
-    let nearest = 1.0;
-    let hitCount = 0;
-    for (let i = 0; i < 4; i++) {
-      if (results[6 * i] === 1.0) {
-        hitCount++;
-        nearest = Math.min(nearest, results[6 * i + 1]);
-      }
+    for (let i = 0; i < frame.pointCount; i++) {
+      const x = frame.points[2 * i]!;
+      const y = frame.points[2 * i + 1]!;
+      drawPoint(ctx, camera, canvas, x, y, 5, C_BLUE);
+      const label = worldToScreen(camera, canvas, x + 0.1, y + 0.1);
+      ctx.fillStyle = C_WHITE;
+      ctx.font = "12px monospace";
+      ctx.fillText(String(i), label.x, label.y);
+    }
+    for (let i = 0; i < frame.hullCount; i++) {
+      drawPoint(ctx, camera, canvas, frame.hull[2 * i]!, frame.hull[2 * i + 1]!, 6, C_GREEN);
     }
 
-    ctx.strokeStyle = ACCENT;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    moveTo(origin[0], origin[1]);
-    lineTo(origin[0] + tx * nearest, origin[1] + ty * nearest);
-    ctx.stroke();
-    dot(origin[0], origin[1], ACCENT, 5);
-
-    // Hit points and normals.
-    for (let i = 0; i < 4; i++) {
-      if (results[6 * i] !== 1.0) continue;
-      const hx = results[6 * i + 2];
-      const hy = results[6 * i + 3];
-      const nx = results[6 * i + 4];
-      const ny = results[6 * i + 5];
-      dot(hx, hy, HIT);
-      ctx.strokeStyle = HIT;
-      ctx.beginPath();
-      moveTo(hx, hy);
-      lineTo(hx + nx * 0.5, hy + ny * 0.5);
-      ctx.stroke();
-    }
-
-    // GJK probe triangle at the cursor with closest-point witness line.
-    const cp = wasm.closest_points(target[0], target[1]);
-    ctx.strokeStyle = GOOD;
-    ctx.fillStyle = "rgba(21, 128, 61, 0.10)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    moveTo(target[0] - 0.4, target[1] - 0.3);
-    lineTo(target[0] + 0.4, target[1] - 0.3);
-    lineTo(target[0], target[1] + 0.4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    if (cp[4] > 0) {
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      moveTo(cp[0], cp[1]);
-      lineTo(cp[2], cp[3]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      dot(cp[0], cp[1], GOOD);
-      dot(cp[2], cp[3], GOOD);
+    // C DrawScreenTextLine overlays
+    ctx.fillStyle = C_WHITE;
+    ctx.font = "13px monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    let ty = 10;
+    ctx.fillText("Options: generate(g), auto(a), bulk(b)", 10, ty);
+    ty += 18;
+    if (!frame.valid) {
+      ctx.fillText(`generation = ${frame.generation | 0}, FAILED`, 10, ty);
+    } else {
+      ctx.fillText(
+        `generation = ${frame.generation | 0}, count = ${frame.hullCount}`,
+        10,
+        ty,
+      );
     }
 
     updateReadout(readout, [
-      { label: "Ray hits", value: `${hitCount}/4` },
-      { label: "Nearest fraction", value: nearest.toFixed(4) },
-      { label: "b2ShapeDistance", value: `${cp[4].toFixed(4)} m` },
-      { label: "GJK iterations", value: String(cp[5]) },
+      { label: "Sample", value: SCENE_LABEL["convex-hull"] },
+      { label: "Generation", value: String(frame.generation | 0) },
+      { label: "Hull count", value: frame.valid ? String(frame.hullCount) : "FAILED" },
+      { label: "Auto", value: frame.auto ? "on" : "off" },
+      { label: "Bulk", value: frame.bulk ? "on" : "off" },
     ]);
   }, readout);
 
-  return stop;
+  return () => {
+    stop();
+    unbindKeys();
+    window.removeEventListener("keydown", onKey);
+    disposeTransport(transport);
+  };
 }

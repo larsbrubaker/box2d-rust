@@ -48,8 +48,7 @@ pub fn polygon_points(sides: u32, radius: f32, angle: f32, cx: f32, cy: f32) -> 
 }
 
 // ---------------------------------------------------------------------------
-// Geometry demo: a small scene queried with the ported geometry + distance
-// modules. World units are meters; the page scales to pixels.
+// Geometry category: Convex Hull (sample_geometry.cpp) + Labs collide helper.
 
 mod collision_queries;
 mod dynamic_tree_demo;
