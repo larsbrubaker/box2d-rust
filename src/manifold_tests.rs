@@ -1,14 +1,15 @@
-// Manifold tests. Ports the LargeWorldManifoldTest from
-// box2d-cpp-reference/test/test_collision.c (the far-from-origin portion is
-// gated on double-precision, as in C), plus focused coverage of the other
-// collide functions which have no dedicated C unit test (upstream exercises
-// them through the samples app and determinism tests).
+// Manifold / collision AABB tests. Ports LargeWorldManifoldTest and
+// LargeWorldAABBTest from box2d-cpp-reference/test/test_collision.c (the
+// far-from-origin portions are gated on double-precision, as in C), plus
+// focused coverage of the other collide functions which have no dedicated C
+// unit test (upstream exercises them through the samples app and
+// determinism tests).
 //
 // SPDX-FileCopyrightText: 2025 Erin Catto
 // SPDX-License-Identifier: MIT
 
 use crate::collision::{Capsule, Circle, Segment};
-use crate::geometry::make_box;
+use crate::geometry::{compute_polygon_aabb, make_box, make_rounded_box};
 use crate::manifold::*;
 use crate::math_functions::{
     inv_mul_world_transforms, make_world_transform, offset_pos, Transform, Vec2, POS_ZERO,
@@ -82,6 +83,51 @@ fn large_world_manifold() {
 
     // Silence unused warnings in single precision.
     let _ = make_world_transform(TRANSFORM_IDENTITY);
+}
+
+/// Port of LargeWorldAABBTest (test_collision.c). Rounded-box tight AABB at
+/// the origin always runs; the far-from-origin fat-AABB checks are gated on
+/// double-precision, as in C.
+#[test]
+fn large_world_aabb() {
+    // Rounded box: 0.5 half extents plus 0.1 radius, so the tight extent is 0.6 each way
+    let box_ = make_rounded_box(0.5, 0.5, 0.1);
+
+    let aabb_origin = compute_polygon_aabb(&box_, WORLD_TRANSFORM_IDENTITY);
+    ensure_small(aabb_origin.lower_bound.x + 0.6, f32::EPSILON);
+    ensure_small(aabb_origin.lower_bound.y + 0.6, f32::EPSILON);
+    ensure_small(aabb_origin.upper_bound.x - 0.6, f32::EPSILON);
+    ensure_small(aabb_origin.upper_bound.y - 0.6, f32::EPSILON);
+
+    #[cfg(feature = "double-precision")]
+    {
+        use crate::collision::ShapeGeometry;
+        use crate::geometry::compute_fat_shape_aabb;
+
+        let d = 1.0e7_f64;
+        let xf_large = crate::math_functions::WorldTransform {
+            p: offset_pos(POS_ZERO, v(1.0e7, 1.0e7)),
+            q: ROT_IDENTITY,
+        };
+
+        // Tight world AABB still contains the 0.6 m extent
+        let tight = compute_polygon_aabb(&box_, xf_large);
+        assert!((tight.lower_bound.x as f64) <= d - 0.6);
+        assert!((tight.lower_bound.y as f64) <= d - 0.6);
+        assert!((tight.upper_bound.x as f64) >= d + 0.6);
+        assert!((tight.upper_bound.y as f64) >= d + 0.6);
+
+        // The fat helper folds the extra into the double step before the single
+        // outward rounding, so a margin smaller than a float ULP at this range
+        // survives instead of becoming a no-op subtract.
+        let extra = 0.05_f32;
+        let geometry = ShapeGeometry::Polygon(box_);
+        let fat = compute_fat_shape_aabb(&geometry, xf_large, extra);
+        assert!((fat.lower_bound.x as f64) <= d - 0.6 - (extra as f64));
+        assert!((fat.lower_bound.y as f64) <= d - 0.6 - (extra as f64));
+        assert!((fat.upper_bound.x as f64) >= d + 0.6 + (extra as f64));
+        assert!((fat.upper_bound.y as f64) >= d + 0.6 + (extra as f64));
+    }
 }
 
 #[test]
