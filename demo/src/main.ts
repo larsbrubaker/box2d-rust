@@ -85,12 +85,80 @@ function currentEntry(parsed: ParsedRoute): SampleEntry | undefined {
   return firstEntryForRoute(parsed.route);
 }
 
+/** Canonical hash for the current location (`#/` when empty). */
+function currentHash(): string {
+  const h = window.location.hash;
+  return h === "" || h === "#" ? "#/" : h;
+}
+
+function isHomeHash(hash: string = currentHash()): boolean {
+  return hash === "#/" || hash === "#" || hash === "";
+}
+
+// ---------------------------------------------------------------------------
+// Local settings — category expand/collapse + last-visited sample fallback.
+// URL hash is the primary demo identity; localStorage fills gaps only.
+// ---------------------------------------------------------------------------
+
+const STORAGE_EXPANDED = "box2d-demo.expandedCategories";
+const STORAGE_LAST_HASH = "box2d-demo.lastHash";
+
+function loadExpandedCategories(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_EXPANDED);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((x): x is string => typeof x === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveExpandedCategories(): void {
+  try {
+    localStorage.setItem(STORAGE_EXPANDED, JSON.stringify([...expanded]));
+  } catch {
+    // Quota / private mode — ignore.
+  }
+}
+
+function saveLastHash(hash: string = currentHash()): void {
+  if (isHomeHash(hash)) return;
+  try {
+    localStorage.setItem(STORAGE_LAST_HASH, hash);
+  } catch {
+    // ignore
+  }
+}
+
+function loadLastHash(): string | null {
+  try {
+    const h = localStorage.getItem(STORAGE_LAST_HASH);
+    if (!h || isHomeHash(h)) return null;
+    return h;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Empty hash (first visit / bare `/`) restores the last sample. Explicit `#/`
+ * (Home link) stays on home so refresh there does not bounce back.
+ */
+function restoreLastHashIfBare(): void {
+  if (window.location.hash !== "") return;
+  const last = loadLastHash();
+  if (!last) return;
+  history.replaceState(null, "", last);
+}
+
 // ---------------------------------------------------------------------------
 // Sidebar tree — collapsible categories in C sort order (box3d pattern).
 // ---------------------------------------------------------------------------
 
 const treeRoot = document.getElementById("sample-tree")!;
-const expanded = new Set<string>();
+const expanded = loadExpandedCategories();
 
 let g_byCat: Map<string, SampleEntry[]> | null = null;
 function byCatMemo(): Map<string, SampleEntry[]> {
@@ -206,6 +274,7 @@ treeRoot.addEventListener("click", (e) => {
     if (expanded.has(cat)) expanded.delete(cat);
     else expanded.add(cat);
     head.parentElement!.classList.toggle("open", expanded.has(cat));
+    saveExpandedCategories();
     return;
   }
   if ((e.target as HTMLElement).closest(".tree-item, .tree-home")) closeSidebar();
@@ -290,6 +359,19 @@ function renderHome(container: HTMLElement) {
 // Navigation
 // ---------------------------------------------------------------------------
 
+/** Keep tree highlight + last-hash in sync when demos `replaceState` the hash. */
+function syncNavFromHash(): void {
+  const parsed = parseHash();
+  const active = currentEntry(parsed);
+  if (active && !expanded.has(active.category)) {
+    expanded.add(active.category);
+    saveExpandedCategories();
+  }
+  renderTree(active);
+  updateLabNav(parsed.route);
+  saveLastHash();
+}
+
 async function navigate(): Promise<void> {
   const parsed = parseHash();
   const container = document.getElementById("main-content")!;
@@ -300,9 +382,21 @@ async function navigate(): Promise<void> {
   }
 
   const active = currentEntry(parsed);
-  if (active && !expanded.has(active.category)) expanded.add(active.category);
+  if (active && !expanded.has(active.category)) {
+    expanded.add(active.category);
+    saveExpandedCategories();
+  }
   renderTree(active);
   updateLabNav(parsed.route);
+  saveLastHash();
+
+  // Prefer deep links with a slug when the registry has one.
+  if (active?.route && active.slug && !parsed.slug) {
+    const href = entryHref(active);
+    if (currentHash() !== href) {
+      history.replaceState(null, "", href);
+    }
+  }
 
   if (parsed.route === "home") {
     renderHome(container);
@@ -337,4 +431,16 @@ async function navigate(): Promise<void> {
 window.addEventListener("hashchange", () => {
   void navigate();
 });
+
+// Scene dropdowns update the hash via replaceState (no hashchange). Mirror the
+// active tree item + last-visited hash without remounting the demo.
+const origReplaceState = history.replaceState.bind(history);
+history.replaceState = ((data: unknown, unused: string, url?: string | URL | null) => {
+  const before = currentHash();
+  origReplaceState(data, unused, url);
+  const after = currentHash();
+  if (before !== after) syncNavFromHash();
+}) as typeof history.replaceState;
+
+restoreLastHashIfBare();
 void navigate();
