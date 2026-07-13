@@ -145,6 +145,8 @@ export function init(container: HTMLElement, _initialScene?: string) {
   controls.appendChild(createSeparator());
   const chrome = mountSampleChrome({
     controls,
+    canvas,
+    camera,
     route: "geometry",
     category: "Geometry",
     sampleName: "Convex Hull",

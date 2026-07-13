@@ -22,6 +22,7 @@ import { getWasm, type SimPlayer, type SimWorld } from "../wasm.ts";
 import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
 import {
+  bindCameraControls,
   makeCamera,
   viewBounds,
   type SampleCamera,
@@ -275,6 +276,8 @@ export function init(container: HTMLElement) {
     status = e instanceof Error ? e.message : "record failed";
   }
 
+  const unbindCamera = bindCameraControls(camera, canvas);
+
   const stop = runSimLoop(() => {
     fitCanvas(canvas);
     if (!player) {
@@ -340,6 +343,7 @@ export function init(container: HTMLElement) {
 
   return () => {
     stop();
+    unbindCamera();
     closePlayer();
   };
 }

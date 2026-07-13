@@ -1527,6 +1527,45 @@ a.tree-item.active {
   border-color: var(--samples-border);
   color: var(--samples-text);
 }
+/* C Diagnostics drawer (main.cpp showMetrics / Sample::DrawMetrics). */
+.demo-page.samples-shell .demo-canvas-area {
+  position: relative;
+}
+.demo-page.samples-shell .sample-metrics {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 5;
+  background: rgba(30, 32, 36, 0.92);
+  border: 1px solid var(--samples-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--samples-text);
+  pointer-events: none;
+}
+.demo-page.samples-shell .sample-metrics-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--samples-muted);
+  margin-bottom: 6px;
+}
+.demo-page.samples-shell .sample-metrics-hint {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.demo-page.samples-shell .sample-metrics-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.demo-page.samples-shell .sample-metrics .sample-stat {
+  font-size: 12px;
+}
+
 @media (max-width: 768px) {
   .demo-page.samples-shell .demo-controls,
   .demo-page.samples-shell .demo-controls.samples-info-panel {

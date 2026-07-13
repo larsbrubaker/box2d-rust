@@ -573,6 +573,8 @@ export function init(container: HTMLElement, initialScene?: string) {
   chrome.afterHead.appendChild(sceneControls);
   const chrome = mountSampleChrome({
     controls,
+    canvas,
+    camera,
     route: "character",
     category: "Character",
     sampleName: SCENE_LABEL[scene],

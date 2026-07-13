@@ -750,6 +750,8 @@ export function init(container: HTMLElement, initialScene?: string) {
   );
   const chrome = mountSampleChrome({
     controls,
+    canvas,
+    camera,
     route: "stacking",
     category: "Stacking",
     sampleName: SCENE_LABELS[mode],

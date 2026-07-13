@@ -1861,6 +1861,8 @@ export function init(container: HTMLElement, initialScene?: string) {
   controls.appendChild(createSeparator());
   const chrome = mountSampleChrome({
     controls,
+    canvas,
+    camera,
     route: "benchmark",
     category: "Benchmark",
     sampleName: SCENE_LABEL[scene],
