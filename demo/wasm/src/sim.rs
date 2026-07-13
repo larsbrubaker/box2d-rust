@@ -8,6 +8,7 @@
 
 mod body_ops;
 mod event_ops;
+mod human;
 mod joint_ops;
 mod joints;
 mod mover;
@@ -55,6 +56,8 @@ pub struct SimWorld {
     pub(crate) joints: Vec<JointId>,
     /// Shape ids from attach_*_mat / filter / chain-segment (Shapes samples).
     pub(crate) shapes: Vec<ShapeId>,
+    /// Spawned ragdolls (`shared/human.c` CreateHuman).
+    pub(crate) humans: Vec<human::Human>,
     /// Character mover state (not a body; driven by the mover queries).
     pub(crate) mover_position: m::Pos,
     pub(crate) mover_velocity: m::Vec2,
@@ -120,6 +123,7 @@ impl SimWorld {
             bodies: Vec::new(),
             joints: Vec::new(),
             shapes: Vec::new(),
+            humans: Vec::new(),
             mover_position: m::POS_ZERO,
             mover_velocity: m::VEC2_ZERO,
             mover_pogo_velocity: 0.0,

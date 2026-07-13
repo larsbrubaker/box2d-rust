@@ -787,6 +787,26 @@ export interface SimWorld {
   mover_kick_draw(): Float32Array;
   mover_planes(): Float32Array;
   mover_pogo_draw(): Float32Array;
+  /** C CreateHuman — returns human demo index. */
+  create_human(
+    x: number,
+    y: number,
+    scale: number,
+    frictionTorque: number,
+    hertz: number,
+    dampingRatio: number,
+    groupIndex: number,
+    colorize: boolean,
+  ): number;
+  destroy_human(index: number): void;
+  human_set_velocity(index: number, vx: number, vy: number): void;
+  human_apply_random_angular_impulse(index: number, magnitude: number): void;
+  human_set_joint_friction_torque(index: number, torque: number): void;
+  human_set_joint_spring_hertz(index: number, hertz: number): void;
+  human_set_joint_damping_ratio(index: number, dampingRatio: number): void;
+  human_enable_sensor_events(index: number, enable: boolean): void;
+  human_set_scale(index: number, scale: number): void;
+  human_is_spawned(index: number): boolean;
   explode(x: number, y: number, radius: number, falloff: number, impulsePerLength: number): void;
   set_gravity(x: number, y: number): void;
   step(dt: number, subStepCount: number): void;

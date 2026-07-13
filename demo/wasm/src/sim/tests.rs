@@ -198,3 +198,33 @@ fn shape_ops_material_filter_wind() {
     }
     sim.enable_odd_even_filter(false);
 }
+
+#[test]
+fn create_human_spawns_and_destroys() {
+    // shared/human.c CreateHuman / DestroyHuman
+    let mut sim = SimWorld::new(-10.0);
+    sim.add_segment(-20.0, 0.0, 20.0, 0.0);
+    let h = sim.create_human(0.0, 5.0, 1.0, 0.03, 5.0, 0.5, 1, false);
+    assert!(sim.human_is_spawned(h));
+    // 1 ground + 11 bones
+    assert_eq!(sim.body_count(), 12);
+    // 10 revolute joints (hip has none)
+    assert_eq!(sim.joint_count(), 10);
+    for _ in 0..30 {
+        sim.step(1.0 / 60.0, 4);
+    }
+    sim.human_set_joint_friction_torque(h, 0.1);
+    sim.human_set_joint_spring_hertz(h, 2.0);
+    sim.human_set_joint_damping_ratio(h, 0.5);
+    sim.human_set_velocity(h, 1.0, 0.0);
+    sim.human_apply_random_angular_impulse(h, 0.1);
+    sim.human_set_scale(h, 1.5);
+    sim.human_enable_sensor_events(h, true);
+    sim.destroy_human(h);
+    assert!(!sim.human_is_spawned(h));
+    // Slot reuse
+    let h2 = sim.create_human(0.0, 8.0, 1.0, 0.05, 1.0, 0.1, 2, true);
+    assert_eq!(h2, h);
+    assert!(sim.human_is_spawned(h2));
+    sim.destroy_human(h2);
+}
