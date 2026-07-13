@@ -1,10 +1,24 @@
-// Main entry point - SPA router and WASM initialization (matches the
-// clipper2-rust demo shell).
+// Main entry — SPA shell with registry-driven Samples tree (box3d layout),
+// hash router with per-scene deep links (`#/<route>/<slug>`), and lab pages
+// for invented composites. Math lives under About, not Samples.
 
 import { loadWasm } from "./wasm.ts";
+import {
+  samplesByCategory,
+  categoryStats,
+  totalStats,
+  findByRouteSlug,
+  firstEntryForRoute,
+  entryHref,
+  type SampleEntry,
+  type CategoryStats,
+} from "./registry.ts";
 
-// Demo page modules (lazy loaded)
-type DemoInit = (container: HTMLElement) => (() => void) | void;
+type DemoInit = (
+  container: HTMLElement,
+  initialScene?: string,
+) => (() => void) | void;
+
 const demoModules: Record<string, () => Promise<{ init: DemoInit }>> = {
   bodies: () => import("./demos/bodies.ts"),
   stacking: () => import("./demos/stacking.ts"),
@@ -26,7 +40,6 @@ const demoModules: Record<string, () => Promise<{ init: DemoInit }>> = {
 
 let currentCleanup: (() => void) | null = null;
 
-// Mobile sidebar toggle
 const menuToggle = document.getElementById("menu-toggle")!;
 const sidebar = document.getElementById("sidebar")!;
 const sidebarOverlay = document.getElementById("sidebar-overlay")!;
@@ -44,33 +57,177 @@ function closeSidebar() {
 }
 
 menuToggle.addEventListener("click", () => {
-  if (sidebar.classList.contains("open")) {
-    closeSidebar();
-  } else {
-    openSidebar();
-  }
+  if (sidebar.classList.contains("open")) closeSidebar();
+  else openSidebar();
 });
-
 sidebarOverlay.addEventListener("click", closeSidebar);
 
-// Close sidebar when a nav link is clicked (mobile UX)
-document.querySelectorAll(".nav-link").forEach((link) => {
+// ---------------------------------------------------------------------------
+// Hash routing. `#/` → home. `#/<route>` → page default.
+// `#/<route>/<slug>` → deep link (Phase 2 scene select).
+// ---------------------------------------------------------------------------
+
+interface ParsedRoute {
+  route: string;
+  slug?: string;
+}
+
+function parseHash(): ParsedRoute {
+  const raw = window.location.hash.replace(/^#\/?/, "");
+  if (raw === "") return { route: "home" };
+  const parts = raw.split("/").filter(Boolean);
+  return { route: parts[0] ?? "home", slug: parts[1] };
+}
+
+function currentEntry(parsed: ParsedRoute): SampleEntry | undefined {
+  if (parsed.route === "home") return undefined;
+  if (parsed.slug) return findByRouteSlug(parsed.route, parsed.slug);
+  return firstEntryForRoute(parsed.route);
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar tree — collapsible categories in C sort order (box3d pattern).
+// ---------------------------------------------------------------------------
+
+const treeRoot = document.getElementById("sample-tree")!;
+const expanded = new Set<string>();
+
+let g_byCat: Map<string, SampleEntry[]> | null = null;
+function byCatMemo(): Map<string, SampleEntry[]> {
+  return (g_byCat ??= samplesByCategory());
+}
+const g_catStats = new Map<string, CategoryStats>();
+function catStatsMemo(category: string): CategoryStats {
+  let stats = g_catStats.get(category);
+  if (!stats) {
+    stats = categoryStats(category);
+    g_catStats.set(category, stats);
+  }
+  return stats;
+}
+
+function statusTag(status: SampleEntry["status"]): string {
+  if (status === "live") return `<span class="s-tag s-live">LIVE</span>`;
+  if (status === "partial") return `<span class="s-tag s-partial">PARTIAL</span>`;
+  return `<span class="s-tag s-planned">PLANNED</span>`;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;",
+  );
+}
+
+const itemKey = (route: string | undefined, slug: string): string => `${route ?? ""}\0${slug}`;
+const treeItemEls = new Map<string, HTMLElement>();
+const treeCatEls = new Map<string, HTMLElement>();
+let treeHomeEl: HTMLAnchorElement | null = null;
+let activeItemEl: HTMLElement | null = null;
+let treeBuilt = false;
+
+function buildTree(): void {
+  const byCat = byCatMemo();
+  const frag = document.createDocumentFragment();
+
+  const home = document.createElement("a");
+  home.href = "#/";
+  home.className = "tree-home";
+  home.textContent = "Home";
+  treeHomeEl = home;
+  frag.appendChild(home);
+
+  const samplesLabel = document.createElement("div");
+  samplesLabel.className = "lab-section";
+  samplesLabel.textContent = "Samples";
+  frag.appendChild(samplesLabel);
+
+  for (const [category, entries] of byCat) {
+    const stats = catStatsMemo(category);
+    const countClass = stats.live + stats.partial > 0 ? "has-live" : "";
+    const catDiv = document.createElement("div");
+    catDiv.className = "tree-cat";
+    catDiv.dataset.cat = category;
+    catDiv.innerHTML =
+      `<button class="tree-cat-head" data-cat="${category}">` +
+      `<span class="tree-chevron">▾</span>` +
+      `<span class="tree-cat-name">${escapeHtml(category)}</span>` +
+      `<span class="tree-cat-count ${countClass}">${stats.live + stats.partial}/${stats.total}</span>` +
+      `</button>`;
+    const body = document.createElement("div");
+    body.className = "tree-cat-body";
+    for (const e of entries) {
+      const item = document.createElement(e.route ? "a" : "span");
+      item.innerHTML = `<span class="tree-item-name">${escapeHtml(e.name)}</span>${statusTag(e.status)}`;
+      if (e.route) {
+        (item as HTMLAnchorElement).href = entryHref(e);
+        item.className = `tree-item ${e.status}`;
+        treeItemEls.set(itemKey(e.route, e.slug), item);
+      } else {
+        item.className = "tree-item planned";
+        item.title = "Not ported yet";
+      }
+      body.appendChild(item);
+    }
+    catDiv.appendChild(body);
+    treeCatEls.set(category, catDiv);
+    frag.appendChild(catDiv);
+  }
+
+  treeRoot.innerHTML = "";
+  treeRoot.appendChild(frag);
+  treeBuilt = true;
+}
+
+function renderTree(active?: SampleEntry): void {
+  if (!treeBuilt) buildTree();
+
+  const atHome = location.hash === "" || location.hash === "#/";
+  treeHomeEl?.classList.toggle("active", atHome);
+
+  if (activeItemEl) activeItemEl.classList.remove("active");
+  activeItemEl = null;
+  if (active?.route) {
+    const el = treeItemEls.get(itemKey(active.route, active.slug));
+    if (el) {
+      el.classList.add("active");
+      activeItemEl = el;
+    }
+  }
+
+  for (const [category, el] of treeCatEls) {
+    el.classList.toggle("open", expanded.has(category));
+  }
+}
+
+treeRoot.addEventListener("click", (e) => {
+  const head = (e.target as HTMLElement).closest(".tree-cat-head") as HTMLElement | null;
+  if (head) {
+    const cat = head.dataset.cat!;
+    if (expanded.has(cat)) expanded.delete(cat);
+    else expanded.add(cat);
+    head.parentElement!.classList.toggle("open", expanded.has(cat));
+    return;
+  }
+  if ((e.target as HTMLElement).closest(".tree-item, .tree-home")) closeSidebar();
+});
+
+document.querySelectorAll(".lab-link").forEach((link) => {
   link.addEventListener("click", closeSidebar);
 });
 
-function getRoute(): string {
-  const hash = window.location.hash.slice(2) || "";
-  return hash || "home";
-}
-
-function updateNav(route: string) {
-  document.querySelectorAll(".nav-link").forEach((el) => {
+function updateLabNav(route: string) {
+  document.querySelectorAll(".lab-link").forEach((el) => {
     const r = (el as HTMLElement).dataset.route;
     el.classList.toggle("active", r === route);
   });
 }
 
+// ---------------------------------------------------------------------------
+// Home
+// ---------------------------------------------------------------------------
+
 function renderHome(container: HTMLElement) {
+  const total = totalStats();
   container.innerHTML = `
     <div class="home-page">
       <div class="github-badge">
@@ -83,118 +240,44 @@ function renderHome(container: HTMLElement) {
         <h1>Box2D <span>for Rust</span></h1>
         <p>
           A pure Rust port of Erin Catto's Box2D v3 physics engine with exact behavioral
-          matching, including its cross-platform deterministic math. Explore live simulations
-          and collision demos &mdash; all running in your browser via WebAssembly compiled from
-          the Rust port.
+          matching. The Samples tree mirrors the C app inventory
+          (${total.total} entries) — ports flip to LIVE as each category lands.
         </p>
       </div>
-      <div class="feature-grid">
-        <a href="#/bodies" class="feature-card">
-          <span class="card-icon">&#9660;</span>
-          <h3>Falling Bodies</h3>
-          <p>A full simulation driven by the ported b2World_Step: boxes and balls shower into a container. Click to drop more.</p>
-        </a>
-        <a href="#/stacking" class="feature-card">
-          <span class="card-icon">&#9650;</span>
-          <h3>Stacking</h3>
-          <p>A box pyramid settles until its island falls asleep. Drop a heavy ball to wake everything back up.</p>
-        </a>
-        <a href="#/joints" class="feature-card">
-          <span class="card-icon">&#9903;</span>
-          <h3>Joints</h3>
-          <p>Falling hinge chains with limits, springs, and motors &mdash; the exact scene the determinism test hashes bit-for-bit against C.</p>
-        </a>
-        <a href="#/events" class="feature-card">
-          <span class="card-icon">&#9889;</span>
-          <h3>Events</h3>
-          <p>Contact begin/end, impact hit events, and sensor overlaps streamed from the engine's double-buffered event arrays.</p>
-        </a>
-        <a href="#/continuous" class="feature-card">
-          <span class="card-icon">&#10148;</span>
-          <h3>Continuous</h3>
-          <p>Bullets vs a thin wall. Toggle continuous collision and watch the same shot tunnel straight through.</p>
-        </a>
-        <a href="#/determinism" class="feature-card">
-          <span class="card-icon">&#8801;</span>
-          <h3>Determinism</h3>
-          <p>A live world and its snapshot clone stepped side by side &mdash; state hashes stay bit-identical every frame.</p>
-        </a>
-        <a href="#/benchmark" class="feature-card">
-          <span class="card-icon">&#9201;</span>
-          <h3>Benchmark</h3>
-          <p>A 465-body pyramid with live step timing. Watch the cost collapse when the island falls asleep.</p>
-        </a>
-        <a href="#/replay" class="feature-card">
-          <span class="card-icon">&#9199;</span>
-          <h3>Replay</h3>
-          <p>A recorded session scrubbed on a timeline &mdash; keyframe seeks land bit-identical to the original run.</p>
-        </a>
-        <a href="#/geometry" class="feature-card">
-          <span class="card-icon">&#10140;</span>
-          <h3>Geometry Queries</h3>
-          <p>Ray casts against polygons, circles, capsules, and segments, plus GJK closest points, tracking your cursor.</p>
-        </a>
-        <a href="#/manifolds" class="feature-card">
-          <span class="card-icon">&#9649;</span>
-          <h3>Contact Manifolds</h3>
-          <p>Contact points and normals from the narrow phase as you drag a shape against a fixed box.</p>
-        </a>
-        <a href="#/math" class="feature-card">
-          <span class="card-icon">&#9881;</span>
-          <h3>Deterministic Math</h3>
-          <p>Box2D's hand-rolled cosine/sine and atan2 &mdash; the foundation of cross-platform reproducibility.</p>
-        </a>
-        <a href="#/roadmap" class="feature-card">
-          <span class="card-icon">&#9776;</span>
-          <h3>Demo Roadmap</h3>
-          <p>One demo per category of the upstream samples app, flipping live as each engine module is ported.</p>
-        </a>
+      <div class="stats-row" style="margin: 24px 0">
+        <div class="stat">
+          <div class="stat-value" id="stat-version">…</div>
+          <div class="stat-label">Port version</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${total.live}</div>
+          <div class="stat-label">Exact samples</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${total.planned}</div>
+          <div class="stat-label">Still planned</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">WASM</div>
+          <div class="stat-label">In-browser</div>
+        </div>
       </div>
-
       <div class="about-section">
         <h2>About This Project</h2>
         <p>
-          This is a module-by-module Rust port of
-          <a href="https://github.com/erincatto/box2d" target="_blank">Box2D v3</a> by Erin Catto,
-          with the C test suite ported alongside each module. The full simulation pipeline is
-          running &mdash; broad-phase pairs, narrow-phase manifolds, graph-colored soft-constraint
-          solving with sub-stepping, restitution, joints, and island sleeping &mdash; plus world
-          snapshots and deterministic record/replay. Every portable test in the C suite passes,
-          with the determinism tests matching bit-for-bit.
+          Module-by-module Rust port of
+          <a href="https://github.com/erincatto/box2d" target="_blank">Box2D v3</a> by Erin Catto.
+          Lab pages under the sidebar exercise the engine today; Phase 2 replaces them with
+          1:1 C sample ports driven by the registry.
         </p>
         <p style="margin-top: 12px">
           Ported by <strong>Lars Brubaker</strong>, sponsored by
           <a href="https://www.matterhackers.com" target="_blank">MatterHackers</a>.
-          Available on <a href="https://crates.io/crates/box2d-rust" target="_blank">crates.io</a>.
-        </p>
-        <div class="stats-row">
-          <div class="stat">
-            <div class="stat-value" id="stat-version">0.1.0</div>
-            <div class="stat-label">On crates.io</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">118</div>
-            <div class="stat-label">Tests Passing</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">f32 + f64</div>
-            <div class="stat-label">Precision Modes</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">60 Hz</div>
-            <div class="stat-label">4 Sub-steps</div>
-          </div>
-        </div>
-        <p style="margin-top: 16px; color: var(--text-secondary); font-size: 0.95rem;">
-          <strong>Determinism is a feature</strong> &mdash; Box2D hand-rolls its trig functions for
-          cross-platform reproducibility. This port keeps them bit-for-bit, never substituting
-          the standard library.
         </p>
       </div>
     </div>
   `;
 
-  // Live version badge from the wasm module.
   loadWasm()
     .then((wasm) => {
       const el = document.getElementById("stat-version");
@@ -203,25 +286,34 @@ function renderHome(container: HTMLElement) {
     .catch(() => {});
 }
 
-async function navigate(route: string) {
+// ---------------------------------------------------------------------------
+// Navigation
+// ---------------------------------------------------------------------------
+
+async function navigate(): Promise<void> {
+  const parsed = parseHash();
   const container = document.getElementById("main-content")!;
 
-  // Cleanup previous demo
   if (currentCleanup) {
     currentCleanup();
     currentCleanup = null;
   }
 
-  updateNav(route);
+  const active = currentEntry(parsed);
+  if (active && !expanded.has(active.category)) expanded.add(active.category);
+  renderTree(active);
+  updateLabNav(parsed.route);
 
-  if (route === "home") {
+  if (parsed.route === "home") {
     renderHome(container);
     return;
   }
 
-  const loader = demoModules[route];
+  const loader = demoModules[parsed.route];
   if (!loader) {
-    container.innerHTML = `<div class="home-page"><h2>Page not found</h2><p>Unknown route: ${route}</p></div>`;
+    container.innerHTML = `<div class="home-page"><h2>Page not found</h2><p>Unknown route: ${escapeHtml(
+      parsed.route,
+    )}</p></div>`;
     return;
   }
 
@@ -231,16 +323,18 @@ async function navigate(route: string) {
     await loadWasm();
     const mod = await loader();
     container.innerHTML = "";
-    const cleanup = mod.init(container);
+    const scene = active?.scene ?? parsed.slug;
+    const cleanup = mod.init(container, scene);
     if (cleanup) currentCleanup = cleanup;
   } catch (e) {
     console.error("Failed to load demo:", e);
-    container.innerHTML = `<div class="home-page"><h2>Error loading demo</h2><pre style="color:var(--clip-stroke)">${e}</pre></div>`;
+    container.innerHTML = `<div class="home-page"><h2>Error loading demo</h2><pre style="color:var(--clip-stroke)">${escapeHtml(
+      String(e),
+    )}</pre></div>`;
   }
 }
 
-// Route on hash change
-window.addEventListener("hashchange", () => navigate(getRoute()));
-
-// Initial load
-navigate(getRoute());
+window.addEventListener("hashchange", () => {
+  void navigate();
+});
+void navigate();

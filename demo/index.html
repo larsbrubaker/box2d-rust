@@ -14,65 +14,34 @@
 
   <nav id="sidebar">
     <div class="sidebar-header">
-      <h1 class="logo">Box2D<span class="logo-accent">.rs</span></h1>
-      <p class="tagline">Interactive 2D Physics Demos</p>
+      <a href="#/" class="logo-link">
+        <h1 class="logo">Box2D<span class="logo-accent">.rs</span></h1>
+      </a>
+      <p class="tagline">Erin Catto's Samples · Rust port</p>
     </div>
-    <ul class="nav-list">
-      <li><a href="#/" class="nav-link active" data-route="home">
-        <span class="nav-icon">&#9670;</span> Home
-      </a></li>
-      <li class="nav-section">Simulation</li>
-      <li><a href="#/bodies" class="nav-link" data-route="bodies">
-        <span class="nav-icon">&#9660;</span> Falling Bodies
-      </a></li>
-      <li><a href="#/stacking" class="nav-link" data-route="stacking">
-        <span class="nav-icon">&#9650;</span> Stacking
-      </a></li>
-      <li><a href="#/joints" class="nav-link" data-route="joints">
-        <span class="nav-icon">&#9903;</span> Joints
-      </a></li>
-      <li><a href="#/events" class="nav-link" data-route="events">
-        <span class="nav-icon">&#9889;</span> Events
-      </a></li>
-      <li><a href="#/continuous" class="nav-link" data-route="continuous">
-        <span class="nav-icon">&#10148;</span> Continuous
-      </a></li>
-      <li><a href="#/character" class="nav-link" data-route="character">
-        <span class="nav-icon">&#9823;</span> Character
-      </a></li>
-      <li><a href="#/shapes" class="nav-link" data-route="shapes">
-        <span class="nav-icon">&#11042;</span> Shapes
-      </a></li>
-      <li><a href="#/world" class="nav-link" data-route="world">
-        <span class="nav-icon">&#10040;</span> World
-      </a></li>
-      <li><a href="#/determinism" class="nav-link" data-route="determinism">
-        <span class="nav-icon">&#8801;</span> Determinism
-      </a></li>
-      <li><a href="#/robustness" class="nav-link" data-route="robustness">
-        <span class="nav-icon">&#9635;</span> Robustness
-      </a></li>
-      <li><a href="#/benchmark" class="nav-link" data-route="benchmark">
-        <span class="nav-icon">&#9201;</span> Benchmark
-      </a></li>
-      <li><a href="#/replay" class="nav-link" data-route="replay">
-        <span class="nav-icon">&#9199;</span> Replay
-      </a></li>
-      <li class="nav-section">Collision</li>
-      <li><a href="#/geometry" class="nav-link" data-route="geometry">
-        <span class="nav-icon">&#10140;</span> Geometry Queries
-      </a></li>
-      <li><a href="#/manifolds" class="nav-link" data-route="manifolds">
-        <span class="nav-icon">&#9649;</span> Contact Manifolds
-      </a></li>
-      <li><a href="#/math" class="nav-link" data-route="math">
-        <span class="nav-icon">&#9881;</span> Deterministic Math
-      </a></li>
-      <li class="nav-section">About</li>
-      <li><a href="#/roadmap" class="nav-link" data-route="roadmap">
-        <span class="nav-icon">&#9776;</span> Demo Roadmap
-      </a></li>
-    </ul>
+    <!-- Category→sample tree, filled by main.ts from the registry. -->
+    <div id="sample-tree" class="sample-tree"></div>
+    <!-- Invented / about pages — not C RegisterSample entries. Math retired from Samples. -->
+    <div class="lab-nav">
+      <div class="lab-section">Labs</div>
+      <a href="#/bodies" class="lab-link" data-route="bodies">Falling Bodies</a>
+      <a href="#/stacking" class="lab-link" data-route="stacking">Stacking (harness)</a>
+      <a href="#/joints" class="lab-link" data-route="joints">Joints</a>
+      <a href="#/events" class="lab-link" data-route="events">Events</a>
+      <a href="#/continuous" class="lab-link" data-route="continuous">Continuous</a>
+      <a href="#/character" class="lab-link" data-route="character">Character</a>
+      <a href="#/shapes" class="lab-link" data-route="shapes">Shapes</a>
+      <a href="#/world" class="lab-link" data-route="world">World</a>
+      <a href="#/determinism" class="lab-link" data-route="determinism">Determinism</a>
+      <a href="#/robustness" class="lab-link" data-route="robustness">Robustness</a>
+      <a href="#/benchmark" class="lab-link" data-route="benchmark">Benchmark</a>
+      <a href="#/replay" class="lab-link" data-route="replay">Replay</a>
+      <a href="#/geometry" class="lab-link" data-route="geometry">Geometry Queries</a>
+      <a href="#/manifolds" class="lab-link" data-route="manifolds">Contact Manifolds</a>
+      <div class="lab-section">About</div>
+      <a href="#/math" class="lab-link" data-route="math">Deterministic Math</a>
+      <a href="#/roadmap" class="lab-link" data-route="roadmap">Demo Roadmap</a>
+    </div>
     <div class="sidebar-footer">
       <p><a href="https://github.com/larsbrubaker/box2d-rust" target="_blank">Source on GitHub</a></p>
       <p>Rust port of <a href="https://github.com/erincatto/box2d" target="_blank">Box2D v3</a></p>

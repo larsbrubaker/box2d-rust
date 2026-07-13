@@ -67,16 +67,16 @@ partial until a scene is ported 1:1.
 
 ## Invented demos to retire from Samples nav
 
-These routes exist today but are **not** C `RegisterSample` entries. Keep them
-reachable as about/lab pages if useful, but remove them from the Samples tree
-once registry-driven nav lands:
+These routes exist today but are **not** C `RegisterSample` entries. Phase 1
+moved them under **Labs** / **About** in the sidebar; the Samples tree is
+registry-only. Math is under About (not Samples).
 
 | Route | Why |
 |---|---|
-| `#/math` | No C sample — deterministic math showcase. Retire from Samples nav; may remain as a non-sample about page |
+| `#/math` | No C sample — deterministic math showcase. **Retired from Samples**; About page |
 | `#/roadmap` | Meta progress page, not a C sample |
 | `#/manifolds` | Invented collision/manifold playground; C's Manifold / Smooth Manifold live under **Collision** |
-| Category composites (`#/bodies`, `#/stacking`, `#/joints`, `#/events`, `#/continuous`, `#/shapes`, `#/world`, `#/determinism`, `#/robustness`, `#/benchmark`, `#/character`, `#/geometry`, `#/replay`) | Capability demos, not 1:1 ports — replace scene-by-scene as categories are ported |
+| Category composites (`#/bodies`, `#/stacking`, `#/joints`, `#/events`, `#/continuous`, `#/shapes`, `#/world`, `#/determinism`, `#/robustness`, `#/benchmark`, `#/character`, `#/geometry`, `#/replay`) | Capability demos / harness previews — replace scene-by-scene as categories are ported |
 
 ## Phases
 
@@ -86,24 +86,35 @@ once registry-driven nav lands:
 - [x] `demo/tests/registry.test.ts` — internal consistency + empty `PAGES` bidirectional scaffold
 - [x] This tracker
 
-### Phase 1 — Harness parity
+### Phase 1 — Harness parity — DONE on `demo/phase-1-harness`
 
 Structural blockers before faithful sample ports:
 
-- Shared sample harness (camera / view defaults matching C `SetView`, pause/reset,
-  debug draw flags, info panel, grab/select if applicable)
-- WASM bindings for per-sample construction APIs still missing or incomplete
-  (shape/joint helpers, sensors, continuous toggles, world draw dump, etc.)
-- Registry-driven Samples menu + deep links (`#/<route>/<slug>`) replacing the
-  flat invented nav
-- Wire `assertRouteScenes` + export `SCENES` on the first multi-scene page; add
-  that route to `PAGES` in the parity test
+- [x] Shared sample harness (`demo/src/demos/sample-shell.ts`): pause / single-step /
+  restart (P/O/R), Hertz + sub-steps, C camera (`center` + `zoom` half-height)
+- [x] Mouse grab via motor joint with C spring values (hertz 7.5, damping 1.0,
+  force scale 100) — `demo/wasm/src/interact/` (box3d layout)
+- [x] Incremental engine-driven debug draw (`b2World_Draw` → canvas adapter);
+  solids + lines landed. **Deferred:** contacts, mass, bounds, text, chain
+  normals, graph colors, islands, joint extras, view-flag menu bar
+- [x] Registry-driven Samples tree (`#sample-tree`) + deep links
+  (`#/<route>/<slug>`); Math retired to About; invented composites under Labs
+- [x] `assertRouteScenes` scaffolding — `stacking.ts` exports empty `SCENES` and
+  calls it; `PAGES` stays empty until the first live/partial multi-scene row
+- [x] `bun test` wired in CI (`ci.yml` + `deploy-demo.yml`); live/partial ↔
+  scene/PAGES contract with Replay route-only exception
+
+**Bindings added on this branch (coordinator: reconcile vs `demo/bindings-sample-apis`):**
+`SimWorld.mouse_down/move/up/active`, `set_grab_force_scale`, `collect_draw`,
+`draw_polygons/circles/capsules/lines`. Shared surface: `demo/wasm/src/interact/`.
 
 ### Phase 2 — Category ports
 
 Port one C category at a time (Bodies / Stacking recommended first — small and
 core). For each sample: flip `planned` → `live`/`partial`, set `route`+`scene`,
 implement the scene, keep the parity test green. Update the table above.
+When the first multi-scene page gains live rows: fill `SCENES`, add the route to
+`PAGES` in `registry.test.ts`.
 
 ### Phase 3 — Shell polish + retire invented pages
 
