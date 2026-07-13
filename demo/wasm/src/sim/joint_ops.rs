@@ -423,14 +423,21 @@ impl SimWorld {
         joint_def.base.local_frame_a.p = to_pos(Vec2 { x: ax, y: ay });
         joint_def.base.local_frame_b.p = to_pos(Vec2 { x: bx, y: by });
         joint_def.base.collide_connected = collide_connected;
-        joint_def.length = if length_override > 0.0 {
-            length_override
+        if length_override > 0.0 {
+            joint_def.length = length_override;
         } else {
-            length(sub_pos(
-                to_pos(Vec2 { x: bx, y: by }),
+            use box2d_rust::body::body_get_transform;
+            use box2d_rust::math_functions::transform_world_point;
+            let wa = transform_world_point(
+                body_get_transform(&self.world, joint_def.base.body_id_a),
                 to_pos(Vec2 { x: ax, y: ay }),
-            ))
-        };
+            );
+            let wb = transform_world_point(
+                body_get_transform(&self.world, joint_def.base.body_id_b),
+                to_pos(Vec2 { x: bx, y: by }),
+            );
+            joint_def.length = length(sub_pos(wb, wa));
+        }
         joint_def.enable_spring = enable_spring;
         joint_def.hertz = hertz;
         joint_def.damping_ratio = damping_ratio;

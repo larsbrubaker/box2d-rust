@@ -5,6 +5,7 @@
 
 import {
   createButton,
+  createCheckbox,
   createDropdown,
   createInfoBox,
   createReadout,
@@ -22,10 +23,11 @@ import {
   makeCamera,
   screenToWorld,
   viewBounds,
+  worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
 
-/** Registry scene keys — Cast / Shape Distance / Sensor stay planned. */
+/** Registry scene keys — all Benchmark RegisterSample scenes. */
 export const SCENES = [
   "barrel",
   "barrel-2-4",
@@ -41,8 +43,11 @@ export const SCENES = [
   "smash",
   "large-compounds",
   "kinematic",
+  "cast",
   "spinner",
   "rain",
+  "shape-distance",
+  "sensor",
   "capacity",
   "junkyard",
 ] as const;
@@ -66,8 +71,11 @@ const SCENE_LABEL: Record<Scene, string> = {
   smash: "Smash",
   "large-compounds": "Large Compounds",
   kinematic: "Kinematic",
+  cast: "Cast",
   spinner: "Spinner",
   rain: "Rain",
+  "shape-distance": "Shape Distance",
+  sensor: "Sensor",
   capacity: "Capacity",
   junkyard: "Junkyard",
 };
@@ -89,8 +97,13 @@ const SCENE_NOTE: Record<Scene, string> = {
   smash: "DEBUG 20×10 (C release 120×80). CreateSmash; zero gravity.",
   "large-compounds": "DEBUG ground 100, span/count 5 (C release 200 / 20 / 5).",
   kinematic: "DEBUG span 20 (C release 100). One kinematic compound spinner.",
+  cast: "DEBUG 100×100 grid / 100 queries (C release 1000×1000 / 10000). sample_benchmark.cpp Cast.",
   spinner: "DEBUG 499 fill bodies (C release 6076). CreateSpinner; chain friction default (C 0.1).",
   rain: "DEBUG gridCount=200, 3×10×2 humans (C release 500 / 5×40×5). CreateRain / StepRain.",
+  "shape-distance":
+    "DEBUG count 100 (C release 10000). Free b2ShapeDistance via collision_shape_distance.",
+  sensor:
+    "Exact: 40×40 sensors + custom filter row + active kill strip. sample_benchmark.cpp Sensor.",
   capacity:
     "Spawns 200 boxes every 32 steps until wall-clock step >20ms for 60 frames (C uses b2Profile.step).",
   junkyard: "DEBUG rowCount 2 (C release 40). CreateJunkyard + StepJunkyard pusher.",
@@ -112,8 +125,11 @@ const CAMERAS: Record<Scene, { cx: number; cy: number; zoom: number }> = {
   smash: { cx: 60.0, cy: 6.0, zoom: 25.0 * 1.6 },
   "large-compounds": { cx: 18.0, cy: 115.0, zoom: 25.0 * 5.5 },
   kinematic: { cx: 0.0, cy: 0.0, zoom: 150.0 },
+  cast: { cx: 500.0, cy: 500.0, zoom: 25.0 * 21.0 },
   spinner: { cx: 0.0, cy: 32.0, zoom: 42.0 },
   rain: { cx: 0.0, cy: 110.0, zoom: 125.0 },
+  "shape-distance": { cx: 0.0, cy: 0.0, zoom: 3.0 },
+  sensor: { cx: 0.0, cy: 105.0, zoom: 125.0 },
   capacity: { cx: 0.0, cy: 150.0, zoom: 200.0 },
   junkyard: { cx: 8.0, cy: 25.0, zoom: 60.0 },
 };
@@ -127,6 +143,11 @@ interface SceneRuntime {
   beforeStep?: (dt: number) => void;
   afterStep?: (dt: number) => void;
   readoutExtra?: () => { label: string; value: string }[];
+  paintOverlay?: (
+    ctx: CanvasRenderingContext2D,
+    camera: SampleCamera,
+    canvas: HTMLCanvasElement,
+  ) => void;
   dispose?: () => void;
 }
 
@@ -152,7 +173,13 @@ function makeRng(seed = 42) {
     const r = (next() & 0x7fff) / 0x7fff;
     return (1 - r) * lo + r * hi;
   };
-  return { next, floatRange };
+  /** C RandomFloat — [-1, 1]. */
+  const float = () => floatRange(-1, 1);
+  const intRange = (lo: number, hi: number) => {
+    const r = (next() & 0x7fff) / 0x7fff;
+    return lo + Math.floor(r * (hi - lo + 1));
+  };
+  return { next, floatRange, float, intRange };
 }
 
 function addBarrelGround(sim: SimWorld, wallExtent: number) {
@@ -1141,10 +1168,573 @@ function buildJunkyard(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 // ---------------------------------------------------------------------------
+// Cast / Shape Distance / Sensor — previously Missing
+// ---------------------------------------------------------------------------
+
+const COLOR_BOX2D_BLUE = 0x30aebf;
+const COLOR_BOX2D_YELLOW = 0xffee8c;
+const COLOR_BOX2D_GREEN = 0x8cc924;
+const COLOR_FUCHSIA = 0xff00ff;
+const COLOR_LIME = 0x00ff00;
+
+function buildCast(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+  // sample_benchmark.cpp:1199-1581 — DEBUG grid/sample counts
+  type QueryKind = "ray" | "circle" | "overlap";
+  let queryType: QueryKind = "circle";
+  let rowCount = 100;
+  let columnCount = 100;
+  let fill = 0.1;
+  let grid = 1.0;
+  let ratio = 5.0;
+  let topDown = false;
+  let radius = 0.1;
+  let drawIndex = 0;
+  let minTime = 1e6;
+  let buildTime = 0;
+  let lastHit = 0;
+  let lastNode = 0;
+  let lastLeaf = 0;
+  let lastMs = 0;
+  const sampleCount = 100;
+  const origins: { x: number; y: number }[] = [];
+  const translations: { x: number; y: number }[] = [];
+  const gridBodies: number[] = [];
+
+  let drawHit = false;
+  let drawPx = 0;
+  let drawPy = 0;
+  let drawFrac = 1;
+  const overlapPts: { x: number; y: number }[] = [];
+
+  function precomputeRays() {
+    const rng = makeRng(1234);
+    origins.length = 0;
+    translations.length = 0;
+    const extent = rowCount * grid;
+    for (let i = 0; i < sampleCount; ++i) {
+      const sx = rng.floatRange(0, extent);
+      const sy = rng.floatRange(0, extent);
+      const ex = rng.floatRange(0, extent);
+      const ey = rng.floatRange(0, extent);
+      origins.push({ x: sx, y: sy });
+      translations.push({ x: ex - sx, y: ey - sy });
+    }
+    drawIndex = drawIndex % sampleCount;
+  }
+
+  function buildGrid() {
+    for (const id of gridBodies) {
+      if (sim.is_body_alive(id)) sim.destroy_body(id);
+    }
+    gridBodies.length = 0;
+    const rng = makeRng(1234);
+    const t0 = performance.now();
+    let y = 0;
+    for (let i = 0; i < rowCount; ++i) {
+      let x = 0;
+      for (let j = 0; j < columnCount; ++j) {
+        if (rng.floatRange(0, 1) <= fill) {
+          const b = sim.add_body(x, y, 0, BODY_STATIC);
+          const r = rng.floatRange(1, ratio);
+          const half = rng.floatRange(0.05, 0.25);
+          const hx = rng.float() > 0 ? r * half : half;
+          const hy = rng.float() > 0 ? half : r * half;
+          const cat = rng.intRange(0, 2);
+          const color =
+            cat === 0 ? COLOR_BOX2D_BLUE : cat === 1 ? COLOR_BOX2D_YELLOW : COLOR_BOX2D_GREEN;
+          sim.attach_box_category_color(b, hx, hy, 1 << cat, color);
+          gridBodies.push(b);
+        }
+        x += grid;
+      }
+      y += grid;
+    }
+    if (topDown) sim.rebuild_static_tree();
+    buildTime = performance.now() - t0;
+    minTime = 1e6;
+  }
+
+  precomputeRays();
+  buildGrid();
+
+  controls.appendChild(
+    createDropdown(
+      "Query",
+      [
+        { value: "ray", text: "Ray" },
+        { value: "circle", text: "Circle" },
+        { value: "overlap", text: "Overlap" },
+      ],
+      queryType,
+      (v) => {
+        queryType = v as QueryKind;
+        radius = queryType === "overlap" ? 5.0 : 0.1;
+        minTime = 1e6;
+      },
+    ),
+  );
+  controls.appendChild(
+    createSlider("rows", 0, 100, rowCount, 1, (v) => {
+      rowCount = v;
+      precomputeRays();
+      buildGrid();
+    }),
+  );
+  controls.appendChild(
+    createSlider("columns", 0, 100, columnCount, 1, (v) => {
+      columnCount = v;
+      precomputeRays();
+      buildGrid();
+    }),
+  );
+  controls.appendChild(
+    createSlider("fill", 0, 1, fill, 0.01, (v) => {
+      fill = v;
+      buildGrid();
+    }),
+  );
+  controls.appendChild(
+    createSlider("grid", 0.5, 2, grid, 0.01, (v) => {
+      grid = v;
+      precomputeRays();
+      buildGrid();
+    }),
+  );
+  controls.appendChild(
+    createSlider("ratio", 1, 10, ratio, 0.01, (v) => {
+      ratio = v;
+      buildGrid();
+    }),
+  );
+  controls.appendChild(
+    createCheckbox("top down", topDown, (v) => {
+      topDown = v;
+      buildGrid();
+    }),
+  );
+  controls.appendChild(
+    createButton("Draw Next", () => {
+      drawIndex = (drawIndex + 1) % sampleCount;
+    }),
+  );
+
+  return {
+    afterStep: (dt) => {
+      if (dt <= 0) return;
+      let hitCount = 0;
+      let nodeVisits = 0;
+      let leafVisits = 0;
+      drawHit = false;
+      overlapPts.length = 0;
+      const t0 = performance.now();
+      if (queryType === "ray") {
+        for (let i = 0; i < sampleCount; ++i) {
+          const o = origins[i]!;
+          const t = translations[i]!;
+          const r = sim.cast_ray_closest_mask(o.x, o.y, t.x, t.y, 1);
+          nodeVisits += r[6]!;
+          leafVisits += r[7]!;
+          hitCount += r[0]! > 0 ? 1 : 0;
+          if (i === drawIndex) {
+            drawHit = r[0]! > 0;
+            drawPx = r[1]!;
+            drawPy = r[2]!;
+          }
+        }
+      } else if (queryType === "circle") {
+        for (let i = 0; i < sampleCount; ++i) {
+          const o = origins[i]!;
+          const t = translations[i]!;
+          const r = sim.cast_circle_closest_mask(o.x, o.y, radius, t.x, t.y, 1);
+          nodeVisits += r[4]!;
+          leafVisits += r[5]!;
+          hitCount += r[0]! > 0 ? 1 : 0;
+          if (i === drawIndex) {
+            drawHit = r[0]! > 0;
+            drawPx = r[1]!;
+            drawPy = r[2]!;
+            drawFrac = r[3]!;
+          }
+        }
+      } else {
+        for (let i = 0; i < sampleCount; ++i) {
+          const o = origins[i]!;
+          const r = sim.overlap_aabb_centers_mask(o.x, o.y, radius, radius, 1);
+          nodeVisits += r[0]!;
+          leafVisits += r[1]!;
+          const count = r[2]!;
+          hitCount += count;
+          if (i === drawIndex) {
+            for (let k = 0; k < count; ++k) {
+              overlapPts.push({ x: r[3 + k * 2]!, y: r[4 + k * 2]! });
+            }
+          }
+        }
+      }
+      lastMs = performance.now() - t0;
+      minTime = Math.min(minTime, lastMs);
+      lastHit = hitCount;
+      lastNode = nodeVisits;
+      lastLeaf = leafVisits;
+    },
+    readoutExtra: () => [
+      { label: "build ms", value: buildTime.toFixed(2) },
+      { label: "hits / nodes / leaves", value: `${lastHit} / ${lastNode} / ${lastLeaf}` },
+      { label: "total ms", value: lastMs.toFixed(3) },
+      { label: "min ms", value: minTime.toFixed(3) },
+      {
+        label: "ave us",
+        value: ((1000 * minTime) / sampleCount).toFixed(2),
+      },
+    ],
+    paintOverlay: (ctx, camera, canvas) => {
+      const o = origins[drawIndex];
+      const t = translations[drawIndex];
+      if (!o || !t) return;
+      if (queryType === "overlap") {
+        const lowerX = Math.floor(o.x - radius);
+        const lowerY = Math.floor(o.y - radius);
+        const upperX = Math.ceil(o.x + radius);
+        const upperY = Math.ceil(o.y + radius);
+        const a = worldToScreen(camera, canvas, lowerX, lowerY);
+        const b = worldToScreen(camera, canvas, upperX, upperY);
+        ctx.strokeStyle = "#fff";
+        ctx.strokeRect(a.x, b.y, b.x - a.x, a.y - b.y);
+        for (const p of overlapPts) {
+          const s = worldToScreen(camera, canvas, p.x, p.y);
+          ctx.fillStyle = "#ff69b4";
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        return;
+      }
+      const p1 = worldToScreen(camera, canvas, o.x, o.y);
+      const p2 = worldToScreen(camera, canvas, o.x + t.x, o.y + t.y);
+      ctx.strokeStyle = "#fff";
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+      ctx.fillStyle = "#0f0";
+      ctx.beginPath();
+      ctx.arc(p1.x, p1.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#f00";
+      ctx.beginPath();
+      ctx.arc(p2.x, p2.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      if (drawHit) {
+        if (queryType === "circle") {
+          const cx = o.x + drawFrac * t.x;
+          const cy = o.y + drawFrac * t.y;
+          const c = worldToScreen(camera, canvas, cx, cy);
+          const ppm = Math.abs(
+            worldToScreen(camera, canvas, cx + radius, cy).x - c.x,
+          );
+          ctx.strokeStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, ppm, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        const h = worldToScreen(camera, canvas, drawPx, drawPy);
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  };
+}
+
+function octagonVerts(radius: number): number[] {
+  const pts: number[] = [];
+  const q = (2 * PI) / 8;
+  let x = radius;
+  let y = 0;
+  pts.push(x, y);
+  for (let i = 1; i < 8; ++i) {
+    const nx = Math.cos(q) * x - Math.sin(q) * y;
+    const ny = Math.sin(q) * x + Math.cos(q) * y;
+    x = nx;
+    y = ny;
+    pts.push(x, y);
+  }
+  return pts;
+}
+
+function invMulWorld(
+  ax: number,
+  ay: number,
+  aa: number,
+  bx: number,
+  by: number,
+  ba: number,
+): { tx: number; ty: number; angle: number } {
+  const c = Math.cos(aa);
+  const s = Math.sin(aa);
+  const dx = bx - ax;
+  const dy = by - ay;
+  return {
+    tx: c * dx + s * dy,
+    ty: -s * dx + c * dy,
+    angle: ba - aa,
+  };
+}
+
+function buildShapeDistance(sim: SimWorld, controls: HTMLElement, wasm: ReturnType<typeof getWasm>): SceneRuntime {
+  // sample_benchmark.cpp:1667-1798 — DEBUG count 100
+  const count = 100;
+  const vertsA = octagonVerts(0.5);
+  const vertsB = octagonVerts(0.5);
+  const radiusA = 0.0;
+  const radiusB = 0.1;
+  const xfA: { x: number; y: number; a: number }[] = [];
+  const xfB: { x: number; y: number; a: number }[] = [];
+  const outputs: {
+    pax: number;
+    pay: number;
+    pbx: number;
+    pby: number;
+    dist: number;
+    iter: number;
+    nx: number;
+    ny: number;
+  }[] = [];
+  let drawIndex = 0;
+  let minMs = Number.POSITIVE_INFINITY;
+  let lastAveIter = 0;
+
+  const rng = makeRng(42);
+  for (let i = 0; i < count; ++i) {
+    xfA.push({
+      x: rng.floatRange(-0.1, 0.1),
+      y: rng.floatRange(-0.1, 0.1),
+      a: rng.floatRange(-PI, PI),
+    });
+    xfB.push({
+      x: rng.floatRange(0.25, 2.0),
+      y: rng.floatRange(0.25, 2.0),
+      a: rng.floatRange(-PI, PI),
+    });
+    outputs.push({ pax: 0, pay: 0, pbx: 0, pby: 0, dist: 0, iter: 0, nx: 0, ny: 0 });
+  }
+
+  // Visual stand-ins for the draw-index pair (empty world otherwise).
+  const bodyA = sim.add_body(0, 0, 0, BODY_KINEMATIC);
+  sim.attach_polygon(bodyA, vertsA, radiusA, 0, 0.3, 0);
+  const bodyB = sim.add_body(1, 0, 0, BODY_KINEMATIC);
+  sim.attach_polygon(bodyB, vertsB, radiusB, 0, 0.3, 0);
+
+  controls.appendChild(
+    createSlider("draw index", 0, count - 1, drawIndex, 1, (v) => {
+      drawIndex = v;
+    }),
+  );
+
+  return {
+    afterStep: (dt) => {
+      if (dt <= 0) return;
+      let totalIter = 0;
+      const t0 = performance.now();
+      for (let i = 0; i < count; ++i) {
+        const a = xfA[i]!;
+        const b = xfB[i]!;
+        const rel = invMulWorld(a.x, a.y, a.a, b.x, b.y, b.a);
+        const out = wasm.collision_shape_distance(
+          vertsA,
+          radiusA,
+          vertsB,
+          radiusB,
+          rel.tx,
+          rel.ty,
+          rel.angle,
+          true,
+        );
+        outputs[i] = {
+          pax: out[0]!,
+          pay: out[1]!,
+          pbx: out[2]!,
+          pby: out[3]!,
+          dist: out[4]!,
+          iter: out[5]!,
+          nx: out[6]!,
+          ny: out[7]!,
+        };
+        totalIter += out[5]!;
+      }
+      const ms = performance.now() - t0;
+      minMs = Math.min(minMs, ms);
+      lastAveIter = totalIter / count;
+      const da = xfA[drawIndex]!;
+      const db = xfB[drawIndex]!;
+      sim.set_transform(bodyA, da.x, da.y, da.a);
+      sim.set_transform(bodyB, db.x, db.y, db.a);
+    },
+    readoutExtra: () => {
+      const o = outputs[drawIndex]!;
+      return [
+        { label: "count", value: String(count) },
+        {
+          label: "min ms / ave us",
+          value: `${minMs.toFixed(3)} / ${((1000 * minMs) / count).toFixed(2)}`,
+        },
+        { label: "ave iterations", value: lastAveIter.toFixed(2) },
+        { label: "distance", value: o.dist.toFixed(4) },
+      ];
+    },
+    paintOverlay: (ctx, camera, canvas) => {
+      const a = xfA[drawIndex]!;
+      const o = outputs[drawIndex]!;
+      const c = Math.cos(a.a);
+      const s = Math.sin(a.a);
+      const wxA = a.x + c * o.pax - s * o.pay;
+      const wyA = a.y + s * o.pax + c * o.pay;
+      const wxB = a.x + c * o.pbx - s * o.pby;
+      const wyB = a.y + s * o.pbx + c * o.pby;
+      const nx = c * o.nx - s * o.ny;
+      const ny = s * o.nx + c * o.ny;
+      const pA = worldToScreen(camera, canvas, wxA, wyA);
+      const pB = worldToScreen(camera, canvas, wxB, wyB);
+      const pN = worldToScreen(camera, canvas, wxA + 0.5 * nx, wyA + 0.5 * ny);
+      ctx.strokeStyle = "#696969";
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.lineTo(pB.x, pB.y);
+      ctx.stroke();
+      ctx.strokeStyle = "#ff0";
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.lineTo(pN.x, pN.y);
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      for (const p of [pA, pB]) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  };
+}
+
+function buildSensor(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+  // sample_benchmark.cpp:1808-2023 — Exact 40×40
+  const columnCount = 40;
+  const rowCount = 40;
+  const filterRow = rowCount >> 1;
+  sim.enable_sensor_row_filter(true, filterRow);
+
+  const ground = sim.add_body(0, 0, 0, BODY_STATIC);
+  const activeUd = sim.pack_sensor_user_data(0, true);
+  {
+    const gridSize = 3.0;
+    let x = -40.0 * gridSize;
+    for (let i = 0; i < 81; ++i) {
+      sim.attach_sensor_ud(
+        ground,
+        0.5 * gridSize,
+        0.5 * gridSize,
+        x,
+        0,
+        0,
+        0,
+        true,
+        true,
+        false,
+        activeUd,
+        0,
+      );
+      x += gridSize;
+    }
+  }
+
+  const rng = makeRng(42);
+  const shift = 5.0;
+  const xCenter = 0.5 * shift * columnCount;
+  const yStart = 10.0;
+  for (let j = 0; j < rowCount; ++j) {
+    const ud = sim.pack_sensor_user_data(j, false);
+    const custom = j === filterRow;
+    const color = custom ? COLOR_FUCHSIA : 0;
+    const y = j * shift + yStart;
+    for (let i = 0; i < columnCount; ++i) {
+      const x = i * shift - xCenter;
+      sim.attach_sensor_ud(ground, 0.5, 0.5, x, y, 0, 0.1, true, true, custom, ud, color);
+    }
+  }
+
+  let maxBegin = 0;
+  let maxEnd = 0;
+  let lastStep = -1;
+  let stepCount = 0;
+  void controls;
+
+  function createRow(y: number) {
+    for (let i = 0; i < columnCount; ++i) {
+      const yOffset = rng.floatRange(-1, 1);
+      const b = sim.add_body_ex(shift * i - xCenter, y + yOffset, 0, BODY_DYNAMIC, 0, true);
+      sim.set_linear_velocity(b, 0, -5);
+      sim.attach_circle_ex(b, 0, 0, 0.5, 1, 0.3, 0, 0, false, true, false, false, 0, 0);
+    }
+  }
+
+  return {
+    afterStep: (dt) => {
+      if (dt <= 0) return;
+      stepCount += 1;
+      if (stepCount === lastStep) return;
+
+      const begin = sim.sensor_begin_events();
+      const end = sim.sensor_end_events();
+      const beginCount = begin.length / 2;
+      const endCount = end.length / 2;
+      const zombies = new Set<number>();
+
+      for (let i = 0; i < begin.length; i += 2) {
+        const sensorShape = begin[i]!;
+        const visitorShape = begin[i + 1]!;
+        const ud = sim.shape_get_user_data(sensorShape);
+        const active = (ud & 1) !== 0;
+        if (active) {
+          const body = sim.shape_body_index(visitorShape);
+          if (body >= 0) zombies.add(body);
+        } else {
+          sim.shape_set_custom_color(visitorShape, COLOR_LIME);
+        }
+      }
+      for (let i = 0; i < end.length; i += 2) {
+        const visitorShape = end[i + 1]!;
+        if (!sim.shape_is_valid(visitorShape)) continue;
+        sim.shape_set_custom_color(visitorShape, 0);
+      }
+      for (const body of zombies) {
+        if (sim.is_body_alive(body)) sim.destroy_body(body);
+      }
+      if ((stepCount & 0x1f) === 0) {
+        createRow(10.0 + rowCount * 5.0);
+      }
+      lastStep = stepCount;
+      maxBegin = Math.max(maxBegin, beginCount);
+      maxEnd = Math.max(maxEnd, endCount);
+    },
+    readoutExtra: () => [
+      { label: "max begin", value: String(maxBegin) },
+      { label: "max end", value: String(maxEnd) },
+    ],
+    dispose: () => sim.enable_sensor_row_filter(false, 0),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Dispatch + page
 // ---------------------------------------------------------------------------
 
-function buildScene(scene: Scene, sim: SimWorld, controls: HTMLElement): SceneRuntime {
+function buildScene(
+  scene: Scene,
+  sim: SimWorld,
+  controls: HTMLElement,
+  wasm: ReturnType<typeof getWasm>,
+): SceneRuntime {
   controls.replaceChildren();
   controls.appendChild(createInfoBox(SCENE_NOTE[scene]));
   switch (scene) {
@@ -1176,10 +1766,16 @@ function buildScene(scene: Scene, sim: SimWorld, controls: HTMLElement): SceneRu
       return buildLargeCompounds(sim, controls);
     case "kinematic":
       return buildKinematic(sim, controls);
+    case "cast":
+      return buildCast(sim, controls);
     case "spinner":
       return buildSpinner(sim, controls);
     case "rain":
       return buildRain(sim, controls);
+    case "shape-distance":
+      return buildShapeDistance(sim, controls, wasm);
+    case "sensor":
+      return buildSensor(sim, controls);
     case "capacity":
       return buildCapacityFull(sim, controls);
     case "junkyard":
@@ -1193,7 +1789,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     container,
     "Benchmark",
     "C <code>sample_benchmark.cpp</code> / <code>shared/benchmarks.c</code> ports. " +
-      "DEBUG/wasm body counts (disclosed). Missing: Cast, Shape Distance, Sensor.",
+      "DEBUG/wasm body counts disclosed where noted.",
     "Drag to grab · P pause · O step · R restart",
   );
 
@@ -1216,7 +1812,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     freeSim(sim);
     sim = new wasm.SimWorld(-10.0);
     applyCamera(camera, scene);
-    runtime = buildScene(scene, sim, sceneControls);
+    runtime = buildScene(scene, sim, sceneControls, wasm);
   }
 
   rebuild();
@@ -1290,6 +1886,8 @@ export function init(container: HTMLElement, initialScene?: string) {
       capsules: sim.draw_capsules(),
       lines: sim.draw_lines(),
     });
+    const ctx = canvas.getContext("2d");
+    if (ctx) runtime.paintOverlay?.(ctx, camera, canvas);
 
     updateReadout(readout, [
       { label: "Sample", value: SCENE_LABEL[scene] },

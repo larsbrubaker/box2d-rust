@@ -744,7 +744,8 @@ impl SimWorld {
     }
 
     /// Pack row/active for Benchmark Sensor shape user_data.
-    pub fn pack_sensor_user_data(row: i32, active: bool) -> u32 {
+    pub fn pack_sensor_user_data(&self, row: i32, active: bool) -> u32 {
+        let _ = self;
         pack_sensor_ud(row, active) as u32
     }
 

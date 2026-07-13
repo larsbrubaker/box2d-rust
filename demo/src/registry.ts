@@ -117,11 +117,11 @@ export const SAMPLES: SampleEntry[] = [
     ["Smash", "partial", "benchmark", "smash"], // DEBUG 20×10
     ["Large Compounds", "partial", "benchmark", "large-compounds"], // DEBUG ground/span
     ["Kinematic", "partial", "benchmark", "kinematic"], // DEBUG span 20
-    ["Cast", "planned"], // needs world ray/circle cast + overlap query APIs
+    ["Cast", "partial", "benchmark", "cast"], // DEBUG 100×100 / 100 queries (C release 1000/10000)
     ["Spinner", "partial", "benchmark", "spinner"], // DEBUG 499; chain friction default
     ["Rain", "partial", "benchmark", "rain"], // DEBUG CreateRain/StepRain via CreateHuman
-    ["Shape Distance", "planned"], // needs b2ShapeDistance bind
-    ["Sensor", "planned"], // needs custom filter + sensor-event shape flags
+    ["Shape Distance", "partial", "benchmark", "shape-distance"], // DEBUG count 100 (C release 10000)
+    ["Sensor", "live", "benchmark", "sensor"],
     ["Capacity", "partial", "benchmark", "capacity"], // wall-clock vs b2Profile.step
     ["Junkyard", "partial", "benchmark", "junkyard"], // DEBUG rowCount 2
   ]),
@@ -214,8 +214,8 @@ export const SAMPLES: SampleEntry[] = [
     ["Ragdoll", "live", "joints", "ragdoll"],
     ["Soft Body", "live", "joints", "soft-body"],
     ["Doohickey", "live", "joints", "doohickey"],
-    ["Scissor Lift", "planned"], // large; deferred this session
-    ["Gear Lift", "planned"], // large; deferred this session
+    ["Scissor Lift", "live", "joints", "scissor-lift"],
+    ["Gear Lift", "live", "joints", "gear-lift"],
     // Partial: single hinged panel; C two-joint/latch extras missing
     ["Door", "partial", "joints", "door"],
     ["Scale Ragdoll", "live", "joints", "scale-ragdoll"],

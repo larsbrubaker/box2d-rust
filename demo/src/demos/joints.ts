@@ -44,6 +44,8 @@ export const SCENES = [
   "user-constraint",
   "driving",
   "ragdoll",
+  "scissor-lift",
+  "gear-lift",
   "door",
   "scale-ragdoll",
 ] as const;
@@ -71,6 +73,8 @@ const SCENE_LABEL: Record<Scene, string> = {
   "user-constraint": "User Constraint",
   driving: "Driving",
   ragdoll: "Ragdoll",
+  "scissor-lift": "Scissor Lift",
+  "gear-lift": "Gear Lift",
   door: "Door",
   "scale-ragdoll": "Scale Ragdoll",
 };
@@ -94,6 +98,8 @@ const CAMERAS: Record<Scene, { cx: number; cy: number; zoom: number }> = {
   "user-constraint": { cx: 0, cy: 5, zoom: 25 * 0.35 },
   driving: { cx: 0, cy: 5, zoom: 25 * 0.4 }, // :2326-2327
   ragdoll: { cx: 0, cy: 12, zoom: 16.0 }, // :2578-2579 (else branch zoom 16)
+  "scissor-lift": { cx: 0, cy: 9, zoom: 25 * 0.4 }, // :2742-2743
+  "gear-lift": { cx: 0, cy: 6, zoom: 7.0 }, // :2960-2961
   door: { cx: 0, cy: 2.5, zoom: 25 * 0.2 },
   "scale-ragdoll": { cx: 0, cy: 4.5, zoom: 6.0 }, // :3408-3409
 };
@@ -1406,6 +1412,665 @@ function buildScaleRagdoll(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   return {};
 }
 
+/** C Sample::ParsePath — Y-flipped (sample.cpp:1047). */
+function parsePath(
+  svgPath: string,
+  offsetX: number,
+  offsetY: number,
+  capacity: number,
+  scale: number,
+): number[] {
+  const points: number[] = [];
+  let currentX = 0;
+  let currentY = 0;
+  let command = "";
+  let ptr = 0;
+  const s = svgPath;
+  const skipSpaces = () => {
+    while (ptr < s.length && /\s/.test(s[ptr]!)) ptr++;
+  };
+  const skipToken = () => {
+    while (ptr < s.length && !/\s/.test(s[ptr]!)) ptr++;
+  };
+  const readFloat = (): number => {
+    skipSpaces();
+    const start = ptr;
+    skipToken();
+    return parseFloat(s.slice(start, ptr));
+  };
+  const readPair = (): [number, number] => {
+    skipSpaces();
+    const start = ptr;
+    skipToken();
+    const token = s.slice(start, ptr);
+    const parts = token.split(",");
+    return [parseFloat(parts[0]!), parseFloat(parts[1]!)];
+  };
+  skipSpaces();
+  while (ptr < s.length) {
+    const ch = s[ptr]!;
+    if (!/[0-9.\-]/.test(ch)) {
+      command = ch;
+      if ("MLHVmlhv".includes(command)) ptr += 2;
+      if (command === "z" || command === "Z") break;
+      skipSpaces();
+    }
+    switch (command) {
+      case "M":
+      case "L": {
+        const [x, y] = readPair();
+        currentX = x;
+        currentY = y;
+        break;
+      }
+      case "H":
+        currentX = readFloat();
+        break;
+      case "V":
+        currentY = readFloat();
+        break;
+      case "m":
+      case "l": {
+        const [x, y] = readPair();
+        currentX += x;
+        currentY += y;
+        break;
+      }
+      case "h":
+        currentX += readFloat();
+        break;
+      case "v":
+        currentY += readFloat();
+        break;
+      default:
+        skipToken();
+        break;
+    }
+    points.push(scale * (currentX + offsetX), -scale * (currentY + offsetY));
+    if (points.length / 2 >= capacity) break;
+    skipSpaces();
+  }
+  return points;
+}
+
+function spawnCarAt(
+  sim: SimWorld,
+  px: number,
+  py: number,
+  scale: number,
+  hertz: number,
+  damping: number,
+  torque: number,
+) {
+  const verts = [-1.5, -0.5, 1.5, -0.5, 1.5, 0, 0, 0.9, -1.15, 0.9, -1.5, 0.2].map(
+    (v) => v * 0.85 * scale,
+  );
+  const chassis = sim.add_polygon(px, py + 1 * scale, 0, verts, 0.15 * scale, 1 / scale);
+  const rear = sim.add_body(px + -1 * scale, py + 0.35 * scale, 0, BODY_DYNAMIC);
+  sim.attach_circle_rolling(rear, 0, 0, 0.4 * scale, 2 / scale, 1.5, 0, 0.1);
+  const front = sim.add_body(px + 1 * scale, py + 0.4 * scale, 0, BODY_DYNAMIC);
+  sim.attach_circle_rolling(front, 0, 0, 0.4 * scale, 2 / scale, 1.5, 0, 0.1);
+  sim.add_wheel_joint(
+    chassis,
+    rear,
+    px + -1 * scale,
+    py + 0.35 * scale,
+    0,
+    1,
+    true,
+    -0.25 * scale,
+    0.25 * scale,
+    true,
+    0,
+    torque,
+    true,
+    hertz,
+    damping,
+    false,
+  );
+  sim.add_wheel_joint(
+    chassis,
+    front,
+    px + 1 * scale,
+    py + 0.4 * scale,
+    0,
+    1,
+    true,
+    -0.25 * scale,
+    0.25 * scale,
+    true,
+    0,
+    torque,
+    true,
+    hertz,
+    damping,
+    false,
+  );
+}
+
+function tune(sim: SimWorld, jid: number, hertz: number, damping: number) {
+  sim.joint_set_constraint_tuning(jid, hertz, damping);
+}
+
+function buildScissorLift(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+  // Exact: sample_joints.cpp:2734-2948
+  const ground = sim.add_body(0, 0, 0, BODY_STATIC);
+  sim.attach_segment(ground, -20, 0, 20, 0);
+
+  const constraintDamping = 20.0;
+  const constraintHertz = 240.0;
+  let baseId1 = ground;
+  let baseId2 = ground;
+  let baseAnchor1 = { x: -2.5, y: 0.2 };
+  let baseAnchor2 = { x: 2.5, y: 0.2 };
+  let y = 0.5;
+  let linkId1 = -1;
+  const N = 3;
+
+  for (let i = 0; i < N; ++i) {
+    const body1 = sim.add_body_sleep_threshold(0, y, 0.15, BODY_DYNAMIC, 0.01);
+    sim.attach_capsule(body1, -2.5, 0, 2.5, 0, 0.15, 1, 0.3, 0);
+    const body2 = sim.add_body_sleep_threshold(0, y, -0.15, BODY_DYNAMIC, 0.01);
+    sim.attach_capsule(body2, -2.5, 0, 2.5, 0, 0.15, 1, 0.3, 0);
+    if (i === 1) linkId1 = body2;
+
+    const left = sim.add_revolute_joint_local(
+      baseId1,
+      body1,
+      baseAnchor1.x,
+      baseAnchor1.y,
+      -2.5,
+      0,
+      false,
+      0,
+      0,
+      false,
+      0,
+      0,
+      false,
+      0,
+      0,
+      i === 0,
+    );
+    tune(sim, left, constraintHertz, constraintDamping);
+
+    if (i === 0) {
+      const wh = sim.add_wheel_joint_local(
+        baseId2,
+        body2,
+        baseAnchor2.x,
+        baseAnchor2.y,
+        2.5,
+        0,
+        false,
+        1,
+        0.7,
+        true,
+      );
+      tune(sim, wh, constraintHertz, constraintDamping);
+    } else {
+      const right = sim.add_revolute_joint_local(
+        baseId2,
+        body2,
+        baseAnchor2.x,
+        baseAnchor2.y,
+        2.5,
+        0,
+        false,
+        0,
+        0,
+        false,
+        0,
+        0,
+        false,
+        0,
+        0,
+        false,
+      );
+      tune(sim, right, constraintHertz, constraintDamping);
+    }
+
+    const mid = sim.add_revolute_joint_local(
+      body1,
+      body2,
+      0,
+      0,
+      0,
+      0,
+      false,
+      0,
+      0,
+      false,
+      0,
+      0,
+      false,
+      0,
+      0,
+      false,
+    );
+    tune(sim, mid, constraintHertz, constraintDamping);
+
+    baseId1 = body2;
+    baseId2 = body1;
+    baseAnchor1 = { x: -2.5, y: 0 };
+    baseAnchor2 = { x: 2.5, y: 0 };
+    y += 1.0;
+  }
+
+  const platform = sim.add_body_sleep_threshold(0, y, 0, BODY_DYNAMIC, 0.01);
+  sim.attach_box(platform, 3.0, 0.2, 0, 0, 0, 1, 0.3, 0);
+
+  const platL = sim.add_revolute_joint_local(
+    platform,
+    baseId1,
+    -2.5,
+    -0.4,
+    baseAnchor1.x,
+    baseAnchor1.y,
+    false,
+    0,
+    0,
+    false,
+    0,
+    0,
+    false,
+    0,
+    0,
+    true,
+  );
+  tune(sim, platL, constraintHertz, constraintDamping);
+  const platR = sim.add_wheel_joint_local(
+    platform,
+    baseId2,
+    2.5,
+    -0.4,
+    baseAnchor2.x,
+    baseAnchor2.y,
+    false,
+    1,
+    0.7,
+    true,
+  );
+  tune(sim, platR, constraintHertz, constraintDamping);
+
+  let enableMotor = false;
+  let motorSpeed = 0.25;
+  let motorForce = 2000;
+  const lift = sim.add_distance_joint_local_motor(
+    ground,
+    linkId1,
+    -2.5,
+    0.2,
+    0.5,
+    0,
+    0,
+    true,
+    0,
+    0,
+    true,
+    0.2,
+    5.5,
+    enableMotor,
+    motorSpeed,
+    motorForce,
+    false,
+  );
+
+  spawnCarAt(sim, 0, y + 2.0, 1.0, 3.0, 0.7, 0.0);
+
+  controls.appendChild(
+    createCheckbox("Motor", enableMotor, (v) => {
+      enableMotor = v;
+      sim.distance_enable_motor(lift, v);
+      sim.joint_wake_bodies(lift);
+    }),
+  );
+  controls.appendChild(
+    createSlider("Max Force", 0, 3000, motorForce, 1, (v) => {
+      motorForce = v;
+      sim.distance_set_max_motor_force(lift, v);
+      sim.joint_wake_bodies(lift);
+    }),
+  );
+  controls.appendChild(
+    createSlider("Speed", -0.3, 0.3, motorSpeed, 0.01, (v) => {
+      motorSpeed = v;
+      sim.distance_set_motor_speed(lift, v);
+      sim.joint_wake_bodies(lift);
+    }),
+  );
+  controls.appendChild(
+    createInfoBox(
+      "Exact: scissor + distance-motor lift + Car::Spawn. Prefer 8 sub-steps (C). sample_joints.cpp Scissor Lift.",
+    ),
+  );
+  return {};
+}
+
+const GEAR_PATH =
+  "m 63.500002,201.08333 103.187498,0 1e-5,-37.04166 h -2.64584 l 0,34.39583 h -42.33333 v -2.64583 l " +
+  "-2.64584,-1e-5 v -2.64583 h -2.64583 v -2.64584 h -2.64584 v -2.64583 H 111.125 v -2.64583 h -2.64583 v " +
+  "-2.64583 h -2.64583 v -2.64584 l -2.64584,1e-5 v -2.64583 l -2.64583,-1e-5 V 174.625 h -2.645834 v -2.64584 l " +
+  "-2.645833,1e-5 v -2.64584 H 92.60417 v -2.64583 h -2.645834 v -2.64583 l -26.458334,0 0,37.04166";
+
+function buildGearLift(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+  // Exact: sample_joints.cpp:2952-3272
+  const pts = parsePath(GEAR_PATH, -120, -200, 64, 0.2);
+  const ground = sim.add_chain_color(pts, true, 0.6, 0x8fbc8f);
+
+  const gearRadius = 1.0;
+  const toothHalfWidth = 0.09;
+  const toothHalfHeight = 0.06;
+  const toothRadius = 0.03;
+  const linkHalfLength = 0.07;
+  const linkRadius = 0.05;
+  const linkCount = 40;
+  const doorHalfHeight = 1.5;
+  const gearPosition1 = { x: -4.25, y: 9.75 };
+  const gearPosition2 = { x: gearPosition1.x + 2.0, y: gearPosition1.y + 1.0 };
+  const linkAttach = {
+    x: gearPosition2.x + gearRadius + 2.0 * toothHalfWidth + toothRadius,
+    y: gearPosition2.y,
+  };
+  const doorPosition = {
+    x: linkAttach.x,
+    y: linkAttach.y - 2.0 * linkCount * linkHalfLength - doorHalfHeight,
+  };
+
+  const COLOR_SADDLE = 0x8b4513;
+  const COLOR_GRAY = 0x808080;
+  const COLOR_STEEL = 0xb0c4de;
+  const COLOR_CYAN = 0x008b8b;
+
+  const driver = sim.add_body(gearPosition1.x, gearPosition1.y, 0, BODY_DYNAMIC);
+  const hub1 = sim.attach_circle_ex(
+    driver,
+    0,
+    0,
+    gearRadius,
+    1,
+    0.1,
+    0,
+    0,
+    false,
+    false,
+    false,
+    false,
+    0,
+    0,
+  );
+  sim.shape_set_custom_color(hub1, COLOR_SADDLE);
+  {
+    const dq = (2 * PI) / 16;
+    let rotation = 0;
+    for (let i = 0; i < 16; ++i) {
+      const cx = Math.cos(rotation) * (gearRadius + toothHalfHeight);
+      const cy = Math.sin(rotation) * (gearRadius + toothHalfHeight);
+      sim.attach_offset_rounded_box_color(
+        driver,
+        toothHalfWidth,
+        toothHalfHeight,
+        cx,
+        cy,
+        rotation,
+        toothRadius,
+        1,
+        0.1,
+        COLOR_GRAY,
+      );
+      rotation += dq;
+    }
+  }
+  let enableMotor = true;
+  let motorTorque = 80.0;
+  let motorSpeed = 0.0;
+  const driverJoint = sim.add_revolute_joint(
+    ground,
+    driver,
+    gearPosition1.x,
+    gearPosition1.y,
+    false,
+    0,
+    0,
+    enableMotor,
+    motorSpeed,
+    motorTorque,
+    false,
+    0,
+    0,
+    false,
+  );
+
+  const follower = sim.add_body(gearPosition2.x, gearPosition2.y, 0, BODY_DYNAMIC);
+  const hub2 = sim.attach_circle_ex(
+    follower,
+    0,
+    0,
+    gearRadius,
+    1,
+    0.1,
+    0,
+    0,
+    false,
+    false,
+    false,
+    false,
+    0,
+    0,
+  );
+  sim.shape_set_custom_color(hub2, COLOR_SADDLE);
+  {
+    const dq = (2 * PI) / 16;
+    let rotation = 0;
+    for (let i = 0; i < 16; ++i) {
+      const cx = Math.cos(rotation) * (gearRadius + toothHalfWidth);
+      const cy = Math.sin(rotation) * (gearRadius + toothHalfWidth);
+      sim.attach_offset_rounded_box_color(
+        follower,
+        toothHalfWidth,
+        toothHalfHeight,
+        cx,
+        cy,
+        rotation,
+        toothRadius,
+        1,
+        0.1,
+        COLOR_GRAY,
+      );
+      rotation += dq;
+    }
+  }
+  sim.add_revolute_joint_angled(
+    ground,
+    follower,
+    gearPosition2.x,
+    gearPosition2.y,
+    0.25 * PI,
+    true,
+    -0.3 * PI,
+    0.8 * PI,
+    true,
+    0.5,
+  );
+
+  let prev = follower;
+  let position = { x: linkAttach.x, y: linkAttach.y - linkHalfLength };
+  let lastLink = follower;
+  for (let i = 0; i < 40; ++i) {
+    const body = sim.add_body(position.x, position.y, 0, BODY_DYNAMIC);
+    const cap = sim.attach_capsule_ex(
+      body,
+      0,
+      -linkHalfLength,
+      0,
+      linkHalfLength,
+      linkRadius,
+      2,
+      0.3,
+      0,
+      false,
+      false,
+      false,
+      0,
+      0,
+    );
+    sim.shape_set_custom_color(cap, COLOR_STEEL);
+    const pivotY = position.y + linkHalfLength;
+    sim.add_revolute_joint(
+      prev,
+      body,
+      position.x,
+      pivotY,
+      false,
+      0,
+      0,
+      true,
+      0,
+      0.05,
+      false,
+      0,
+      0,
+      false,
+    );
+    position = { x: position.x, y: position.y - 2.0 * linkHalfLength };
+    prev = body;
+    lastLink = body;
+  }
+
+  const door = sim.add_body(doorPosition.x, doorPosition.y, 0, BODY_DYNAMIC);
+  const doorShape = sim.attach_box_ex(
+    door,
+    0.15,
+    doorHalfHeight,
+    0,
+    0,
+    0,
+    1,
+    0.1,
+    0,
+    false,
+    false,
+    false,
+    false,
+    false,
+    0,
+    0,
+  );
+  sim.shape_set_custom_color(doorShape, COLOR_CYAN);
+  {
+    const pivotY = doorPosition.y + doorHalfHeight;
+    sim.add_revolute_joint(
+      lastLink,
+      door,
+      doorPosition.x,
+      pivotY,
+      false,
+      0,
+      0,
+      true,
+      0,
+      0.05,
+      false,
+      0,
+      0,
+      false,
+    );
+  }
+  sim.add_prismatic_joint_local(
+    ground,
+    door,
+    doorPosition.x,
+    doorPosition.y,
+    0,
+    0,
+    0,
+    1,
+    false,
+    0,
+    0,
+    true,
+    0,
+    0.2,
+    false,
+    0,
+    0,
+    true,
+  );
+
+  const rng = makeXorShift(12345);
+  const colors = [0x808080, 0xdcdcdc, 0xd3d3d3, 0x778899, 0xa9a9a9];
+  let yy = 4.25;
+  for (let i = 0; i < 20; ++i) {
+    let xx = -3.15;
+    for (let j = 0; j < 10; ++j) {
+      const body = sim.add_body(xx, yy, 0, BODY_DYNAMIC);
+      const count = 3 + (rng.next() % 6);
+      const poly: number[] = [];
+      for (let k = 0; k < count; ++k) {
+        poly.push(rng.range(-0.1, 0.1), rng.range(-0.1, 0.1));
+      }
+      const radius = rng.range(0.01, 0.02);
+      const colorIdx = Math.min(4, Math.floor(rng.range(0, 5)));
+      const sid = sim.attach_polygon_mat(body, poly, radius, 1, 0.3, 0, 0.3, 0);
+      sim.shape_set_custom_color(sid, colors[colorIdx]!);
+      xx += 0.2;
+    }
+    yy += 0.2;
+  }
+
+  const keys = new Set<string>();
+  const onKey = (e: KeyboardEvent) => {
+    if (e.type === "keydown") keys.add(e.key.toLowerCase());
+    else keys.delete(e.key.toLowerCase());
+  };
+  window.addEventListener("keydown", onKey);
+  window.addEventListener("keyup", onKey);
+
+  controls.appendChild(
+    createCheckbox("Motor", enableMotor, (v) => {
+      enableMotor = v;
+      sim.revolute_enable_motor(driverJoint, v);
+      sim.joint_wake_bodies(driverJoint);
+    }),
+  );
+  controls.appendChild(
+    createSlider("Max Torque", 0, 100, motorTorque, 1, (v) => {
+      motorTorque = v;
+      sim.revolute_set_max_motor_torque(driverJoint, v);
+      sim.joint_wake_bodies(driverJoint);
+    }),
+  );
+  controls.appendChild(
+    createSlider("Speed", -0.3, 0.3, motorSpeed, 0.01, (v) => {
+      motorSpeed = v;
+      sim.revolute_set_motor_speed(driverJoint, v);
+      sim.joint_wake_bodies(driverJoint);
+    }),
+  );
+  controls.appendChild(
+    createInfoBox("Exact: ParsePath ground, meshed gears, door prismatic. A/D adjusts motor speed."),
+  );
+
+  return {
+    beforeStep: () => {
+      if (keys.has("a")) {
+        motorSpeed = Math.max(-0.3, motorSpeed - 0.01);
+        sim.revolute_set_motor_speed(driverJoint, motorSpeed);
+        sim.joint_wake_bodies(driverJoint);
+      }
+      if (keys.has("d")) {
+        motorSpeed = Math.min(0.3, motorSpeed + 0.01);
+        sim.revolute_set_motor_speed(driverJoint, motorSpeed);
+        sim.joint_wake_bodies(driverJoint);
+      }
+    },
+    dispose: () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+    },
+  };
+}
+
 function buildScene(scene: Scene, sim: SimWorld, controls: HTMLElement): SceneRuntime {
   clearControls(controls);
   switch (scene) {
@@ -1445,6 +2110,10 @@ function buildScene(scene: Scene, sim: SimWorld, controls: HTMLElement): SceneRu
       return buildDriving(sim, controls);
     case "ragdoll":
       return buildRagdoll(sim, controls);
+    case "scissor-lift":
+      return buildScissorLift(sim, controls);
+    case "gear-lift":
+      return buildGearLift(sim, controls);
     case "door":
       return buildDoor(sim, controls);
     case "scale-ragdoll":
@@ -1485,6 +2154,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     freeSim(sim);
     sim = new wasm.SimWorld(-10.0);
     applyCamera(camera, scene);
+    if (scene === "scissor-lift") transport.subSteps = 8;
     runtime = buildScene(scene, sim, sceneControls);
   }
 
@@ -1526,6 +2196,7 @@ export function init(container: HTMLElement, initialScene?: string) {
       (v) => {
         scene = v as Scene;
         history.replaceState(null, "", `#/joints/${scene}`);
+        if (scene === "scissor-lift") transport.subSteps = 8;
         rebuild();
       },
     ),

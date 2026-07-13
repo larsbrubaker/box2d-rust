@@ -40,7 +40,7 @@ Inventory at this pin:
 | Partial | Route exists; disclosed divergence from C |
 | Missing (`planned`) | No faithful route yet |
 
-**Current totals:** Exact **92** · Partial **38** · Missing **9** (Phase 2 complete).
+**Current totals:** Exact **101** · Partial **38** · Missing **0**.
 Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 `PAGES`).
 
@@ -48,7 +48,7 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 
 | Category (C file) | Total | Exact | Partial | Missing | Notes |
 |---|---|---|---|---|---|
-| Benchmark (`sample_benchmark.cpp`) | 21 | 0 | 18 | 3 | DEBUG/wasm counts disclosed. Exact 0. Partial: Barrel (Human via CreateHuman), Barrel 2.4, Compounds, Tumbler, Washer, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Spinner, Rain (DEBUG CreateRain), Capacity (wall-clock vs profile), Junkyard. Missing: Cast, Shape Distance, Sensor |
+| Benchmark (`sample_benchmark.cpp`) | 21 | 1 | 20 | 0 | DEBUG/wasm counts disclosed. Exact: Sensor. Partial: Barrel (Human via CreateHuman), Barrel 2.4, Compounds, Tumbler, Washer, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Cast (DEBUG grid/queries), Spinner, Rain (DEBUG CreateRain), Shape Distance (DEBUG count), Capacity (wall-clock vs profile), Junkyard. |
 | Bodies (`sample_bodies.cpp`) | 9 | 5 | 4 | 0 | Exact: Body Type, Bad, Pivot, Set Velocity, Wake Touching. Partial: Weeble (no mass-data/friction callbacks), Sleep (no sensor events / sleepThreshold / enableSleep), Kinematic (SetTransform snap), Mixed Locks (motionLocks unbound). Invented shower retired from Labs. |
 | Character (`sample_character.cpp`) | 1 | 1 | 0 | 0 | Exact: Mover (C SolveMove + scene) |
 | Collision (`sample_collision.cpp`) | 9 | 8 | 1 | 0 | Exact: Shape Distance, Ray Cast, Cast World, Overlap World, Manifold, Smooth Manifold, Shape Cast, Time of Impact. Partial: Dynamic Tree (C debug 100A-100 grid, not release 1000A-1000). Invented `#/manifolds` fully retired (route + wasm helper gone). |
@@ -57,13 +57,13 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 | Events (`sample_events.cpp`) | 12 | 11 | 1 | 0 | Exact: Sensor Funnel (donut+CreateHuman), Sensor Bookend, Foot Sensor, Contact, Platformer, Body Move, Sensor Types, Joint, Persistent Contact, Projectile Event, Circle Impulse. Partial: Sensor Hits (prismatic motor reverse via body-x approx). Invented `#/events` composite replaced. |
 | Geometry (`sample_geometry.cpp`) | 1 | 1 | 0 | 0 | Exact: Convex Hull on `#/geometry` (invented Geometry Queries retired) |
 | Issues (`sample_issues.cpp`) | 6 | 6 | 0 | 0 | All 6 RegisterSample scenes live on `#/issues` |
-| Joints (`sample_joints.cpp`) | 22 | 13 | 7 | 2 | Exact: Distance, Motor, Filter, Revolute, Prismatic, Wheel, Bridge, Cantilever, Motion Locks, Soft Body, Doohickey, Ragdoll, Scale Ragdoll. Partial: Top Down Friction, Ball & Chain, Breakable, Separation, User Constraint, Driving, Door. Missing: Scissor Lift, Gear Lift. Invented composite retired. |
+| Joints (`sample_joints.cpp`) | 22 | 15 | 7 | 0 | Exact: Distance, Motor, Filter, Revolute, Prismatic, Wheel, Bridge, Cantilever, Motion Locks, Soft Body, Doohickey, Ragdoll, Scale Ragdoll, Scissor Lift, Gear Lift. Partial: Top Down Friction, Ball & Chain, Breakable, Separation, User Constraint, Driving, Door. Invented composite retired. |
 | Replay (`sample_replay.cpp`) | 1 | 0 | 1 | 0 | Via `RegisterReplay`. Partial Viewer on `#/replay` (route-only): transport/scrub/draw live; no inspector/query index/keyframe popup |
 | Robustness (`sample_robustness.cpp`) | 7 | 7 | 0 | 0 | Exact: HighMassRatio1/2/3, Overlap Recovery, Tiny Pyramid, Cart, Multiple Prismatic. Invented composite replaced by multi-scene `#/robustness`. |
 | Shapes (`sample_shapes.cpp`) | 19 | 16 | 3 | 0 | Exact: Chain Segment, Filter, Custom Filter, Restitution, Friction, Rolling Resistance, Conveyor Belt, Tangent Speed, Modify Geometry, Chain Link, Rounded, Ellipse, Offset, Explosion, Recreate Static, Box Restitution. Partial: Chain Shape (no chain_SetSurfaceMaterial), Compound Shapes (approx Body AABBs), Wind (revolute local frames approx). Invented shapes composite replaced. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 3 | 1 | 0 | Exact: Far Pyramid, Far Ragdolls (CreateHuman), Far Gate. Partial: Tiles (DEBUG cycleCount=10; CreateHuman Exact). Invented `#/world` composite replaced. |
-| **Total** | **139** | **98** | **36** | **5** | Bodies 5/4 + Stacking 10 + Joints 13/7/2 + Shapes 16/3 + Continuous 15 + Events 11/1 + Benchmark 0/18/3 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 3/1 |
+| **Total** | **139** | **101** | **38** | **0** | Bodies 5/4 + Stacking 10 + Joints 15/7 + Shapes 16/3 + Continuous 15 + Events 11/1 + Benchmark 1/20 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 3/1 |
 
 ## Non-sample About pages
 
@@ -139,11 +139,9 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 
 ### Phase 2 — Category ports — DONE
 
-All 15 categories have registry-backed routes. Totals: **92 live / 38 partial /
-9 planned**. Every multi-scene host exports `SCENES` and is listed in `PAGES`
-(`registry.test.ts`); Replay stays route-only. Remaining planned rows are mostly
-CreateHuman / gear / specialty gaps (Benchmark Cast/Rain/…, Joints ragdolls /
-lifts, Continuous Bounce Humans).
+All 15 categories have registry-backed routes. Remaining planned gaps closed in
+Phase 3 batch C (Benchmark Cast / Shape Distance / Sensor; Joints Scissor /
+Gear Lift). Totals now Exact **101** / Partial **38** / Missing **0**.
 
 ### Phase 3 — Shell polish + retire invented pages — IN PROGRESS
 
@@ -151,7 +149,7 @@ lifts, Continuous Bounce Humans).
   (route, `demos/manifolds.ts`, `collide_with_box` wasm helper); keep About
   `#/math` / `#/roadmap`; refresh this tracker
 - [ ] C-faithful menu/info/debug draw polish
-- [ ] Close remaining planned gaps (CreateHuman, etc.) where bindings allow
+- [x] Close remaining planned gaps (CreateHuman batch + Cast/Sensor/lifts)
 
 ## How the parity test tightens
 

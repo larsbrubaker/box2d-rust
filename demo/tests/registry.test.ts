@@ -164,10 +164,10 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies (5+4) + Stacking (10) + Joints (13+7) + Shapes (16+3) + Continuous (15) + Events (11+1) + Benchmark (0+18) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1) + Character (1) + World (3+1); rest planned.
-  expect(stats.live).toBe(98);
-  expect(stats.partial).toBe(36);
-  expect(stats.planned).toBe(5);
+  // Bodies (5+4) + Stacking (10) + Joints (15+7) + Shapes (16+3) + Continuous (15) + Events (11+1) + Benchmark (1+20) + Robustness (7) + Collision (8+1) + Issues (6) + Determinism (2) + Replay (0+1) + Geometry (1) + Character (1) + World (3+1)
+  expect(stats.live).toBe(101);
+  expect(stats.partial).toBe(38);
+  expect(stats.planned).toBe(0);
 });
 
 test("category totals match the C pin inventory", () => {
@@ -201,9 +201,9 @@ test("category totals match the C pin inventory", () => {
       expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Joints") {
-      expect(categoryStats(cat).live).toBe(13);
+      expect(categoryStats(cat).live).toBe(15);
       expect(categoryStats(cat).partial).toBe(7);
-      expect(categoryStats(cat).planned).toBe(2);
+      expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Shapes") {
       expect(categoryStats(cat).live).toBe(16);
       expect(categoryStats(cat).partial).toBe(3);
@@ -217,9 +217,9 @@ test("category totals match the C pin inventory", () => {
       expect(categoryStats(cat).partial).toBe(1);
       expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Benchmark") {
-      expect(categoryStats(cat).live).toBe(0);
-      expect(categoryStats(cat).partial).toBe(18);
-      expect(categoryStats(cat).planned).toBe(3);
+      expect(categoryStats(cat).live).toBe(1);
+      expect(categoryStats(cat).partial).toBe(20);
+      expect(categoryStats(cat).planned).toBe(0);
     } else if (cat === "Robustness") {
       expect(categoryStats(cat).live).toBe(7);
       expect(categoryStats(cat).partial).toBe(0);

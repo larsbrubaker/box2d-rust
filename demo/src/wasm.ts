@@ -278,6 +278,55 @@ export interface SimWorld {
   add_chain_mat(points: Float32Array | number[], isLoop: boolean, mats: Float32Array | number[]): number;
   attach_chain(index: number, points: Float32Array | number[], isLoop: boolean): void;
   enable_odd_even_filter(enabled: boolean): void;
+  enable_sensor_row_filter(enabled: boolean, filterRow: number): void;
+  attach_sensor_ud(
+    index: number,
+    hx: number,
+    hy: number,
+    cx: number,
+    cy: number,
+    angle: number,
+    radius: number,
+    isSensor: boolean,
+    enableSensor: boolean,
+    enableCustomFilter: boolean,
+    userData: number,
+    customColor: number,
+  ): number;
+  shape_set_custom_color(shapeIndex: number, customColor: number): void;
+  pack_sensor_user_data(row: number, active: boolean): number;
+  attach_box_category_color(
+    index: number,
+    hx: number,
+    hy: number,
+    categoryBits: number,
+    customColor: number,
+  ): number;
+  add_chain_color(
+    points: Float32Array | number[],
+    isLoop: boolean,
+    friction: number,
+    customColor: number,
+  ): number;
+  attach_offset_rounded_box_color(
+    index: number,
+    hx: number,
+    hy: number,
+    cx: number,
+    cy: number,
+    angle: number,
+    radius: number,
+    density: number,
+    friction: number,
+    customColor: number,
+  ): number;
+  add_body_sleep_threshold(
+    x: number,
+    y: number,
+    angle: number,
+    bodyType: number,
+    sleepThreshold: number,
+  ): number;
   joint_set_frame_angle_a(jointIndex: number, angle: number): void;
   add_body_ex(
     x: number,
@@ -519,6 +568,40 @@ export interface SimWorld {
   distance_set_spring_force_range(index: number, lower: number, upper: number): void;
   distance_enable_limit(index: number, enable: boolean): void;
   distance_set_length_range(index: number, minL: number, maxL: number): void;
+  distance_enable_motor(index: number, enable: boolean): void;
+  distance_set_motor_speed(index: number, speed: number): void;
+  distance_set_max_motor_force(index: number, force: number): void;
+  add_distance_joint_local_motor(
+    indexA: number,
+    indexB: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    lengthOverride: number,
+    enableSpring: boolean,
+    hertz: number,
+    dampingRatio: number,
+    enableLimit: boolean,
+    minLength: number,
+    maxLength: number,
+    enableMotor: boolean,
+    motorSpeed: number,
+    maxMotorForce: number,
+    collideConnected: boolean,
+  ): number;
+  add_wheel_joint_local(
+    indexA: number,
+    indexB: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    enableSpring: boolean,
+    hertz: number,
+    dampingRatio: number,
+    collideConnected: boolean,
+  ): number;
   revolute_enable_limit(index: number, enable: boolean): void;
   revolute_enable_motor(index: number, enable: boolean): void;
   revolute_enable_spring(index: number, enable: boolean): void;
@@ -719,6 +802,32 @@ export interface SimWorld {
   sensor_visitor_centers(shapeIndex: number): Float32Array;
   sensor_visitor_names(shapeIndex: number): string;
   cast_ray_closest(ox: number, oy: number, tx: number, ty: number): Float32Array;
+  /** Benchmark Cast — [hit,px,py,nx,ny,frac,nodeVisits,leafVisits] */
+  cast_ray_closest_mask(
+    ox: number,
+    oy: number,
+    tx: number,
+    ty: number,
+    maskBits: number,
+  ): Float32Array;
+  /** Benchmark Cast circle — [hit,px,py,frac,nodeVisits,leafVisits] */
+  cast_circle_closest_mask(
+    ox: number,
+    oy: number,
+    radius: number,
+    tx: number,
+    ty: number,
+    maskBits: number,
+  ): Float32Array;
+  /** Benchmark Cast overlap — [nodeVisits,leafVisits,count,cx,cy…] */
+  overlap_aabb_centers_mask(
+    ox: number,
+    oy: number,
+    hx: number,
+    hy: number,
+    maskBits: number,
+  ): Float32Array;
+  rebuild_static_tree(): void;
   /** Collision Cast World — [count, f,px,py,nx,ny,shapeIdx]* */
   cast_ray_hits(ox: number, oy: number, tx: number, ty: number, mode: number): Float32Array;
   cast_shape_hits(
