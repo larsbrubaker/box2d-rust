@@ -1,16 +1,17 @@
 // Replay demo bindings: record a SimWorld session, play it back with
 // the ported b2RecPlayer. Split from lib.rs.
 
+mod inspect;
+mod names;
+
 use crate::interact::collect_world_draw;
 use crate::sim::SimWorld;
 use box2d_rust::body::{get_body_full_id, get_body_transform};
 use box2d_rust::math_functions as m;
+use inspect::{
+    detail_text, draw_selection, outline_json, pick_at, Selection, SEL_NONE, SEL_QUERY,
+};
 use wasm_bindgen::prelude::*;
-
-// ---------------------------------------------------------------------------
-// Replay demo: record a SimWorld session, then play it back with the ported
-// b2RecPlayer (keyframe ring, timeline scrub, divergence checking).
-// ---------------------------------------------------------------------------
 
 #[wasm_bindgen]
 impl SimWorld {
@@ -37,6 +38,7 @@ impl SimWorld {
 #[wasm_bindgen]
 pub struct SimPlayer {
     player: box2d_rust::recording::RecPlayer,
+    sel: Selection,
     draw_polygons: Vec<f32>,
     draw_circles: Vec<f32>,
     draw_capsules: Vec<f32>,
@@ -51,6 +53,7 @@ impl SimPlayer {
     pub fn open(data: &[u8]) -> Option<SimPlayer> {
         box2d_rust::recording::RecPlayer::create(data).map(|player| SimPlayer {
             player,
+            sel: Selection::default(),
             draw_polygons: Vec::new(),
             draw_circles: Vec::new(),
             draw_capsules: Vec::new(),
@@ -97,6 +100,23 @@ impl SimPlayer {
         self.player.diverge_frame()
     }
 
+    /// Tune keyframe ring: budget in MB, min sample interval in frames.
+    /// (b2RecPlayer_SetKeyframePolicy) Clears the ring — call restart or
+    /// pre-generate afterward.
+    pub fn set_keyframe_policy(&mut self, budget_mb: i32, min_interval: i32) {
+        let bytes = (budget_mb.max(1) as usize) * 1024 * 1024;
+        self.player
+            .set_keyframe_policy(bytes, min_interval.max(1));
+    }
+
+    pub fn keyframe_budget_mb(&self) -> i32 {
+        (self.player.keyframe_budget() / (1024 * 1024)) as i32
+    }
+
+    pub fn keyframe_min_interval(&self) -> i32 {
+        self.player.keyframe_min_interval()
+    }
+
     /// Current keyframe spacing in frames (the backward-seek granularity).
     pub fn keyframe_interval(&self) -> i32 {
         self.player.keyframe_interval()
@@ -108,8 +128,7 @@ impl SimPlayer {
     }
 
     /// Positions of the replayed bodies in creation (outliner) order:
-    /// [x, y, angle] per body. Matches the recording SimWorld's positions()
-    /// order because replay reproduces ids deterministically.
+    /// [x, y, angle] per body.
     pub fn positions(&self) -> Vec<f32> {
         let world = self.player.world();
         let count = self.player.body_count();
@@ -117,7 +136,6 @@ impl SimPlayer {
         for ord in 0..count {
             let id = self.player.body_id(ord);
             if id.is_null() {
-                // Destroyed slot: park it far offscreen, ordinals stay stable
                 out.push(f32::NAN);
                 out.push(f32::NAN);
                 out.push(0.0);
@@ -145,12 +163,58 @@ impl SimPlayer {
         self.player.body_count()
     }
 
-    /// Run `b2World_Draw` on the replayed world into internal buffers.
+    pub fn frame_query_count(&self) -> i32 {
+        self.player.frame_query_count()
+    }
+
+    /// Inspector selection: kind (0 none / 1 body / 2 shape / 3 joint / 4 query),
+    /// body creation ordinal, shape/joint slot, query index.
+    pub fn set_selection(&mut self, kind: i32, body_ord: i32, slot: i32, query: i32) {
+        self.sel = Selection {
+            kind,
+            body_ordinal: body_ord,
+            slot,
+            query,
+        };
+    }
+
+    /// Current selection as [kind, body_ord, slot, query].
+    pub fn selection(&self) -> Vec<i32> {
+        vec![
+            self.sel.kind,
+            self.sel.body_ordinal,
+            self.sel.slot,
+            self.sel.query,
+        ]
+    }
+
+    /// Left-click pick: returns [kind, body_ord, slot]. Miss clears to none.
+    pub fn pick_at(&mut self, x: f32, y: f32) -> Vec<i32> {
+        self.sel = pick_at(&mut self.player, x, y);
+        vec![self.sel.kind, self.sel.body_ordinal, self.sel.slot]
+    }
+
+    /// Outliner tree JSON: `{bodies:[{ord,label,shapes,joints}],queries:[…]}`.
+    pub fn outline_json(&self) -> String {
+        outline_json(&self.player)
+    }
+
+    /// Detail pane text for the current selection.
+    pub fn detail_text(&self) -> String {
+        detail_text(&self.player, &self.sel)
+    }
+
+    /// Run `b2World_Draw` plus selection highlight / selected query overlay.
     pub fn collect_draw(&mut self, lower_x: f32, lower_y: f32, upper_x: f32, upper_y: f32) {
-        let collected = collect_world_draw(
+        let mut collected = collect_world_draw(
             self.player.world_mut(),
             [lower_x, lower_y, upper_x, upper_y],
         );
+        if self.sel.kind == SEL_QUERY {
+            draw_selection(&self.player, &self.sel, &mut collected);
+        } else if self.sel.kind != SEL_NONE {
+            draw_selection(&self.player, &self.sel, &mut collected);
+        }
         let text = collected.text_json();
         self.draw_polygons = collected.polygons;
         self.draw_circles = collected.circles;
