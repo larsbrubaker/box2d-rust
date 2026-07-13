@@ -128,8 +128,8 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 | Apply force / impulse / set velocities | Bodies, Stacking, Joints | **Done** |
 | Sleep / warm starting / speculative toggles | Harness + World samples | **Done** (continuous was already present) |
 | Contact tuning | Stacking, Joints | **Done** |
-| Mouse grab (motor joint + kinematic proxy) | Harness (Sample.cpp) | **Done** (`mouse_down`/`move`/`up`) |
-| Debug draw dump (`world_draw` → buffers) | Harness | **Done** hook (`debug_draw` / flags); UI on harness branch |
+| Mouse grab (motor joint + kinematic proxy) | Harness (Sample.cpp) | **Owned by Phase 1 harness `interact/`** — not on this branch |
+| Debug draw dump (`world_draw` → buffers) | Harness | **Owned by Phase 1 harness `interact/`** (`collect_draw`) |
 | Shape filter / material / morph APIs | Shapes | Still missing — lower priority for first ports |
 | Joint runtime setters / constraint readouts | Joints GUI | Still missing — follow once create surface exists |
 | Custom friction/restitution/filter callbacks | Bodies, Shapes | Still missing — WASM callback bridging later |

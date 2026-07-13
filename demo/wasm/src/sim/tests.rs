@@ -1,7 +1,7 @@
-//! Native tests for SimWorld binding surface (real production methods).
+//! Native tests for SimWorld sample binding surface (real production methods).
+//! Grab/draw are owned by the Phase 1 harness `interact/` module — not tested here.
 
 use super::SimWorld;
-use crate::debug_collect;
 
 #[test]
 fn joint_types_create_and_track() {
@@ -84,7 +84,7 @@ fn body_ops_transform_impulse_type() {
 }
 
 #[test]
-fn world_toggles_and_debug_draw() {
+fn world_toggles() {
     let mut sim = SimWorld::new(-10.0);
     sim.add_static_box(0.0, -1.0, 10.0, 1.0);
     sim.add_box(0.0, 2.0, 0.5, 0.5, 1.0);
@@ -98,30 +98,7 @@ fn world_toggles_and_debug_draw() {
     let g = sim.get_gravity();
     assert!((g[1] + 10.0).abs() < 1e-5);
 
-    sim.set_debug_flags(debug_collect::DRAW_SHAPES | debug_collect::DRAW_JOINTS);
-    let dump = sim.debug_draw(u32::MAX);
-    assert!(dump.len() >= 2);
-    assert!(dump[0] > 0.0, "expected drawn segments");
-}
-
-#[test]
-fn mouse_grab_motor_joint() {
-    let mut sim = SimWorld::new(-10.0);
-    sim.add_static_box(0.0, -1.0, 20.0, 1.0);
-    let box_i = sim.add_box(0.0, 1.0, 0.5, 0.5, 1.0);
     for _ in 0..5 {
         sim.step(1.0 / 60.0, 4);
     }
-    let pos = sim.positions();
-    let x = pos[box_i * 3];
-    let y = pos[box_i * 3 + 1];
-
-    assert!(sim.mouse_down(x, y));
-    assert!(sim.is_mouse_dragging());
-    sim.mouse_move(x + 0.5, y + 0.5);
-    for _ in 0..10 {
-        sim.step(1.0 / 60.0, 4);
-    }
-    sim.mouse_up();
-    assert!(!sim.is_mouse_dragging());
 }
