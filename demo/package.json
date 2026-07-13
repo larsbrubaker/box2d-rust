@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "bun --watch run dev.ts",
     "build:wasm": "powershell -File build-wasm.ps1",
-    "build": "bun run build.ts"
+    "build": "bun run build.ts",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest"
