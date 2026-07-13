@@ -61,7 +61,7 @@ partial until a scene is ported 1:1.
 | Replay (`sample_replay.cpp`) | 1 | 0 | 0 | 1 | Via `RegisterReplay`, not `RegisterSample`. Current `#/replay` is invented |
 | Robustness (`sample_robustness.cpp`) | 7 | 0 | 0 | 7 | Current `#/robustness` borrows OverlapRecovery ideas but is a composite — stays Missing |
 | Shapes (`sample_shapes.cpp`) | 19 | 0 | 0 | 19 | Current `#/shapes` is invented |
-| Stacking (`sample_stacking.cpp`) | 10 | 0 | 0 | 10 | Current `#/stacking` is invented pyramid composite |
+| Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 0 | 0 | 4 | Current `#/world` is invented |
 | **Total** | **139** | **0** | **0** | **139** | |
 

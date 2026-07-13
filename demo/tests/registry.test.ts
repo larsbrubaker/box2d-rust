@@ -38,9 +38,11 @@ import {
  * registry rows.
  */
 import { SCENES as bodiesScenes } from "../src/demos/bodies.ts";
+import { SCENES as stackingScenes } from "../src/demos/stacking.ts";
 
 const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string[] }> = {
   bodies: { scenes: bodiesScenes },
+  stacking: { scenes: stackingScenes },
 };
 
 /**
@@ -141,10 +143,10 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies phase-2: 5 live + 4 partial; all other categories still planned.
-  expect(stats.live).toBe(5);
+  // Bodies (5 live + 4 partial) + Stacking (10 live); rest planned.
+  expect(stats.live).toBe(15);
   expect(stats.partial).toBe(4);
-  expect(stats.planned).toBe(130);
+  expect(stats.planned).toBe(120);
 });
 
 test("category totals match the C pin inventory", () => {
@@ -172,6 +174,10 @@ test("category totals match the C pin inventory", () => {
     if (cat === "Bodies") {
       expect(categoryStats(cat).live).toBe(5);
       expect(categoryStats(cat).partial).toBe(4);
+      expect(categoryStats(cat).planned).toBe(0);
+    } else if (cat === "Stacking") {
+      expect(categoryStats(cat).live).toBe(10);
+      expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else {
       expect(categoryStats(cat).planned).toBe(total);
