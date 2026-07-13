@@ -126,7 +126,7 @@ export const SAMPLES: SampleEntry[] = [
     ["Junkyard", "partial", "benchmark", "junkyard"], // DEBUG rowCount 2
   ]),
   ...cat("Character", "sample_character.cpp", [
-    ["Mover", "planned"],
+    ["Mover", "live", "character", "mover"],
   ]),
   ...cat("Collision", "sample_collision.cpp", [
     ["Shape Distance", "live", "collision", "shape-distance"],
