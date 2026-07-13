@@ -220,13 +220,13 @@ export const SAMPLES: SampleEntry[] = [
     ["Scale Ragdoll", "planned"], // needs Human_SetScale
   ]),
   ...cat("Robustness", "sample_robustness.cpp", [
-    ["HighMassRatio1", "planned"],
-    ["HighMassRatio2", "planned"],
-    ["HighMassRatio3", "planned"],
-    ["Overlap Recovery", "planned"],
-    ["Tiny Pyramid", "planned"],
-    ["Cart", "planned"],
-    ["Multiple Prismatic", "planned"],
+    ["HighMassRatio1", "live", "robustness", "high-mass-ratio1"],
+    ["HighMassRatio2", "live", "robustness", "high-mass-ratio2"],
+    ["HighMassRatio3", "live", "robustness", "high-mass-ratio3"],
+    ["Overlap Recovery", "live", "robustness", "overlap-recovery"],
+    ["Tiny Pyramid", "live", "robustness", "tiny-pyramid"],
+    ["Cart", "live", "robustness", "cart"],
+    ["Multiple Prismatic", "live", "robustness", "multiple-prismatic"],
   ]),
   ...cat("Shapes", "sample_shapes.cpp", [
     // partial: friction slider updates dynamic shape only (no chain_SetSurfaceMaterial bind)

@@ -59,11 +59,11 @@ partial until a scene is ported 1:1.
 | Issues (`sample_issues.cpp`) | 6 | 0 | 0 | 6 | No current demo route |
 | Joints (`sample_joints.cpp`) | 22 | 11 | 7 | 4 | Exact: Distance, Motor, Filter, Revolute, Prismatic, Wheel, Bridge, Cantilever, Motion Locks, Soft Body, Doohickey. Partial: Top Down Friction, Ball & Chain, Breakable, Separation, User Constraint, Driving, Door. Missing: Ragdoll, Scissor Lift, Gear Lift, Scale Ragdoll. Invented composite retired. |
 | Replay (`sample_replay.cpp`) | 1 | 0 | 0 | 1 | Via `RegisterReplay`, not `RegisterSample`. Current `#/replay` is invented |
-| Robustness (`sample_robustness.cpp`) | 7 | 0 | 0 | 7 | Current `#/robustness` borrows OverlapRecovery ideas but is a composite — stays Missing |
+| Robustness (`sample_robustness.cpp`) | 7 | 7 | 0 | 0 | Exact: HighMassRatio1/2/3, Overlap Recovery, Tiny Pyramid, Cart, Multiple Prismatic. Invented composite replaced by multi-scene `#/robustness`. |
 | Shapes (`sample_shapes.cpp`) | 19 | 16 | 3 | 0 | Exact: Chain Segment, Filter, Custom Filter, Restitution, Friction, Rolling Resistance, Conveyor Belt, Tangent Speed, Modify Geometry, Chain Link, Rounded, Ellipse, Offset, Explosion, Recreate Static, Box Restitution. Partial: Chain Shape (no chain_SetSurfaceMaterial), Compound Shapes (approx Body AABBs), Wind (revolute local frames approx). Invented shapes composite replaced. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 0 | 0 | 4 | Current `#/world` is invented |
-| **Total** | **139** | **65** | **34** | **40** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 |
+| **Total** | **139** | **72** | **34** | **33** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 + Robustness 7 |
 
 ## Invented demos to retire from Samples nav
 
@@ -76,7 +76,7 @@ registry-only. Math is under About (not Samples).
 | `#/math` | No C sample — deterministic math showcase. **Retired from Samples**; About page |
 | `#/roadmap` | Meta progress page, not a C sample |
 | `#/manifolds` | Invented collision/manifold playground; C's Manifold / Smooth Manifold live under **Collision** |
-| Category composites (`#/world`, `#/determinism`, `#/robustness`, `#/character`, `#/geometry`, `#/replay`) | Capability demos / harness previews — replace scene-by-scene as categories are ported. `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark` now host C samples. |
+| Category composites (`#/world`, `#/determinism`, `#/character`, `#/geometry`, `#/replay`) | Capability demos / harness previews  replace scene-by-scene as categories are ported. `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark`, `#/robustness` now host C samples. |
 
 ## Phases
 

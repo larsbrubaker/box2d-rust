@@ -42,6 +42,7 @@ import { SCENES as bodiesScenes } from "../src/demos/bodies.ts";
 import { SCENES as continuousScenes } from "../src/demos/continuous.ts";
 import { SCENES as eventsScenes } from "../src/demos/events.ts";
 import { SCENES as jointsScenes } from "../src/demos/joints.ts";
+import { SCENES as robustnessScenes } from "../src/demos/robustness.ts";
 import { SCENES as shapesScenes } from "../src/demos/shapes.ts";
 import { SCENES as stackingScenes } from "../src/demos/stacking.ts";
 
@@ -51,6 +52,7 @@ const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string
   continuous: { scenes: continuousScenes },
   events: { scenes: eventsScenes },
   joints: { scenes: jointsScenes },
+  robustness: { scenes: robustnessScenes },
   shapes: { scenes: shapesScenes },
   stacking: { scenes: stackingScenes },
 };
@@ -153,10 +155,10 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2) + Benchmark (0+17); rest planned.
-  expect(stats.live).toBe(65);
+  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2) + Benchmark (0+17) + Robustness (7); rest planned.
+  expect(stats.live).toBe(72);
   expect(stats.partial).toBe(34);
-  expect(stats.planned).toBe(40);
+  expect(stats.planned).toBe(33);
 });
 
 test("category totals match the C pin inventory", () => {
@@ -209,6 +211,10 @@ test("category totals match the C pin inventory", () => {
       expect(categoryStats(cat).live).toBe(0);
       expect(categoryStats(cat).partial).toBe(17);
       expect(categoryStats(cat).planned).toBe(4);
+    } else if (cat === "Robustness") {
+      expect(categoryStats(cat).live).toBe(7);
+      expect(categoryStats(cat).partial).toBe(0);
+      expect(categoryStats(cat).planned).toBe(0);
     } else {
       expect(categoryStats(cat).planned).toBe(total);
     }
