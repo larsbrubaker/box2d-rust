@@ -1,6 +1,7 @@
 // Replay demo bindings: record a SimWorld session, play it back with
 // the ported b2RecPlayer. Split from lib.rs.
 
+use crate::interact::collect_world_draw;
 use crate::sim::SimWorld;
 use box2d_rust::body::{get_body_full_id, get_body_transform};
 use box2d_rust::math_functions as m;
@@ -36,13 +37,23 @@ impl SimWorld {
 #[wasm_bindgen]
 pub struct SimPlayer {
     player: box2d_rust::recording::RecPlayer,
+    draw_polygons: Vec<f32>,
+    draw_circles: Vec<f32>,
+    draw_capsules: Vec<f32>,
+    draw_lines: Vec<f32>,
 }
 
 #[wasm_bindgen]
 impl SimPlayer {
     /// Open a recording. Returns undefined if the bytes are malformed.
     pub fn open(data: &[u8]) -> Option<SimPlayer> {
-        box2d_rust::recording::RecPlayer::create(data).map(|player| SimPlayer { player })
+        box2d_rust::recording::RecPlayer::create(data).map(|player| SimPlayer {
+            player,
+            draw_polygons: Vec::new(),
+            draw_circles: Vec::new(),
+            draw_capsules: Vec::new(),
+            draw_lines: Vec::new(),
+        })
     }
 
     /// Advance one recorded step. False once the end is reached.
@@ -56,6 +67,15 @@ impl SimPlayer {
         self.player.seek_frame(frame);
     }
 
+    /// Restart at frame 0, keeping the keyframe ring. (b2RecPlayer_Restart)
+    pub fn restart(&mut self) {
+        self.player.restart();
+    }
+
+    pub fn is_at_end(&self) -> bool {
+        self.player.is_at_end()
+    }
+
     pub fn frame(&self) -> i32 {
         self.player.frame()
     }
@@ -66,6 +86,11 @@ impl SimPlayer {
 
     pub fn has_diverged(&self) -> bool {
         self.player.has_diverged()
+    }
+
+    /// First frame where the replay hash diverged, or -1. (b2RecPlayer_GetDivergeFrame)
+    pub fn diverge_frame(&self) -> i32 {
+        self.player.diverge_frame()
     }
 
     /// Current keyframe spacing in frames (the backward-seek granularity).
@@ -110,5 +135,37 @@ impl SimPlayer {
 
     pub fn contact_count(&self) -> i32 {
         self.player.world().contact_id_pool.id_count()
+    }
+
+    pub fn body_count(&self) -> i32 {
+        self.player.body_count()
+    }
+
+    /// Run `b2World_Draw` on the replayed world into internal buffers.
+    pub fn collect_draw(&mut self, lower_x: f32, lower_y: f32, upper_x: f32, upper_y: f32) {
+        let collected = collect_world_draw(
+            self.player.world_mut(),
+            [lower_x, lower_y, upper_x, upper_y],
+        );
+        self.draw_polygons = collected.polygons;
+        self.draw_circles = collected.circles;
+        self.draw_capsules = collected.capsules;
+        self.draw_lines = collected.lines;
+    }
+
+    pub fn draw_polygons(&self) -> Vec<f32> {
+        self.draw_polygons.clone()
+    }
+
+    pub fn draw_circles(&self) -> Vec<f32> {
+        self.draw_circles.clone()
+    }
+
+    pub fn draw_capsules(&self) -> Vec<f32> {
+        self.draw_capsules.clone()
+    }
+
+    pub fn draw_lines(&self) -> Vec<f32> {
+        self.draw_lines.clone()
     }
 }

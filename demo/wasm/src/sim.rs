@@ -499,6 +499,29 @@ impl SimWorld {
         )
     }
 
+    /// djb2 hash over demo-body transforms in the given order — matches
+    /// `UpdateFallingHinges` (`shared/determinism.c`): `B2_HASH_INIT` then
+    /// `b2Hash(hash, &transform, sizeof(b2WorldTransform))` per body.
+    pub fn hash_body_transforms(&self, indices: &[u32]) -> u32 {
+        use box2d_rust::core::{hash, HASH_INIT};
+        let mut h = HASH_INIT;
+        for &idx in indices {
+            let body_index = self.bodies[idx as usize];
+            if body_index == body_ops::DESTROYED_BODY_SLOT {
+                continue;
+            }
+            let xf = get_body_transform(&self.world, body_index);
+            // Same layout as determinism_tests::hash_transform / C sizeof(b2WorldTransform).
+            let mut bytes = Vec::with_capacity(16);
+            bytes.extend_from_slice(&xf.p.x.to_le_bytes());
+            bytes.extend_from_slice(&xf.p.y.to_le_bytes());
+            bytes.extend_from_slice(&xf.q.c.to_le_bytes());
+            bytes.extend_from_slice(&xf.q.s.to_le_bytes());
+            h = hash(h, &bytes);
+        }
+        h
+    }
+
     /// Dynamic capsule (horizontal, half length `hl`), rotated by `angle`.
     /// Returns the demo body index.
     pub fn add_capsule(

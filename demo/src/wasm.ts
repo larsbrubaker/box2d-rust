@@ -746,6 +746,8 @@ export interface SimWorld {
   snapshot(): Uint8Array;
   restore(image: Uint8Array): boolean;
   state_hash(): string;
+  /** djb2 over body transforms — UpdateFallingHinges / CrossPlatformTest. */
+  hash_body_transforms(indices: Uint32Array | number[]): number;
   start_recording(): boolean;
   stop_recording(): Uint8Array;
   mover_spawn(x: number, y: number): void;
@@ -777,14 +779,23 @@ export interface SimWorld {
 export interface SimPlayer {
   step_frame(): boolean;
   seek_frame(frame: number): void;
+  restart(): void;
+  is_at_end(): boolean;
   frame(): number;
   frame_count(): number;
   has_diverged(): boolean;
+  diverge_frame(): number;
   keyframe_interval(): number;
   keyframe_kilobytes(): number;
   positions(): Float32Array;
   awake_body_count(): number;
   contact_count(): number;
+  body_count(): number;
+  collect_draw(lowerX: number, lowerY: number, upperX: number, upperY: number): void;
+  draw_polygons(): Float32Array;
+  draw_circles(): Float32Array;
+  draw_capsules(): Float32Array;
+  draw_lines(): Float32Array;
   free(): void;
 }
 
