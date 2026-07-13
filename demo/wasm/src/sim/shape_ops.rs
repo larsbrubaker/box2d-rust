@@ -270,6 +270,29 @@ impl SimWorld {
         self.track_shape(sid)
     }
 
+    /// Attach segment with surface friction (Friction sample ground).
+    pub fn attach_segment_mat(
+        &mut self,
+        index: usize,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        friction: f32,
+    ) -> usize {
+        use box2d_rust::shape::create_segment_shape;
+
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.material.friction = friction;
+        let segment = Segment {
+            point1: Vec2 { x: x1, y: y1 },
+            point2: Vec2 { x: x2, y: y2 },
+        };
+        let sid = create_segment_shape(&mut self.world, body_id, &shape_def, &segment);
+        self.track_shape(sid)
+    }
+
     /// Attach segment with invokeContactCreation (Recreate Static). Returns shape index.
     pub fn attach_segment_invoke(
         &mut self,
@@ -537,6 +560,21 @@ impl SimWorld {
                 wake,
             );
         }
+    }
+
+    /// Attach an open/loop chain to an existing body (Chain Link).
+    pub fn attach_chain(&mut self, index: usize, points: &[f32], is_loop: bool) {
+        use box2d_rust::shape::create_chain;
+        use box2d_rust::types::default_chain_def;
+
+        let body_id = self.body_id_at(index);
+        let mut chain_def = default_chain_def();
+        chain_def.is_loop = is_loop;
+        chain_def.points = points
+            .chunks_exact(2)
+            .map(|p| Vec2 { x: p[0], y: p[1] })
+            .collect();
+        create_chain(&mut self.world, body_id, &chain_def);
     }
 
     /// Chain with per-point materials. `mats` is interleaved

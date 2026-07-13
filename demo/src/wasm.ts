@@ -194,6 +194,14 @@ export interface SimWorld {
     categoryBits: number,
     maskBits: number,
   ): number;
+  attach_segment_mat(
+    index: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    friction: number,
+  ): number;
   attach_segment_invoke(index: number, x1: number, y1: number, x2: number, y2: number): number;
   attach_box_custom(index: number, hx: number, hy: number, density: number, userData: number): number;
   attach_chain_segment(
@@ -252,6 +260,7 @@ export interface SimWorld {
   ): void;
   /** Chain with per-point materials: mats = [fric,rest,rolling,tangent]*N. */
   add_chain_mat(points: Float32Array | number[], isLoop: boolean, mats: Float32Array | number[]): number;
+  attach_chain(index: number, points: Float32Array | number[], isLoop: boolean): void;
   enable_odd_even_filter(enabled: boolean): void;
   joint_set_frame_angle_a(jointIndex: number, angle: number): void;
   add_body_ex(
