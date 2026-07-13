@@ -7,6 +7,7 @@
 // stays under the 800-line limit.
 
 mod body_ops;
+mod joint_ops;
 mod joints;
 mod shapes;
 mod world_ops;

@@ -158,17 +158,64 @@ impl SimWorld {
         friction: f32,
         restitution: f32,
     ) {
+        self.attach_capsule_filtered(
+            index, c1x, c1y, c2x, c2y, radius, density, friction, restitution, 0,
+        );
+    }
+
+    /// Capsule with `filter.groupIndex` (negative = never collide within group).
+    #[allow(clippy::too_many_arguments)]
+    pub fn attach_capsule_filtered(
+        &mut self,
+        index: usize,
+        c1x: f32,
+        c1y: f32,
+        c2x: f32,
+        c2y: f32,
+        radius: f32,
+        density: f32,
+        friction: f32,
+        restitution: f32,
+        group_index: i32,
+    ) {
         let body_id = self.body_id_at(index);
         let mut shape_def = default_shape_def();
         shape_def.density = density;
         shape_def.material.friction = friction;
         shape_def.material.restitution = restitution;
+        shape_def.filter.group_index = group_index;
         let capsule = Capsule {
             center1: Vec2 { x: c1x, y: c1y },
             center2: Vec2 { x: c2x, y: c2y },
             radius,
         };
         create_capsule_shape(&mut self.world, body_id, &shape_def, &capsule);
+    }
+
+    /// Circle with rolling resistance (Doohickey wheels).
+    #[allow(clippy::too_many_arguments)]
+    pub fn attach_circle_rolling(
+        &mut self,
+        index: usize,
+        cx: f32,
+        cy: f32,
+        radius: f32,
+        density: f32,
+        friction: f32,
+        restitution: f32,
+        rolling_resistance: f32,
+    ) {
+        let body_id = self.body_id_at(index);
+        let mut shape_def = default_shape_def();
+        shape_def.density = density;
+        shape_def.material.friction = friction;
+        shape_def.material.restitution = restitution;
+        shape_def.material.rolling_resistance = rolling_resistance;
+        let circle = Circle {
+            center: Vec2 { x: cx, y: cy },
+            radius,
+        };
+        create_circle_shape(&mut self.world, body_id, &shape_def, &circle);
     }
 
     /// Attach a segment in body-local space.

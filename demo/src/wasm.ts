@@ -68,6 +68,28 @@ export interface SimWorld {
     friction: number,
     restitution: number,
   ): void;
+  attach_capsule_filtered(
+    index: number,
+    c1x: number,
+    c1y: number,
+    c2x: number,
+    c2y: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    groupIndex: number,
+  ): void;
+  attach_circle_rolling(
+    index: number,
+    cx: number,
+    cy: number,
+    radius: number,
+    density: number,
+    friction: number,
+    restitution: number,
+    rollingResistance: number,
+  ): void;
   attach_segment(index: number, x1: number, y1: number, x2: number, y2: number): void;
   attach_rounded_box(
     index: number,
@@ -214,6 +236,146 @@ export interface SimWorld {
     enableMotor: boolean,
     maxMotorTorque: number,
   ): number;
+  add_distance_joint_ex(
+    indexA: number,
+    indexB: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    lengthOverride: number,
+    enableSpring: boolean,
+    hertz: number,
+    dampingRatio: number,
+    tensionForce: number,
+    compressionForce: number,
+    enableLimit: boolean,
+    minLength: number,
+    maxLength: number,
+    collideConnected: boolean,
+  ): number;
+  add_motor_joint_local(
+    indexA: number,
+    indexB: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    linearHertz: number,
+    linearDampingRatio: number,
+    maxSpringForce: number,
+    angularHertz: number,
+    angularDampingRatio: number,
+    maxSpringTorque: number,
+    maxVelocityForce: number,
+    maxVelocityTorque: number,
+    collideConnected: boolean,
+  ): number;
+  add_revolute_joint_local(
+    indexA: number,
+    indexB: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    enableLimit: boolean,
+    lowerAngle: number,
+    upperAngle: number,
+    enableMotor: boolean,
+    motorSpeed: number,
+    maxMotorTorque: number,
+    enableSpring: boolean,
+    hertz: number,
+    dampingRatio: number,
+    collideConnected: boolean,
+  ): number;
+  add_prismatic_joint_local(
+    indexA: number,
+    indexB: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    worldAx: number,
+    worldAy: number,
+    enableLimit: boolean,
+    lower: number,
+    upper: number,
+    enableMotor: boolean,
+    motorSpeed: number,
+    maxMotorForce: number,
+    enableSpring: boolean,
+    hertz: number,
+    dampingRatio: number,
+    collideConnected: boolean,
+  ): number;
+  add_weld_joint_local(
+    indexA: number,
+    indexB: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    angleA: number,
+    angleB: number,
+    linearHertz: number,
+    angularHertz: number,
+    linearDampingRatio: number,
+    angularDampingRatio: number,
+    collideConnected: boolean,
+  ): number;
+  destroy_joint(index: number): void;
+  joint_wake_bodies(index: number): void;
+  joint_set_constraint_tuning(index: number, hertz: number, dampingRatio: number): void;
+  joint_set_collide_connected(index: number, flag: boolean): void;
+  joint_set_force_threshold(index: number, threshold: number): void;
+  joint_set_torque_threshold(index: number, threshold: number): void;
+  joint_constraint_ft(index: number): Float32Array;
+  joint_separations(index: number): Float32Array;
+  distance_set_length(index: number, length: number): void;
+  distance_enable_spring(index: number, enable: boolean): void;
+  distance_set_spring_hertz(index: number, hertz: number): void;
+  distance_set_spring_damping(index: number, damping: number): void;
+  distance_set_spring_force_range(index: number, lower: number, upper: number): void;
+  distance_enable_limit(index: number, enable: boolean): void;
+  distance_set_length_range(index: number, minL: number, maxL: number): void;
+  revolute_enable_limit(index: number, enable: boolean): void;
+  revolute_enable_motor(index: number, enable: boolean): void;
+  revolute_enable_spring(index: number, enable: boolean): void;
+  revolute_set_motor_speed(index: number, speed: number): void;
+  revolute_set_max_motor_torque(index: number, torque: number): void;
+  revolute_set_spring_hertz(index: number, hertz: number): void;
+  revolute_set_spring_damping(index: number, damping: number): void;
+  revolute_set_target_angle(index: number, angle: number): void;
+  revolute_set_limits(index: number, lower: number, upper: number): void;
+  revolute_get_angle(index: number): number;
+  revolute_get_motor_torque(index: number): number;
+  prismatic_enable_limit(index: number, enable: boolean): void;
+  prismatic_enable_motor(index: number, enable: boolean): void;
+  prismatic_enable_spring(index: number, enable: boolean): void;
+  prismatic_set_motor_speed(index: number, speed: number): void;
+  prismatic_set_max_motor_force(index: number, force: number): void;
+  prismatic_set_spring_hertz(index: number, hertz: number): void;
+  prismatic_set_spring_damping(index: number, damping: number): void;
+  prismatic_set_target_translation(index: number, translation: number): void;
+  prismatic_set_limits(index: number, lower: number, upper: number): void;
+  prismatic_get_motor_force(index: number): number;
+  wheel_enable_limit(index: number, enable: boolean): void;
+  wheel_enable_motor(index: number, enable: boolean): void;
+  wheel_enable_spring(index: number, enable: boolean): void;
+  wheel_set_motor_speed(index: number, speed: number): void;
+  wheel_set_max_motor_torque(index: number, torque: number): void;
+  wheel_set_spring_hertz(index: number, hertz: number): void;
+  wheel_set_spring_damping(index: number, damping: number): void;
+  wheel_set_limits(index: number, lower: number, upper: number): void;
+  wheel_get_motor_torque(index: number): number;
+  weld_set_linear_hertz(index: number, hertz: number): void;
+  weld_set_angular_hertz(index: number, hertz: number): void;
+  weld_set_linear_damping(index: number, damping: number): void;
+  weld_set_angular_damping(index: number, damping: number): void;
+  motor_set_max_spring_force(index: number, force: number): void;
+  motor_set_max_spring_torque(index: number, torque: number): void;
+  body_world_point(index: number, lx: number, ly: number): Float32Array;
   joint_count(): number;
   joint_anchors(): Float32Array;
 
@@ -235,6 +397,17 @@ export interface SimWorld {
   get_angular_velocity(index: number): number;
   set_gravity_scale(index: number, scale: number): void;
   get_mass(index: number): number;
+  set_linear_damping(index: number, damping: number): void;
+  set_angular_damping(index: number, damping: number): void;
+  set_motion_locks(index: number, linearX: boolean, linearY: boolean, angular: boolean): void;
+  set_target_transform(
+    index: number,
+    x: number,
+    y: number,
+    angle: number,
+    timeStep: number,
+    wake: boolean,
+  ): void;
   apply_force(index: number, fx: number, fy: number, px: number, py: number, wake: boolean): void;
   apply_force_to_center(index: number, fx: number, fy: number, wake: boolean): void;
   apply_torque(index: number, torque: number, wake: boolean): void;

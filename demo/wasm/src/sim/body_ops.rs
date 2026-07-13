@@ -5,13 +5,14 @@ use box2d_rust::body::{
     body_apply_force, body_apply_force_to_center, body_apply_linear_impulse,
     body_apply_linear_impulse_to_center, body_apply_torque, body_disable, body_enable,
     body_get_angular_velocity, body_get_linear_velocity, body_get_mass, body_get_type,
-    body_is_enabled, body_set_angular_velocity, body_set_awake, body_set_bullet,
-    body_set_gravity_scale, body_set_linear_velocity, body_set_transform, body_set_type,
+    body_is_enabled, body_set_angular_damping, body_set_angular_velocity, body_set_awake,
+    body_set_bullet, body_set_gravity_scale, body_set_linear_damping, body_set_linear_velocity,
+    body_set_motion_locks, body_set_target_transform, body_set_transform, body_set_type,
     body_wake_touching, destroy_body,
 };
 use box2d_rust::joint::joint_is_valid;
-use box2d_rust::math_functions::{make_rot, to_pos, Vec2};
-use box2d_rust::types::BodyType;
+use box2d_rust::math_functions::{make_rot, to_pos, Vec2, WorldTransform};
+use box2d_rust::types::{BodyType, MotionLocks};
 use wasm_bindgen::prelude::*;
 
 /// Demo-index sentinel after `destroy_body` — keeps later indices stable.
@@ -204,5 +205,55 @@ impl SimWorld {
         }
         let body_id = self.body_id_at(index);
         body_set_bullet(&mut self.world, body_id, flag);
+    }
+
+    /// (b2Body_SetLinearDamping)
+    pub fn set_linear_damping(&mut self, index: usize, damping: f32) {
+        let body_id = self.body_id_at(index);
+        body_set_linear_damping(&mut self.world, body_id, damping);
+    }
+
+    /// (b2Body_SetAngularDamping)
+    pub fn set_angular_damping(&mut self, index: usize, damping: f32) {
+        let body_id = self.body_id_at(index);
+        body_set_angular_damping(&mut self.world, body_id, damping);
+    }
+
+    /// (b2Body_SetMotionLocks) — linearX/Y + angular as bools.
+    pub fn set_motion_locks(
+        &mut self,
+        index: usize,
+        linear_x: bool,
+        linear_y: bool,
+        angular: bool,
+    ) {
+        let body_id = self.body_id_at(index);
+        body_set_motion_locks(
+            &mut self.world,
+            body_id,
+            MotionLocks {
+                linear_x,
+                linear_y,
+                angular_z: angular,
+            },
+        );
+    }
+
+    /// (b2Body_SetTargetTransform) — kinematic/dynamic target for Motor Joint.
+    pub fn set_target_transform(
+        &mut self,
+        index: usize,
+        x: f32,
+        y: f32,
+        angle: f32,
+        time_step: f32,
+        wake: bool,
+    ) {
+        let body_id = self.body_id_at(index);
+        let target = WorldTransform {
+            p: to_pos(Vec2 { x, y }),
+            q: make_rot(angle),
+        };
+        body_set_target_transform(&mut self.world, body_id, target, time_step, wake);
     }
 }

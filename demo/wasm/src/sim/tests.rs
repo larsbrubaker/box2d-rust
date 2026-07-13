@@ -25,9 +25,17 @@ fn joint_types_create_and_track() {
     );
     let motor = sim.add_motor_joint(ground, a, 4.0, 1.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, false);
     let filter = sim.add_filter_joint(a, b);
+    let dist = sim.add_distance_joint_ex(
+        ground, c, 0.0, 4.0, 0.0, 5.0, 1.0, true, 5.0, 0.5, 100.0, 50.0, false, 0.5, 2.0, false,
+    );
 
-    assert_eq!(sim.joint_count(), 6);
-    let _ = (revolute, prismatic, weld, wheel, motor, filter);
+    assert_eq!(sim.joint_count(), 7);
+    sim.distance_set_length(dist, 1.5);
+    sim.revolute_enable_motor(revolute, true);
+    sim.joint_wake_bodies(revolute);
+    let ft = sim.joint_constraint_ft(motor);
+    assert_eq!(ft.len(), 3);
+    let _ = (revolute, prismatic, weld, wheel, motor, filter, dist);
 
     for _ in 0..10 {
         sim.step(1.0 / 60.0, 4);
