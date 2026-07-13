@@ -1,12 +1,9 @@
 // Replay — RegisterReplay("Replay", "Viewer") port of sample_replay.cpp.
 // Route-only single-scene host (no SCENES / PAGES entry), matching box3d.
 //
-// Shipped: load a self-recorded Falling Hinges session (or a user .b2rec via
-// file picker), transport (play/pause/step/seek/loop/speed), debug-draw of the
-// replayed world, divergence + keyframe readout.
-// Disclosed gaps vs C ReplayViewer: no ImGui inspector outliner / selection
-// detail, no frame-query overlay / search index, no keyframe-policy Load popup
-// (defaults used), no worker-count slider.
+// Exact (serial wasm): transport, scrub, debug draw, divergence, inspector
+// outliner + detail + click-pick, per-frame query index/overlay, keyframe-
+// policy Load popup. Workers slider disclosed N/A (single-threaded wasm).
 
 import {
   createButton,
@@ -24,7 +21,7 @@ import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
 import {
   bindCameraControls,
   makeCamera,
-  viewBounds,
+  screenToWorld,
   type SampleCamera,
 } from "./sample-shell.ts";
 
@@ -41,13 +38,31 @@ const SPEEDS = [
   { label: "4x", value: 4 },
 ];
 
+const SEL_NONE = 0;
+const SEL_BODY = 1;
+const SEL_SHAPE = 2;
+const SEL_JOINT = 3;
+const SEL_QUERY = 4;
+
 /** C camera defaults for ReplayViewer (:135-136). */
 const CAMERA = { cx: 0.0, cy: 7.5, zoom: 10.0 };
+
+/** Persisted like SampleContext replayKeyframeBudgetMB / MinInterval. */
+let persistedBudgetMB = 512;
+let persistedMinInterval = 16;
+
+type OutlineBody = {
+  ord: number;
+  label: string;
+  shapes: { slot: number; label: string }[];
+  joints: { slot: number; label: string }[];
+};
+type OutlineQuery = { index: number; label: string; hits: number };
+type Outline = { bodies: OutlineBody[]; queries: OutlineQuery[] };
 
 /**
  * Record a Falling Hinges session (same scene as sample_determinism.cpp) so the
  * Viewer always has a C-faithful recording without shipping a binary asset.
- * Mirrors CreateFallingHinges + Step until sleep (shared/determinism.c).
  */
 function recordFallingHinges(wasm: ReturnType<typeof getWasm>): Uint8Array {
   const sim: SimWorld = new wasm.SimWorld(-10.0);
@@ -100,10 +115,7 @@ function recordFallingHinges(wasm: ReturnType<typeof getWasm>): Uint8Array {
     }
   }
 
-  // Step until sleep (or a hard cap). Falling Hinges issues queries each step
-  // in C for the Replay viewer; we keep cast_ray_closest as the bound equivalent.
   let hash = 0;
-  let stepCount = 0;
   const stepLimit = 500;
   for (let n = 0; n < stepLimit; n++) {
     sim.step(1 / 60, 4);
@@ -111,76 +123,315 @@ function recordFallingHinges(wasm: ReturnType<typeof getWasm>): Uint8Array {
     if (hash === 0 && sim.body_move_events().length === 0 && sim.awake_body_count() === 0) {
       hash = sim.hash_body_transforms(new Uint32Array(bodyIds));
     }
-    stepCount += 1;
     if (hash !== 0) break;
   }
-  void stepCount;
 
   const bytes = sim.stop_recording();
   freeSim(sim);
   return bytes;
 }
 
+function el(tag: string, className?: string, text?: string): HTMLElement {
+  const n = document.createElement(tag);
+  if (className) n.className = className;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
 export function init(container: HTMLElement) {
   const wasm = getWasm();
-  const { canvas, controls } = demoPage(
+  const { canvas, controls, page } = demoPage(
     container,
     "Replay",
     "C <code>sample_replay.cpp</code> Replay Viewer — play a .b2rec recording with " +
       "timeline scrubbing. Default session is a recorded Falling Hinges soak.",
-    "Scrub timeline · Play/Pause · Loop · load a local .b2rec",
-    { category: "Replay", samplesShell: true }
+    "Click shape to inspect · Scrub timeline · Play/Pause · Loop · Open .b2rec",
+    { category: "Replay", samplesShell: true },
   );
 
   const camera: SampleCamera = makeCamera(CAMERA.cx, CAMERA.cy, CAMERA.zoom);
+  const canvasArea = page.querySelector(".demo-canvas-area") as HTMLElement;
+
+  // --- Inspector (left panel, C DrawInspectorPanel) ---
+  const inspector = el("div", "replay-inspector");
+  const outlineTitle = el("div", "replay-inspector-head", "Outline");
+  const treeEl = el("div", "replay-outline-tree");
+  const detailTitle = el("div", "replay-inspector-head", "Detail");
+  const detailEl = el("pre", "replay-detail");
+  detailEl.textContent = "Click a node, or a shape in the view.";
+  inspector.append(outlineTitle, treeEl, el("hr", "replay-inspector-sep"), detailTitle, detailEl);
+  canvasArea.appendChild(inspector);
+
+  // --- Load popup (C DrawLoadPopup) ---
+  const popup = el("div", "replay-load-popup hidden");
+  const popupInner = el("div", "replay-load-popup-inner");
+  const popupTitle = el("div", "replay-load-title", "Load Replay");
+  const popupFile = el("div", "replay-load-file");
+  const popupForm = el("div", "replay-load-form");
+  const budgetSlider = createSlider("Memory budget (MB)", 128, 4096, persistedBudgetMB, 64, (v) => {
+    popupBudgetMB = v;
+  });
+  const intervalSlider = createSlider("Min sample interval", 8, 60, persistedMinInterval, 1, (v) => {
+    popupMinInterval = v;
+  });
+  popupForm.append(budgetSlider, intervalSlider);
+  const popupError = el("div", "replay-load-error");
+  const popupProgress = el("div", "replay-load-progress hidden");
+  const progressLabel = el("div", "", "Generating keyframes");
+  const progressBar = document.createElement("progress");
+  progressBar.max = 1;
+  progressBar.value = 0;
+  const progressOverlay = el("div", "replay-load-progress-text", "0 / 0");
+  popupProgress.append(progressLabel, progressBar, progressOverlay);
+  const popupActions = el("div", "replay-load-actions");
+  const loadBtn = createButton("Load", () => confirmLoad());
+  const cancelBtn = createButton("Cancel", () => hidePopup(true));
+  popupActions.append(loadBtn, cancelBtn);
+  popupInner.append(
+    popupTitle,
+    popupFile,
+    popupForm,
+    popupError,
+    popupProgress,
+    popupActions,
+  );
+  popup.appendChild(popupInner);
+  canvasArea.appendChild(popup);
 
   let player: SimPlayer | null = null;
   let status = "recording Falling Hinges…";
-  let playing = false; // C opens paused (:142)
+  let playing = false;
   let loop = false;
   let speed = 1.0;
   let frameAccumulator = 0;
   let scrubbing = false;
   let sourceLabel = "Falling Hinges (generated)";
+  let pendingBytes: Uint8Array | null = null;
+  let pendingLabel = "";
+  let popupBudgetMB = persistedBudgetMB;
+  let popupMinInterval = persistedMinInterval;
+  let generating = false;
+  let outlineDirty = true;
+  let expandedBodies = new Set<number>();
+  let queriesExpanded = true;
+  let revealSelection = false;
 
   function closePlayer() {
     player?.free?.();
-    // SimPlayer may not expose free via wasm-bindgen Drop; drop by nulling.
     player = null;
+    expandedBodies.clear();
+    outlineDirty = true;
   }
 
-  function openBytes(data: Uint8Array, label: string) {
-    closePlayer();
+  function hidePopup(cancel: boolean) {
+    if (cancel && generating) {
+      // Keep player if mid-generate was abandoned — close without commit.
+      closePlayer();
+      status = "cancelled";
+    }
+    generating = false;
+    popup.classList.add("hidden");
+    popupForm.classList.remove("hidden");
+    popupActions.classList.remove("hidden");
+    popupProgress.classList.add("hidden");
+    pendingBytes = null;
+  }
+
+  function showLoadPopup(data: Uint8Array, label: string) {
+    pendingBytes = data;
+    pendingLabel = label;
     sourceLabel = label;
-    const opened = wasm.SimPlayer.open(data);
+    popupBudgetMB = persistedBudgetMB;
+    popupMinInterval = persistedMinInterval;
+    budgetSlider.querySelector("input")!.value = String(popupBudgetMB);
+    budgetSlider.querySelector(".slider-value")!.textContent = String(popupBudgetMB);
+    intervalSlider.querySelector("input")!.value = String(popupMinInterval);
+    intervalSlider.querySelector(".slider-value")!.textContent = String(popupMinInterval);
+    popupFile.innerHTML = `<span class="muted">File:</span> ${label}`;
+    popupError.textContent = "";
+    popupForm.classList.remove("hidden");
+    popupActions.classList.remove("hidden");
+    popupProgress.classList.add("hidden");
+    generating = false;
+    popup.classList.remove("hidden");
+  }
+
+  function confirmLoad() {
+    if (!pendingBytes) return;
+    closePlayer();
+    persistedBudgetMB = popupBudgetMB;
+    persistedMinInterval = popupMinInterval;
+    const opened = wasm.SimPlayer.open(pendingBytes);
     if (!opened) {
       status = "failed to open recording";
+      popupError.textContent = status;
       player = null;
       return;
     }
     player = opened;
+    player.set_keyframe_policy(persistedBudgetMB, persistedMinInterval);
     status = "loaded";
     playing = false;
+    playBtn.textContent = "Play";
     frameAccumulator = 0;
     timeline.querySelector("input")!.max = String(player.frame_count());
     timeline.querySelector("input")!.value = "0";
+    outlineDirty = true;
+
+    if (player.frame_count() > 0) {
+      generating = true;
+      popupForm.classList.add("hidden");
+      popupActions.classList.add("hidden");
+      popupProgress.classList.remove("hidden");
+      progressBar.max = player.frame_count();
+      progressBar.value = 0;
+      progressOverlay.textContent = `0 / ${player.frame_count()}`;
+    } else {
+      hidePopup(false);
+    }
+  }
+
+  function advanceKeyframeGeneration() {
+    if (!player || !generating) return;
+    const t0 = performance.now();
+    while (!player.is_at_end() && performance.now() - t0 < 12) {
+      player.step_frame();
+    }
+    const frame = player.frame();
+    const total = player.frame_count();
+    progressBar.value = frame;
+    progressOverlay.textContent = `${frame} / ${total}`;
+    if (player.is_at_end()) {
+      player.restart();
+      generating = false;
+      playing = false;
+      playBtn.textContent = "Play";
+      frameAccumulator = 0;
+      timeline.querySelector("input")!.value = "0";
+      outlineDirty = true;
+      hidePopup(false);
+    }
+  }
+
+  function select(kind: number, bodyOrd: number, slot: number, query: number) {
+    if (!player) return;
+    player.set_selection(kind, bodyOrd, slot, query);
+    if (kind === SEL_SHAPE || kind === SEL_JOINT) {
+      expandedBodies.add(bodyOrd);
+      revealSelection = true;
+    } else if (kind === SEL_BODY) {
+      revealSelection = true;
+    } else if (kind === SEL_QUERY) {
+      queriesExpanded = true;
+      revealSelection = true;
+    }
+    outlineDirty = true;
+  }
+
+  function renderOutline() {
+    if (!player) {
+      treeEl.textContent = "";
+      return;
+    }
+    let data: Outline;
+    try {
+      data = JSON.parse(player.outline_json()) as Outline;
+    } catch {
+      treeEl.textContent = "(outline parse error)";
+      return;
+    }
+    const sel = Array.from(player.selection());
+    const selKind = sel[0] ?? SEL_NONE;
+    const selBody = sel[1] ?? -1;
+    const selSlot = sel[2] ?? -1;
+    const selQuery = sel[3] ?? -1;
+
+    treeEl.replaceChildren();
+    for (const body of data.bodies) {
+      const open = expandedBodies.has(body.ord);
+      const bodyRow = el("div", "replay-tree-row");
+      if (selKind === SEL_BODY && selBody === body.ord) bodyRow.classList.add("selected");
+      const twist = el("button", "replay-tree-twist", open ? "▾" : "▸");
+      twist.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (expandedBodies.has(body.ord)) expandedBodies.delete(body.ord);
+        else expandedBodies.add(body.ord);
+        outlineDirty = true;
+      });
+      const bodyLabel = el("span", "replay-tree-label", body.label);
+      bodyRow.append(twist, bodyLabel);
+      bodyRow.addEventListener("click", () => select(SEL_BODY, body.ord, -1, -1));
+      if (revealSelection && selKind === SEL_BODY && selBody === body.ord) {
+        bodyRow.scrollIntoView({ block: "nearest" });
+      }
+      treeEl.appendChild(bodyRow);
+
+      if (!open) continue;
+      for (const s of body.shapes) {
+        const row = el("div", "replay-tree-row nested");
+        if (selKind === SEL_SHAPE && selBody === body.ord && selSlot === s.slot) {
+          row.classList.add("selected");
+          if (revealSelection) row.scrollIntoView({ block: "nearest" });
+        }
+        row.appendChild(el("span", "replay-tree-label", s.label));
+        row.addEventListener("click", () => select(SEL_SHAPE, body.ord, s.slot, -1));
+        treeEl.appendChild(row);
+      }
+      for (const j of body.joints) {
+        const row = el("div", "replay-tree-row nested");
+        if (selKind === SEL_JOINT && selBody === body.ord && selSlot === j.slot) {
+          row.classList.add("selected");
+        }
+        row.appendChild(el("span", "replay-tree-label", j.label));
+        row.addEventListener("click", () => select(SEL_JOINT, body.ord, j.slot, -1));
+        treeEl.appendChild(row);
+      }
+    }
+
+    const qHead = el("div", "replay-tree-row");
+    const qTwist = el("button", "replay-tree-twist", queriesExpanded ? "▾" : "▸");
+    qTwist.addEventListener("click", (e) => {
+      e.stopPropagation();
+      queriesExpanded = !queriesExpanded;
+      outlineDirty = true;
+    });
+    qHead.append(
+      qTwist,
+      el("span", "replay-tree-label", `Queries (${data.queries.length})`),
+    );
+    treeEl.appendChild(qHead);
+    if (queriesExpanded) {
+      for (const q of data.queries) {
+        const row = el("div", "replay-tree-row nested");
+        if (selKind === SEL_QUERY && selQuery === q.index) {
+          row.classList.add("selected");
+          if (revealSelection) row.scrollIntoView({ block: "nearest" });
+        }
+        row.appendChild(el("span", "replay-tree-label", q.label));
+        row.addEventListener("click", () => select(SEL_QUERY, -1, -1, q.index));
+        treeEl.appendChild(row);
+      }
+    }
+    revealSelection = false;
   }
 
   // --- Transport ---
   const timeline = createSlider("Frame", 0, 1, 0, 1, (v) => {
-    if (!player) return;
+    if (!player || generating) return;
     scrubbing = true;
     playing = false;
+    playBtn.textContent = "Play";
     player.seek_frame(v);
     frameAccumulator = 0;
     scrubbing = false;
+    outlineDirty = true;
   });
 
   controls.appendChild(
     createInfoBox(
-      "Partial vs C: transport + scrub + debug draw + divergence are live. " +
-        "Not ported: inspector outline/detail, query overlay/search index, " +
-        "keyframe-budget Load popup, worker-count slider.",
+      "Exact vs C (serial wasm): inspector outliner/detail, click-pick, frame " +
+        "query index/overlay, and keyframe Load popup are live. " +
+        "Workers: N/A — single-threaded wasm (C Workers slider not applicable).",
     ),
   );
   controls.appendChild(createSeparator());
@@ -193,6 +444,7 @@ export function init(container: HTMLElement) {
     createButton("|<", () => {
       player?.seek_frame(0);
       frameAccumulator = 0;
+      outlineDirty = true;
     }),
   );
   transportRow.appendChild(
@@ -200,10 +452,13 @@ export function init(container: HTMLElement) {
       if (!player) return;
       player.seek_frame(player.frame() - 1);
       playing = false;
+      playBtn.textContent = "Play";
       frameAccumulator = 0;
+      outlineDirty = true;
     }),
   );
   const playBtn = createButton("Play", () => {
+    if (generating) return;
     playing = !playing;
     playBtn.textContent = playing ? "Pause" : "Play";
   });
@@ -213,7 +468,9 @@ export function init(container: HTMLElement) {
       if (!player) return;
       player.seek_frame(player.frame() + 1);
       playing = false;
+      playBtn.textContent = "Play";
       frameAccumulator = 0;
+      outlineDirty = true;
     }),
   );
   transportRow.appendChild(
@@ -221,6 +478,7 @@ export function init(container: HTMLElement) {
       if (!player) return;
       player.seek_frame(player.frame_count());
       frameAccumulator = 0;
+      outlineDirty = true;
     }),
   );
   controls.appendChild(transportRow);
@@ -240,6 +498,9 @@ export function init(container: HTMLElement) {
       loop = v;
     }),
   );
+  controls.appendChild(
+    createInfoBox("Workers: N/A (serial wasm — recorded worker count only)"),
+  );
   controls.appendChild(timeline);
   controls.appendChild(createSeparator());
 
@@ -251,40 +512,67 @@ export function init(container: HTMLElement) {
     const file = fileInput.files?.[0];
     if (!file) return;
     const buf = new Uint8Array(await file.arrayBuffer());
-    openBytes(buf, file.name);
+    showLoadPopup(buf, file.name);
+    fileInput.value = "";
   });
   controls.appendChild(fileInput);
-  controls.appendChild(
-    createButton("Open .b2rec…", () => fileInput.click()),
-  );
+  controls.appendChild(createButton("Open .b2rec…", () => fileInput.click()));
   controls.appendChild(
     createButton("Reload Falling Hinges", () => {
       status = "recording Falling Hinges…";
-      const bytes = recordFallingHinges(wasm);
-      openBytes(bytes, "Falling Hinges (generated)");
+      try {
+        const bytes = recordFallingHinges(wasm);
+        showLoadPopup(bytes, "Falling Hinges (generated)");
+      } catch (e) {
+        status = e instanceof Error ? e.message : "record failed";
+      }
     }),
   );
   controls.appendChild(createSeparator());
   const readout = createReadout();
   controls.appendChild(readout);
 
-  // Generate default recording synchronously on first paint path.
+  // Default recording → Load popup (C fresh open path).
   try {
     const bytes = recordFallingHinges(wasm);
-    openBytes(bytes, "Falling Hinges (generated)");
+    showLoadPopup(bytes, "Falling Hinges (generated)");
   } catch (e) {
     status = e instanceof Error ? e.message : "record failed";
   }
 
   const unbindCamera = bindCameraControls(camera, canvas);
 
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0 || !player || generating) return;
+    fitCanvas(canvas);
+    const rect = canvas.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const py = ((e.clientY - rect.top) / rect.height) * canvas.height;
+    const w = screenToWorld(camera, canvas, px, py);
+    const hit = Array.from(player.pick_at(w.x, w.y));
+    const kind = hit[0] ?? SEL_NONE;
+    if (kind === SEL_NONE) {
+      select(SEL_NONE, -1, -1, -1);
+    } else {
+      select(kind, hit[1] ?? -1, hit[2] ?? -1, -1);
+    }
+  };
+  canvas.addEventListener("pointerdown", onPointerDown);
+
   const stop = runSimLoop(() => {
     fitCanvas(canvas);
+
+    if (generating) {
+      advanceKeyframeGeneration();
+      return;
+    }
+
     if (!player) {
       updateReadout(readout, [
         { label: "Status", value: status },
         { label: "Source", value: sourceLabel },
       ]);
+      detailEl.textContent = status;
       return;
     }
 
@@ -312,6 +600,7 @@ export function init(container: HTMLElement) {
             break;
           }
         }
+        outlineDirty = true;
       }
       const input = timeline.querySelector("input");
       if (input && !scrubbing) input.value = String(player.frame());
@@ -319,7 +608,14 @@ export function init(container: HTMLElement) {
 
     paintSampleDraw(canvas, camera, player);
 
+    if (outlineDirty) {
+      renderOutline();
+      detailEl.textContent = player.detail_text();
+      outlineDirty = false;
+    }
+
     const diverge = player.diverge_frame();
+    const qn = player.frame_query_count();
     updateReadout(readout, [
       { label: "Status", value: status },
       { label: "Source", value: sourceLabel },
@@ -329,6 +625,7 @@ export function init(container: HTMLElement) {
       },
       { label: "Bodies", value: String(player.body_count()) },
       { label: "Contacts", value: String(player.contact_count()) },
+      { label: "Queries", value: String(qn) },
       { label: "Bit-identical", value: player.has_diverged() ? "NO" : "yes" },
       {
         label: "Diverged at",
@@ -336,14 +633,19 @@ export function init(container: HTMLElement) {
       },
       {
         label: "Keyframe",
-        value: `every ${player.keyframe_interval()} · ${player.keyframe_kilobytes().toFixed(0)} KB`,
+        value:
+          `spacing ${player.keyframe_interval()} · ` +
+          `${(player.keyframe_kilobytes() / 1024).toFixed(1)} MB ` +
+          `(budget ${player.keyframe_budget_mb()} MB, min ${player.keyframe_min_interval()})`,
       },
+      { label: "Workers", value: "N/A (serial wasm)" },
     ]);
   }, readout);
 
   return () => {
     stop();
     unbindCamera();
+    canvas.removeEventListener("pointerdown", onPointerDown);
     closePlayer();
   };
 }
