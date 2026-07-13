@@ -187,7 +187,8 @@ impl SimWorld {
 #[wasm_bindgen]
 impl SimWorld {
     /// C `CreateHuman` (`shared/human.c:13-510`). Returns a demo human index.
-    /// `userData` is omitted (samples pass `nullptr`); pass `0` via bodies if needed later.
+    /// `user_data` is written onto every bone body (`bodyDef.userData`); samples
+    /// often pass a slot index (Sensor Funnel) or `0` for `nullptr`.
     pub fn create_human(
         &mut self,
         x: f32,
@@ -198,6 +199,7 @@ impl SimWorld {
         damping_ratio: f32,
         group_index: i32,
         colorize: bool,
+        user_data: u32,
     ) -> usize {
         let human_index = self.human_alloc_slot();
         let position = to_pos(Vec2 { x, y });
@@ -224,6 +226,7 @@ impl SimWorld {
         let mut body_def = default_body_def();
         body_def.type_ = BodyType::Dynamic;
         body_def.sleep_threshold = 0.1;
+        body_def.user_data = u64::from(user_data);
 
         let mut shape_def = default_shape_def();
         shape_def.material.friction = 0.2;

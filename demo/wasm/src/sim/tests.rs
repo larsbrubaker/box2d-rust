@@ -204,7 +204,7 @@ fn create_human_spawns_and_destroys() {
     // shared/human.c CreateHuman / DestroyHuman
     let mut sim = SimWorld::new(-10.0);
     sim.add_segment(-20.0, 0.0, 20.0, 0.0);
-    let h = sim.create_human(0.0, 5.0, 1.0, 0.03, 5.0, 0.5, 1, false);
+    let h = sim.create_human(0.0, 5.0, 1.0, 0.03, 5.0, 0.5, 1, false, 0);
     assert!(sim.human_is_spawned(h));
     // 1 ground + 11 bones
     assert_eq!(sim.body_count(), 12);
@@ -223,7 +223,7 @@ fn create_human_spawns_and_destroys() {
     sim.destroy_human(h);
     assert!(!sim.human_is_spawned(h));
     // Slot reuse
-    let h2 = sim.create_human(0.0, 8.0, 1.0, 0.05, 1.0, 0.1, 2, true);
+    let h2 = sim.create_human(0.0, 8.0, 1.0, 0.05, 1.0, 0.1, 2, true, 0);
     assert_eq!(h2, h);
     assert!(sim.human_is_spawned(h2));
     sim.destroy_human(h2);

@@ -797,6 +797,7 @@ export interface SimWorld {
     dampingRatio: number,
     groupIndex: number,
     colorize: boolean,
+    userData: number,
   ): number;
   destroy_human(index: number): void;
   human_set_velocity(index: number, vx: number, vy: number): void;
