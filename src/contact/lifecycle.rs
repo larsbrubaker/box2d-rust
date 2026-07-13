@@ -375,6 +375,16 @@ pub fn destroy_contact(world: &mut World, contact_id: i32, wake_bodies: bool) {
     }
 }
 
+/// Validate a ContactId and return the raw contact index. (b2GetContactFullId
+/// — C returns a pointer; Rust returns the index into `world.contacts`)
+pub fn get_contact_full_id(world: &World, contact_id: crate::id::ContactId) -> i32 {
+    let id = contact_id.index1 - 1;
+    debug_assert!((id as usize) < world.contacts.len());
+    let contact = &world.contacts[id as usize];
+    debug_assert!(contact.contact_id == id && contact.generation == contact_id.generation);
+    id
+}
+
 /// Borrow a contact's sim data mutably: constraint graph color for awake
 /// touching contacts, otherwise the owning solver set. (b2GetContactSim)
 pub fn get_contact_sim(world: &mut World, contact_id: i32) -> &mut ContactSim {
@@ -389,5 +399,19 @@ pub fn get_contact_sim(world: &mut World, contact_id: i32) -> &mut ContactSim {
         &mut world.constraint_graph.colors[color_index as usize].contact_sims[local_index as usize]
     } else {
         &mut world.solver_sets[set_index as usize].contact_sims[local_index as usize]
+    }
+}
+
+/// Shared-reference variant of get_contact_sim for read-only accessors. (The C
+/// b2GetContactSim is used for both; Rust needs the split.)
+pub fn get_contact_sim_ref(world: &World, contact_id: i32) -> &ContactSim {
+    let contact = &world.contacts[contact_id as usize];
+
+    if contact.set_index == AWAKE_SET && contact.color_index != NULL_INDEX {
+        debug_assert!((0..GRAPH_COLOR_COUNT).contains(&contact.color_index));
+        &world.constraint_graph.colors[contact.color_index as usize].contact_sims
+            [contact.local_index as usize]
+    } else {
+        &world.solver_sets[contact.set_index as usize].contact_sims[contact.local_index as usize]
     }
 }

@@ -49,6 +49,8 @@ mod bitset_tests;
 #[cfg(test)]
 mod body_api_tests;
 #[cfg(test)]
+mod contact_api_tests;
+#[cfg(test)]
 mod debug_draw_tests;
 #[cfg(test)]
 mod determinism_tests;

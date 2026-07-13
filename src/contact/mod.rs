@@ -38,9 +38,11 @@ use crate::core::NULL_INDEX;
 use crate::distance::SimplexCache;
 use crate::math_functions::{Rot, Transform, ROT_IDENTITY, TRANSFORM_IDENTITY};
 
+mod api;
 mod lifecycle;
 mod update;
 
+pub use api::*;
 pub use lifecycle::*;
 pub use update::*;
 

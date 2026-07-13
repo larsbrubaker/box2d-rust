@@ -7,9 +7,10 @@ use box2d_rust::body::{
     body_set_name, body_set_user_data, get_body_full_id, make_body_id,
 };
 use box2d_rust::collision::ShapeType;
+use box2d_rust::contact::contact_is_valid as lib_contact_is_valid;
 use box2d_rust::core::NULL_INDEX;
 use box2d_rust::geometry::transform_polygon;
-use box2d_rust::id::ShapeId;
+use box2d_rust::id::{ContactId, ShapeId};
 use box2d_rust::joint::{destroy_joint, joint_is_valid, joint_set_user_data};
 use box2d_rust::math_functions::{inv_mul_world_transforms, to_pos, transform_point, Vec2};
 use box2d_rust::shape::{
@@ -301,15 +302,15 @@ impl SimWorld {
 
     /// Contact validity (b2Contact_IsValid).
     pub fn contact_is_valid(&self, index1: i32, generation: u32) -> bool {
-        if index1 <= 0 {
-            return false;
-        }
-        let id = (index1 - 1) as usize;
-        if id >= self.world.contacts.len() {
-            return false;
-        }
-        let c = &self.world.contacts[id];
-        c.set_index != NULL_INDEX && c.generation == generation
+        lib_contact_is_valid(
+            &self.world,
+            ContactId {
+                index1,
+                world0: self.world.world_id,
+                padding: 0,
+                generation,
+            },
+        )
     }
 
     /// Manifold impulses for a contact: [nx, ny, pointCount, then per point:
