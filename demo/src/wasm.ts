@@ -227,6 +227,8 @@ export interface SimWorld {
     g2y: number,
   ): void;
   shape_set_filter(shapeIndex: number, categoryBits: number, maskBits: number): void;
+  /** C ShapeUserData for mover planes (maxPush + clipVelocity). */
+  shape_set_plane_user_data(shapeIndex: number, maxPush: number, clipVelocity: boolean): void;
   shape_get_filter(shapeIndex: number): Uint32Array;
   shape_set_friction(shapeIndex: number, friction: number): void;
   shape_set_restitution(shapeIndex: number, restitution: number): void;
@@ -751,7 +753,26 @@ export interface SimWorld {
   start_recording(): boolean;
   stop_recording(): Uint8Array;
   mover_spawn(x: number, y: number): void;
-  mover_update(dt: number, moveX: number, jump: boolean): Float32Array;
+  mover_set_params(
+    jumpSpeed: number,
+    minSpeed: number,
+    maxSpeed: number,
+    stopSpeed: number,
+    accelerate: number,
+    friction: number,
+    gravity: number,
+    airSteer: number,
+    pogoHertz: number,
+    pogoDamping: number,
+  ): void;
+  mover_set_pogo_shape(shape: number): void;
+  /** Returns [x, y, vx, vy, grounded, planeCount, iterations]. */
+  mover_update(dt: number, throttle: number, jumpHeld: boolean): Float32Array;
+  mover_kick(): void;
+  mover_clear_kick_draw(): void;
+  mover_kick_draw(): Float32Array;
+  mover_planes(): Float32Array;
+  mover_pogo_draw(): Float32Array;
   explode(x: number, y: number, radius: number, falloff: number, impulsePerLength: number): void;
   set_gravity(x: number, y: number): void;
   step(dt: number, subStepCount: number): void;

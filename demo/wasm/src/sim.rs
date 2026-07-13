@@ -10,6 +10,7 @@ mod body_ops;
 mod event_ops;
 mod joint_ops;
 mod joints;
+mod mover;
 mod query_ops;
 mod shape_ops;
 mod shapes;
@@ -19,6 +20,7 @@ mod tests;
 
 use box2d_rust::collision::Capsule;
 use box2d_rust::math_functions as m;
+use box2d_rust::mover::CollisionPlane;
 use wasm_bindgen::prelude::*;
 
 use box2d_rust::body::{create_body, get_body_full_id, get_body_transform, make_body_id};
@@ -35,11 +37,11 @@ use box2d_rust::types::{
     default_world_def, BodyType,
 };
 use box2d_rust::world::{
-    world_cast_mover, world_collide_mover, world_enable_continuous, world_get_contact_events,
-    world_get_sensor_events, world_step, World,
+    world_enable_continuous, world_get_contact_events, world_get_sensor_events, world_step, World,
 };
 
 use crate::interact::{collect_world_draw, MouseGrab};
+use mover::PogoShape;
 
 /// A live physics world for the Bodies/Stacking demos. Every step runs the
 /// ported b2World_Step pipeline: broad phase, narrow phase, graph-colored
@@ -54,8 +56,27 @@ pub struct SimWorld {
     /// Shape ids from attach_*_mat / filter / chain-segment (Shapes samples).
     pub(crate) shapes: Vec<ShapeId>,
     /// Character mover state (not a body; driven by the mover queries).
-    mover_position: m::Pos,
-    mover_velocity: m::Vec2,
+    pub(crate) mover_position: m::Pos,
+    pub(crate) mover_velocity: m::Vec2,
+    pub(crate) mover_pogo_velocity: f32,
+    pub(crate) mover_on_ground: bool,
+    pub(crate) mover_jump_released: bool,
+    pub(crate) mover_plane_count: i32,
+    pub(crate) mover_total_iterations: i32,
+    pub(crate) mover_planes: Vec<CollisionPlane>,
+    pub(crate) mover_pogo_draw: Vec<f32>,
+    pub(crate) mover_kick_draw: Vec<f32>,
+    pub(crate) mover_pogo_shape: i32,
+    pub(crate) mover_jump_speed: f32,
+    pub(crate) mover_min_speed: f32,
+    pub(crate) mover_max_speed: f32,
+    pub(crate) mover_stop_speed: f32,
+    pub(crate) mover_accelerate: f32,
+    pub(crate) mover_friction: f32,
+    pub(crate) mover_gravity: f32,
+    pub(crate) mover_air_steer: f32,
+    pub(crate) mover_pogo_hertz: f32,
+    pub(crate) mover_pogo_damping: f32,
     /// C Sample mouse grab (kinematic body + motor joint).
     grab: MouseGrab,
     /// Last collected debug-draw buffers (see draw_* accessors).
@@ -101,6 +122,26 @@ impl SimWorld {
             shapes: Vec::new(),
             mover_position: m::POS_ZERO,
             mover_velocity: m::VEC2_ZERO,
+            mover_pogo_velocity: 0.0,
+            mover_on_ground: false,
+            mover_jump_released: true,
+            mover_plane_count: 0,
+            mover_total_iterations: 0,
+            mover_planes: Vec::new(),
+            mover_pogo_draw: Vec::new(),
+            mover_kick_draw: Vec::new(),
+            // C defaults (`sample_character.cpp:595-606`)
+            mover_pogo_shape: PogoShape::Segment as i32,
+            mover_jump_speed: 10.0,
+            mover_min_speed: 0.1,
+            mover_max_speed: 6.0,
+            mover_stop_speed: 3.0,
+            mover_accelerate: 20.0,
+            mover_friction: 8.0,
+            mover_gravity: 30.0,
+            mover_air_steer: 0.2,
+            mover_pogo_hertz: 5.0,
+            mover_pogo_damping: 0.8,
             grab: MouseGrab::default(),
             draw_polygons: Vec::new(),
             draw_circles: Vec::new(),
@@ -585,82 +626,5 @@ impl SimWorld {
     /// Change gravity at runtime. (b2World_SetGravity)
     pub fn set_gravity(&mut self, x: f32, y: f32) {
         box2d_rust::world::world_set_gravity(&mut self.world, m::Vec2 { x, y });
-    }
-
-    /// Place the capsule character mover.
-    pub fn mover_spawn(&mut self, x: f32, y: f32) {
-        self.mover_position = m::to_pos(m::Vec2 { x, y });
-        self.mover_velocity = m::VEC2_ZERO;
-    }
-
-    /// One character-controller step built entirely from the ported mover
-    /// queries: gather planes (b2World_CollideMover), resolve them
-    /// (b2SolvePlanes), sweep the move (b2World_CastMover), and clip the
-    /// velocity (b2ClipVector). Returns [x, y, grounded, planeCount].
-    pub fn mover_update(&mut self, dt: f32, move_x: f32, jump: bool) -> Vec<f32> {
-        use box2d_rust::mover::{clip_vector, solve_planes, CollisionPlane};
-
-        let capsule = mover_capsule();
-        let filter = box2d_rust::types::default_query_filter();
-
-        // Gather contact planes at the current position.
-        let mut planes: Vec<CollisionPlane> = Vec::new();
-        world_collide_mover(
-            &mut self.world,
-            self.mover_position,
-            &capsule,
-            filter,
-            |_, hit| {
-                if planes.len() < 8 {
-                    planes.push(CollisionPlane {
-                        plane: hit.plane,
-                        push_limit: f32::MAX,
-                        push: 0.0,
-                        clip_velocity: true,
-                    });
-                }
-                true
-            },
-        );
-        let grounded = planes.iter().any(|p| p.plane.normal.y > 0.7);
-
-        // Input: horizontal approach, jump only from the ground, gravity.
-        let v = &mut self.mover_velocity;
-        v.x += (6.0 * move_x - v.x) * (10.0 * dt).min(1.0);
-        if jump && grounded {
-            v.y = 8.0;
-        }
-        v.y -= 10.0 * dt;
-
-        // Resolve the desired motion against the planes, then sweep it so a
-        // fast fall cannot skip a thin ledge.
-        let target = m::mul_sv(dt, *v);
-        let result = solve_planes(target, &mut planes);
-        let fraction = world_cast_mover(
-            &mut self.world,
-            self.mover_position,
-            &capsule,
-            result.translation,
-            filter,
-        );
-        self.mover_position =
-            m::offset_pos(self.mover_position, m::mul_sv(fraction, result.translation));
-        self.mover_velocity = clip_vector(self.mover_velocity, &planes);
-
-        vec![
-            self.mover_position.x as f32,
-            self.mover_position.y as f32,
-            if grounded { 1.0 } else { 0.0 },
-            planes.len() as f32,
-        ]
-    }
-}
-
-/// The character capsule, in mover-local space.
-fn mover_capsule() -> Capsule {
-    Capsule {
-        center1: m::Vec2 { x: 0.0, y: -0.25 },
-        center2: m::Vec2 { x: 0.0, y: 0.25 },
-        radius: 0.3,
     }
 }

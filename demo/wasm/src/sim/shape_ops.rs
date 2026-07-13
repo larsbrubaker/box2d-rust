@@ -410,6 +410,25 @@ impl SimWorld {
         );
     }
 
+    /// C ShapeUserData for mover planes (`sample_character.cpp:13-17`).
+    pub fn shape_set_plane_user_data(
+        &mut self,
+        shape_index: usize,
+        max_push: f32,
+        clip_velocity: bool,
+    ) {
+        use box2d_rust::shape::shape_set_user_data;
+        if shape_index >= self.shapes.len() {
+            return;
+        }
+        let sid = self.shapes[shape_index];
+        shape_set_user_data(
+            &mut self.world,
+            sid,
+            super::mover::pack_plane_user_data(max_push, clip_velocity),
+        );
+    }
+
     /// (b2Shape_GetFilter) as [category, mask]
     pub fn shape_get_filter(&self, shape_index: usize) -> Vec<u32> {
         if shape_index >= self.shapes.len() {
