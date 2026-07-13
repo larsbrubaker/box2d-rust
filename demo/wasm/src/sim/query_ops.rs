@@ -8,9 +8,7 @@ use box2d_rust::id::ShapeId;
 use box2d_rust::math_functions::{Pos, Vec2};
 use box2d_rust::shape::{shape_get_user_data, shape_set_user_data};
 use box2d_rust::types::default_query_filter;
-use box2d_rust::world::{
-    world_cast_ray, world_cast_ray_closest, world_cast_shape, world_overlap_shape, World,
-};
+use box2d_rust::world::{world_cast_ray, world_cast_shape, world_overlap_shape, World};
 
 use super::SimWorld;
 
@@ -59,23 +57,7 @@ impl SimWorld {
         shape_get_user_data(&self.world, self.shapes[shape_index]) as u32
     }
 
-    /// (b2World_CastRayClosest). Returns `[hit, fraction, px, py, nx, ny]`.
-    pub fn cast_ray_closest(&mut self, ox: f32, oy: f32, tx: f32, ty: f32) -> Vec<f32> {
-        let r = world_cast_ray_closest(
-            &mut self.world,
-            Pos { x: ox, y: oy },
-            Vec2 { x: tx, y: ty },
-            default_query_filter(),
-        );
-        vec![
-            if r.hit { 1.0 } else { 0.0 },
-            r.fraction,
-            r.point.x as f32,
-            r.point.y as f32,
-            r.normal.x,
-            r.normal.y,
-        ]
-    }
+    // cast_ray_closest lives in event_ops.rs (Events tip).
 
     /// (b2World_CastRay) collecting hits. Ignores shapes with user_data==1.
     /// `mode`: 0 any, 1 closest, 2 multiple, 3 sorted.

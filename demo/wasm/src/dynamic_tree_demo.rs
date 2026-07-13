@@ -8,7 +8,8 @@ use box2d_rust::math_functions::{Aabb, Vec2};
 
 struct Proxy {
     position: Vec2,
-    width: Vec2,
+    #[allow(dead_code)]
+    width: Vec2, // C Proxy.width (sample_collision.cpp)
     box_: Aabb,
     fat_box: Aabb,
     proxy_id: i32,

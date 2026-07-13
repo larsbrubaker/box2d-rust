@@ -703,6 +703,25 @@ export interface SimWorld {
   sensor_visitor_centers(shapeIndex: number): Float32Array;
   sensor_visitor_names(shapeIndex: number): string;
   cast_ray_closest(ox: number, oy: number, tx: number, ty: number): Float32Array;
+  /** Collision Cast World — [count, f,px,py,nx,ny,shapeIdx]* */
+  cast_ray_hits(ox: number, oy: number, tx: number, ty: number, mode: number): Float32Array;
+  cast_shape_hits(
+    ox: number,
+    oy: number,
+    pts: Float32Array | number[],
+    radius: number,
+    tx: number,
+    ty: number,
+    mode: number,
+  ): Float32Array;
+  overlap_shape_hits(
+    ox: number,
+    oy: number,
+    pts: Float32Array | number[],
+    radius: number,
+  ): Int32Array;
+  shape_set_user_data(shapeIndex: number, userData: number): void;
+  shape_get_user_data(shapeIndex: number): number;
   contact_begin_bodies(): Int32Array;
   absorb_body_shapes(dest: number, src: number): void;
   set_mass_data_scale(index: number, mass: number): void;
@@ -769,6 +788,30 @@ export interface SimPlayer {
   free(): void;
 }
 
+export interface TreeDemo {
+  free(): void;
+  set_rows(rows: number): void;
+  set_columns(cols: number): void;
+  set_fill(fill: number): void;
+  set_grid(grid: number): void;
+  set_ratio(ratio: number): void;
+  set_move_fraction(v: number): void;
+  set_move_delta(v: number): void;
+  set_update_type(t: number): void;
+  row_count(): number;
+  column_count(): number;
+  proxy_count(): number;
+  tree_height(): number;
+  area_ratio(): number;
+  build_tree(): void;
+  step(): void;
+  leaf_boxes(): Float32Array;
+  query_aabb(x0: number, y0: number, x1: number, y1: number): Int32Array;
+  ray_cast(ox: number, oy: number, ex: number, ey: number): Int32Array;
+  highlight_flags(): Uint8Array;
+  root_bounds(): Float32Array;
+}
+
 export interface Box2dWasm {
   version(): string;
   compute_cos_sin(radians: number): Float32Array;
@@ -778,6 +821,62 @@ export interface Box2dWasm {
   ray_cast_scene(ox: number, oy: number, tx: number, ty: number): Float32Array;
   closest_points(bx: number, by: number): Float32Array;
   collide_with_box(kind: number, bx: number, by: number, angle: number): Float32Array;
+  collision_shape_distance(
+    ptsA: Float32Array | number[],
+    radiusA: number,
+    ptsB: Float32Array | number[],
+    radiusB: number,
+    tx: number,
+    ty: number,
+    angle: number,
+    useRadii: boolean,
+  ): Float32Array;
+  collision_shape_cast(
+    ptsA: Float32Array | number[],
+    radiusA: number,
+    ptsB: Float32Array | number[],
+    radiusB: number,
+    tx: number,
+    ty: number,
+    angle: number,
+    tdx: number,
+    tdy: number,
+    maxFraction: number,
+    canEncroach: boolean,
+  ): Float32Array;
+  collision_time_of_impact(): Float32Array;
+  collision_ray_cast_shapes(
+    ox: number,
+    oy: number,
+    angle: number,
+    rsx: number,
+    rsy: number,
+    rex: number,
+    rey: number,
+  ): Float32Array;
+  collision_manifold_pair(
+    kind: number,
+    bx: number,
+    by: number,
+    angle: number,
+    round: number,
+  ): Float32Array;
+  collision_smooth_manifold(
+    shapeType: number,
+    bx: number,
+    by: number,
+    angle: number,
+    round: number,
+    g1x: number,
+    g1y: number,
+    p1x: number,
+    p1y: number,
+    p2x: number,
+    p2y: number,
+    g2x: number,
+    g2y: number,
+  ): Float32Array;
+  TreeDemo: new () => TreeDemo;
   SimWorld: new (gravityY: number) => SimWorld;
   SimPlayer: { open(data: Uint8Array): SimPlayer | undefined };
 }

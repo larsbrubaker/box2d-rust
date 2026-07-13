@@ -51,7 +51,7 @@ partial until a scene is ported 1:1.
 | Benchmark (`sample_benchmark.cpp`) | 21 | 0 | 17 | 4 | DEBUG/wasm counts disclosed. Exact 0. Partial: Barrel (no Human), Barrel 2.4, Compounds, Tumbler, Washer, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Spinner, Capacity (wall-clock vs profile), Junkyard. Missing: Cast, Rain (CreateHuman), Shape Distance, Sensor |
 | Bodies (`sample_bodies.cpp`) | 9 | 5 | 4 | 0 | Exact: Body Type, Bad, Pivot, Set Velocity, Wake Touching. Partial: Weeble (no mass-data/friction callbacks), Sleep (no sensor events / sleepThreshold / enableSleep), Kinematic (SetTransform snap), Mixed Locks (motionLocks unbound). Invented shower retired from Labs. |
 | Character (`sample_character.cpp`) | 1 | 0 | 0 | 1 | C has only "Mover" |
-| Collision (`sample_collision.cpp`) | 9 | 0 | 0 | 9 | Manifold / queries live under Collision in C; current `#/manifolds` + `#/geometry` are invented |
+| Collision (`sample_collision.cpp`) | 9 | 8 | 1 | 0 | Exact: Shape Distance, Ray Cast, Cast World, Overlap World, Manifold, Smooth Manifold, Shape Cast, Time of Impact. Partial: Dynamic Tree (C debug 100×100 grid, not release 1000×1000). Invented `#/manifolds` retired from Labs. |
 | Continuous (`sample_continuous.cpp`) | 15 | 13 | 1 | 1 | Exact: Bounce House, Chain Drop/Slide, Segment Slide, Skinny Box, Ghost Bumps, Speculative Fallback/Sliver/Ghost, Pixel Imperfect, Restitution Threshold, Pinball, Wedge. Partial: Drop (Scene3 ragdoll needs CreateHuman). Missing: Bounce Humans (CreateHuman). Invented bullet/wall composite replaced. |
 | Determinism (`sample_determinism.cpp`) | 2 | 0 | 0 | 2 | Falling Hinges, SnapShot — current `#/determinism` is invented |
 | Events (`sample_events.cpp`) | 12 | 10 | 2 | 0 | Exact: Sensor Bookend, Foot Sensor, Contact, Platformer, Body Move, Sensor Types, Joint, Persistent Contact, Projectile Event, Circle Impulse. Partial: Sensor Funnel (no CreateHuman — donut stand-in), Sensor Hits (prismatic motor reverse via body-x approx). Invented `#/events` composite replaced. |
@@ -63,7 +63,7 @@ partial until a scene is ported 1:1.
 | Shapes (`sample_shapes.cpp`) | 19 | 16 | 3 | 0 | Exact: Chain Segment, Filter, Custom Filter, Restitution, Friction, Rolling Resistance, Conveyor Belt, Tangent Speed, Modify Geometry, Chain Link, Rounded, Ellipse, Offset, Explosion, Recreate Static, Box Restitution. Partial: Chain Shape (no chain_SetSurfaceMaterial), Compound Shapes (approx Body AABBs), Wind (revolute local frames approx). Invented shapes composite replaced. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 0 | 0 | 4 | Current `#/world` is invented |
-| **Total** | **139** | **72** | **34** | **33** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 + Robustness 7 |
+| **Total** | **139** | **80** | **35** | **24** | Bodies 5/4 + Stacking 10 + Joints 11/7/4 + Shapes 16/3 + Continuous 13/1/1 + Events 10/2 + Benchmark 0/17/4 + Robustness 7 + Collision 8/1 |
 
 ## Invented demos to retire from Samples nav
 
@@ -75,8 +75,8 @@ registry-only. Math is under About (not Samples).
 |---|---|
 | `#/math` | No C sample — deterministic math showcase. **Retired from Samples**; About page |
 | `#/roadmap` | Meta progress page, not a C sample |
-| `#/manifolds` | Invented collision/manifold playground; C's Manifold / Smooth Manifold live under **Collision** |
-| Category composites (`#/world`, `#/determinism`, `#/character`, `#/geometry`, `#/replay`) | Capability demos / harness previews  replace scene-by-scene as categories are ported. `#/bodies`, `#/stacking`, `#/joints`, `#/shapes`, `#/continuous`, `#/events`, `#/benchmark`, `#/robustness` now host C samples. |
+| #/manifolds | **Retired from Labs** — C Manifold / Smooth Manifold live under #/collision |
+| Category composites (#/world, #/determinism, #/character, #/geometry, #/replay) | Capability demos / harness previews — replace scene-by-scene as categories are ported. #/bodies, #/stacking, #/joints, #/shapes, #/continuous, #/events, #/benchmark, #/robustness, #/collision now host C samples. |
 
 ## Phases
 
