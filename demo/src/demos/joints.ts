@@ -43,7 +43,9 @@ export const SCENES = [
   "separation",
   "user-constraint",
   "driving",
+  "ragdoll",
   "door",
+  "scale-ragdoll",
 ] as const;
 
 export type Scene = (typeof SCENES)[number];
@@ -68,7 +70,9 @@ const SCENE_LABEL: Record<Scene, string> = {
   separation: "Separation",
   "user-constraint": "User Constraint",
   driving: "Driving",
+  ragdoll: "Ragdoll",
   door: "Door",
+  "scale-ragdoll": "Scale Ragdoll",
 };
 
 const CAMERAS: Record<Scene, { cx: number; cy: number; zoom: number }> = {
@@ -89,7 +93,9 @@ const CAMERAS: Record<Scene, { cx: number; cy: number; zoom: number }> = {
   separation: { cx: 0, cy: 8, zoom: 25 * 0.5 }, // approx
   "user-constraint": { cx: 0, cy: 5, zoom: 25 * 0.35 },
   driving: { cx: 0, cy: 5, zoom: 25 * 0.4 }, // :2326-2327
+  ragdoll: { cx: 0, cy: 12, zoom: 16.0 }, // :2578-2579 (else branch zoom 16)
   door: { cx: 0, cy: 2.5, zoom: 25 * 0.2 },
+  "scale-ragdoll": { cx: 0, cy: 4.5, zoom: 6.0 }, // :3408-3409
 };
 
 const FRIC = 0.6;
@@ -1319,6 +1325,87 @@ function buildDoor(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   return {};
 }
 
+function buildRagdoll(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+  // sample_joints.cpp:2568-2650 Ragdoll — CreateHuman + contact tuning
+  const ground = sim.add_body(0, 0, 0, BODY_STATIC);
+  sim.attach_segment(ground, -20, 0, 20, 0);
+
+  let jointFrictionTorque = 0.03;
+  let jointHertz = 5.0;
+  let jointDampingRatio = 0.5;
+  let human = -1;
+
+  function spawn() {
+    if (human >= 0 && sim.human_is_spawned(human)) sim.destroy_human(human);
+    // :2607-2608 CreateHuman(…, {0,25}, 1, friction, hertz, damping, 1, nullptr, false)
+    human = sim.create_human(0, 25, 1.0, jointFrictionTorque, jointHertz, jointDampingRatio, 1, false, 0);
+  }
+  spawn();
+  sim.set_contact_tuning(240.0, 0.0, 2.0); // :2602
+
+  controls.appendChild(
+    createSlider("Friction", 0, 1, jointFrictionTorque, 0.01, (v) => {
+      jointFrictionTorque = v;
+      if (sim.human_is_spawned(human)) sim.human_set_joint_friction_torque(human, v);
+    }),
+  );
+  controls.appendChild(
+    createSlider("Hertz", 0, 10, jointHertz, 0.1, (v) => {
+      jointHertz = v;
+      if (sim.human_is_spawned(human)) sim.human_set_joint_spring_hertz(human, v);
+    }),
+  );
+  controls.appendChild(
+    createSlider("Damping", 0, 4, jointDampingRatio, 0.1, (v) => {
+      jointDampingRatio = v;
+      if (sim.human_is_spawned(human)) sim.human_set_joint_damping_ratio(human, v);
+    }),
+  );
+  controls.appendChild(
+    createButton("Respawn", () => {
+      spawn();
+    }),
+  );
+  controls.appendChild(
+    createInfoBox(
+      "Exact: <code>CreateHuman</code> ragdoll (<code>shared/human.c</code>). " +
+        "C <code>sample_joints.cpp</code> Ragdoll.",
+    ),
+  );
+  return {};
+}
+
+function buildScaleRagdoll(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+  // sample_joints.cpp:3400-3459 Scale Ragdoll — Human_SetScale
+  const ground = sim.add_body(0, 0, 0, BODY_STATIC);
+  sim.attach_box(ground, 20, 1, 0, -1, 0, 0, FRIC, 0);
+
+  let scale = 1.0;
+  let human = -1;
+
+  function spawn() {
+    if (human >= 0 && sim.human_is_spawned(human)) sim.destroy_human(human);
+    // :3430-3435
+    human = sim.create_human(0, 5, scale, 0.03, 1.0, 0.5, 1, false, 0);
+    sim.human_apply_random_angular_impulse(human, 0.1);
+  }
+  spawn();
+
+  controls.appendChild(
+    createSlider("Scale", 0.1, 10, scale, 0.01, (v) => {
+      scale = v;
+      if (sim.human_is_spawned(human)) sim.human_set_scale(human, v);
+    }),
+  );
+  controls.appendChild(
+    createInfoBox(
+      "Exact: <code>CreateHuman</code> + <code>Human_SetScale</code> " +
+        "(<code>shared/human.c</code>). C <code>sample_joints.cpp</code> Scale Ragdoll.",
+    ),
+  );
+  return {};
+}
+
 function buildScene(scene: Scene, sim: SimWorld, controls: HTMLElement): SceneRuntime {
   clearControls(controls);
   switch (scene) {
@@ -1356,8 +1443,12 @@ function buildScene(scene: Scene, sim: SimWorld, controls: HTMLElement): SceneRu
       return buildUserConstraint(sim, controls);
     case "driving":
       return buildDriving(sim, controls);
+    case "ragdoll":
+      return buildRagdoll(sim, controls);
     case "door":
       return buildDoor(sim, controls);
+    case "scale-ragdoll":
+      return buildScaleRagdoll(sim, controls);
   }
 }
 

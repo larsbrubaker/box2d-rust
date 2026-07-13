@@ -25,9 +25,10 @@ import {
   type SampleCamera,
 } from "./sample-shell.ts";
 
-/** Registry scene keys — Bounce Humans stays planned (CreateHuman). */
+/** Registry scene keys — Bounce Humans uses CreateHuman. */
 export const SCENES = [
   "bounce-house",
+  "bounce-humans",
   "chain-drop",
   "chain-slide",
   "segment-slide",
@@ -49,6 +50,7 @@ assertRouteScenes("continuous", SCENES);
 
 const SCENE_LABEL: Record<Scene, string> = {
   "bounce-house": "Bounce House",
+  "bounce-humans": "Bounce Humans",
   "chain-drop": "Chain Drop",
   "chain-slide": "Chain Slide",
   "segment-slide": "Segment Slide",
@@ -67,6 +69,7 @@ const SCENE_LABEL: Record<Scene, string> = {
 /** C camera.center / camera.zoom (half-height). */
 const CAMERAS: Record<Scene, { cx: number; cy: number; zoom: number }> = {
   "bounce-house": { cx: 0.0, cy: 0.0, zoom: 25.0 * 0.45 }, // :40-41
+  "bounce-humans": { cx: 0.0, cy: 0.0, zoom: 12.0 }, // :198-199
   "chain-drop": { cx: 0.0, cy: 0.0, zoom: 25.0 * 0.35 }, // :283-284
   "chain-slide": { cx: 0.0, cy: 10.0, zoom: 15.0 }, // :374-375
   "segment-slide": { cx: 0.0, cy: 10.0, zoom: 15.0 }, // :459-460
@@ -222,6 +225,74 @@ function buildBounceHouse(sim: SimWorld, controls: HTMLElement): SceneRuntime {
         }
       }
     },
+  };
+}
+
+function buildBounceHumans(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+  // sample_continuous.cpp:192-273 Bounce Humans
+  const g = sim.add_body(0, 0, 0, BODY_STATIC);
+  const wallRest = 1.3;
+  const wallFric = 0.1;
+  for (const [x1, y1, x2, y2] of [
+    [-10, -10, 10, -10],
+    [10, -10, 10, 10],
+    [10, 10, -10, 10],
+    [-10, 10, -10, -10],
+  ] as const) {
+    const sh = sim.attach_segment_mat(g, x1, y1, x2, y2, wallFric);
+    sim.shape_set_restitution(sh, wallRest);
+  }
+  // :228-230 center circle restitution 2
+  sim.attach_circle_mat(g, 0, 0, 2.0, 0, wallFric, 2.0, 0, 0);
+
+  let humanCount = 0;
+  let countDown = 0;
+  let time = 0;
+  let gravX = 0;
+  let gravY = -10;
+
+  controls.appendChild(
+    createInfoBox(
+      "Exact: up to 5 <code>CreateHuman</code> ragdolls; gravity rotates with time. " +
+        "C <code>sample_continuous.cpp</code> Bounce Humans.",
+    ),
+  );
+
+  return {
+    beforeStep: (dt) => {
+      if (humanCount < 5 && countDown <= 0) {
+        // :237-242
+        sim.create_human(0, 5, 1.0, 0.0, 1.0, 0.1, 1, true, 0);
+        countDown = 2.0;
+        humanCount += 1;
+      }
+      const cs1 = Math.sin(0.5 * time);
+      const cs2 = Math.cos(time);
+      const gravity = 10.0;
+      gravX = gravity * cs1;
+      gravY = gravity * cs2;
+      sim.set_gravity(gravX, gravY);
+      time += dt;
+      countDown -= dt;
+    },
+    paintOverlay: (ctx, camera, canvas) => {
+      // :254 DrawLine origin → 3*(sin, cos) gravity indicator
+      const cs1 = Math.sin(0.5 * time);
+      const cs2 = Math.cos(time);
+      const a = worldToScreen(camera, canvas, 0, 0);
+      const b = worldToScreen(camera, canvas, 3 * cs1, 3 * cs2);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    },
+    readoutExtra: () => [
+      { label: "humans", value: String(humanCount) },
+      { label: "g.x", value: gravX.toFixed(2) },
+      { label: "g.y", value: gravY.toFixed(2) },
+    ],
   };
 }
 
@@ -628,11 +699,11 @@ type DropState = {
   continuous: boolean;
   speculative: boolean;
   frameSkip: number;
-  subScene: 1 | 2 | 4;
+  subScene: 1 | 2 | 3 | 4;
 };
 
 function buildDrop(sim: SimWorld, controls: HTMLElement, state: DropState, rebuild: () => void): SceneRuntime {
-  // sample_continuous.cpp:1200-1534 — Scene3 (ragdoll) deferred (CreateHuman).
+  // sample_continuous.cpp:1200-1534 — Scenes 1–4 including CreateHuman ragdoll Scene3
   sim.set_continuous(state.continuous);
   sim.set_speculative(state.speculative);
   sim.set_sleeping(false);
@@ -674,6 +745,10 @@ function buildDrop(sim: SimWorld, controls: HTMLElement, state: DropState, rebui
     const b = sim.add_body(0, 4, 0.5 * PI, BODY_DYNAMIC);
     sim.set_angular_velocity(b, -0.5);
     sim.attach_box(b, 0.75, 0.01, 0, 0, 0, 1.0, FRIC, 0);
+  } else if (state.subScene === 3) {
+    // :1375-1388 ragdoll
+    ground2();
+    sim.create_human(0, 40, 1.0, 0.03, 1.0, 0.5, 1, true, 0);
   } else {
     ground3();
     const a = 0.25;
@@ -690,9 +765,9 @@ function buildDrop(sim: SimWorld, controls: HTMLElement, state: DropState, rebui
 
   controls.appendChild(
     createInfoBox(
-      "Keys: <strong>1</strong> ball · <strong>2</strong> ruler · <strong>4</strong> stack+bullet · " +
-        "<strong>C</strong> continuous · <strong>V</strong> speculative · <strong>S</strong> slow. " +
-        "Scene <strong>3</strong> (ragdoll) needs CreateHuman — deferred.",
+      "Keys: <strong>1</strong> ball · <strong>2</strong> ruler · <strong>3</strong> ragdoll · " +
+        "<strong>4</strong> stack+bullet · <strong>C</strong> continuous · <strong>V</strong> speculative · " +
+        "<strong>S</strong> slow. Exact Scene3 via <code>CreateHuman</code>.",
     ),
   );
   controls.appendChild(
@@ -701,11 +776,12 @@ function buildDrop(sim: SimWorld, controls: HTMLElement, state: DropState, rebui
       [
         { value: "1", text: "1 Ball" },
         { value: "2", text: "2 Ruler" },
+        { value: "3", text: "3 Ragdoll" },
         { value: "4", text: "4 Stack+Bullet" },
       ],
       String(state.subScene),
       (v) => {
-        state.subScene = Number(v) as 1 | 2 | 4;
+        state.subScene = Number(v) as 1 | 2 | 3 | 4;
         rebuild();
       },
     ),
@@ -737,6 +813,9 @@ function buildDrop(sim: SimWorld, controls: HTMLElement, state: DropState, rebui
         rebuild();
       } else if (k === "2") {
         state.subScene = 2;
+        rebuild();
+      } else if (k === "3") {
+        state.subScene = 3;
         rebuild();
       } else if (k === "4") {
         state.subScene = 4;
@@ -888,6 +967,8 @@ function buildScene(
   switch (scene) {
     case "bounce-house":
       return buildBounceHouse(sim, controls);
+    case "bounce-humans":
+      return buildBounceHumans(sim, controls);
     case "chain-drop":
       return buildChainDrop(sim, controls);
     case "chain-slide":
@@ -927,8 +1008,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     container,
     "Continuous",
     "C <code>sample_continuous.cpp</code> RegisterSample ports — CCD, speculative " +
-      "collision, ghost bumps, pinball, and restitution threshold. Bounce Humans deferred " +
-      "(CreateHuman).",
+      "collision, ghost bumps, Bounce Humans, pinball, and restitution threshold.",
     "Drag to grab · P pause · O step · R restart · A flippers (Pinball)",
   );
 

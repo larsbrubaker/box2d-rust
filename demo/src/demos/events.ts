@@ -156,7 +156,7 @@ function spawnDonut(sim: SimWorld, px: number, py: number, scale: number, userDa
 // ---------------------------------------------------------------------------
 
 function buildSensorFunnel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // :18-331 — PARTIAL: donut path only (CreateHuman not bound)
+  // :18-331 Exact: donut + CreateHuman paths; bottom sensor destroys via begin events
   const FUNNEL = [
     -16.8672504, 31.088623, 16.8672485, 31.088623, 16.8672485, 17.1978741, 8.26824951, 11.906374,
     16.8672485, 11.906374, 16.8672485, -0.661376953, 8.26824951, -5.953125, 16.8672485, -5.953125,
@@ -179,26 +179,38 @@ function buildSensorFunnel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   }
 
   const COUNT = 32;
-  const spawned: (number[] | null)[] = Array.from({ length: COUNT }, () => null);
+  type Slot = { kind: "donut"; bodies: number[] } | { kind: "human"; id: number };
+  const spawned: (Slot | null)[] = Array.from({ length: COUNT }, () => null);
   let wait = 0.5;
   let side = -15;
-  let type: "donut" | "human" = "donut";
+  let type: "donut" | "human" = "human"; // C default m_type = e_human
+
+  const destroySlot = (index: number) => {
+    const slot = spawned[index];
+    if (!slot) return;
+    if (slot.kind === "donut") {
+      for (const b of slot.bodies) if (sim.is_body_alive(b)) sim.destroy_body(b);
+    } else if (sim.human_is_spawned(slot.id)) {
+      sim.destroy_human(slot.id);
+    }
+    spawned[index] = null;
+  };
 
   const clear = () => {
-    for (let i = 0; i < COUNT; i++) {
-      const group = spawned[i];
-      if (group) {
-        for (const b of group) if (sim.is_body_alive(b)) sim.destroy_body(b);
-        spawned[i] = null;
-      }
-    }
+    for (let i = 0; i < COUNT; i++) destroySlot(i);
   };
 
   const createElement = () => {
     const index = spawned.findIndex((s) => s == null);
     if (index < 0) return;
-    // Both radio options spawn donuts — human path disclosed as partial.
-    spawned[index] = spawnDonut(sim, side, 29.5, 1, index + 1);
+    if (type === "donut") {
+      spawned[index] = { kind: "donut", bodies: spawnDonut(sim, side, 29.5, 1, index + 1) };
+    } else {
+      // :187-194 CreateHuman scale=2, friction=0.05, hertz=6, damping=0.5, colorize
+      const h = sim.create_human(side, 29.5, 2.0, 0.05, 6.0, 0.5, index + 1, true, index + 1);
+      sim.human_enable_sensor_events(h, true);
+      spawned[index] = { kind: "human", id: h };
+    }
     side = -side;
   };
 
@@ -206,8 +218,8 @@ function buildSensorFunnel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 
   controls.appendChild(
     createInfoBox(
-      "PARTIAL: C toggles donut/human; <code>CreateHuman</code> is not bound — both " +
-        "modes spawn donuts. Bottom sensor destroys visitors via begin events.",
+      "Exact: donut / human (<code>CreateHuman</code>) toggle. Bottom sensor destroys " +
+        "visitors via begin events. C <code>sample_events.cpp</code> Sensor Funnel.",
     ),
   );
   controls.appendChild(
@@ -215,7 +227,7 @@ function buildSensorFunnel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       "Type",
       [
         { value: "donut", text: "donut" },
-        { value: "human", text: "human (donut stand-in)" },
+        { value: "human", text: "human" },
       ],
       type,
       (v) => {
@@ -233,12 +245,7 @@ function buildSensorFunnel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
         const ud = hits[i]!;
         if (ud >= 1 && ud <= COUNT) deferred.add(ud - 1);
       }
-      for (const index of deferred) {
-        const group = spawned[index];
-        if (!group) continue;
-        for (const b of group) if (sim.is_body_alive(b)) sim.destroy_body(b);
-        spawned[index] = null;
-      }
+      for (const index of deferred) destroySlot(index);
       if (dt > 0) {
         wait -= dt;
         if (wait < 0) {

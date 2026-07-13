@@ -302,7 +302,7 @@ function floatGridStep(x: number): number {
 // ---------------------------------------------------------------------------
 
 function buildTiles(sim: SimWorld, controls: HTMLElement, camera: SampleCamera): SceneRuntime {
-  // :17-241 — PARTIAL: DEBUG cycleCount=10 (C release 600); CreateHuman → donut stand-in
+  // :17-241 — PARTIAL: DEBUG cycleCount=10 (C release 600); CreateHuman cycles Exact
   const period = 40.0;
   const omega = (2.0 * PI) / period;
   const cycleCount = TILES_CYCLE_COUNT;
@@ -348,6 +348,7 @@ function buildTiles(sim: SimWorld, controls: HTMLElement, camera: SampleCamera):
     }
   }
 
+  let humanIndex = 0;
   for (let cycleIndex = 0; cycleIndex < cycleCount; cycleIndex++) {
     const xbase = (0.5 + cycleIndex) * period + xStart;
     const remainder = cycleIndex % 3;
@@ -363,10 +364,11 @@ function buildTiles(sim: SimWorld, controls: HTMLElement, camera: SampleCamera):
         x += 0.6;
       }
     } else if (remainder === 1) {
-      // :114-121 CreateHuman — PARTIAL: donut stand-in (CreateHuman unbound)
+      // :114-121 CreateHuman scale=1.5, friction=0.05, hertz=0, damping=0
       let x = xbase - 2.0;
       for (let i = 0; i < 5; i++) {
-        spawnDonut(sim, x, 10.0, 0.75);
+        sim.create_human(x, 10.0, 1.5, 0.05, 0.0, 0.0, humanIndex + 1, false, 0);
+        humanIndex += 1;
         x += 1.0;
       }
     } else {
@@ -423,8 +425,8 @@ function buildTiles(sim: SimWorld, controls: HTMLElement, camera: SampleCamera):
   );
   controls.appendChild(
     createInfoBox(
-      "PARTIAL: DEBUG <code>cycleCount=10</code> (C release 600). Human cycles use donut " +
-        "stand-ins — <code>CreateHuman</code> is not bound. ASD drives the car.",
+      "PARTIAL: DEBUG <code>cycleCount=10</code> (C release 600). Human cycles use " +
+        "<code>CreateHuman</code>. ASD drives the car.",
     ),
   );
 
@@ -511,7 +513,7 @@ function buildFarPyramid(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildFarRagdolls(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // :317-388 — PARTIAL: CreateHuman unbound; capsule stand-ins at human poses
+  // :317-388 Exact CreateHuman pile at 1e7 m (5×5)
   const originX = 10.0e6;
   const originY = 0.0;
   const ground = sim.add_body(originX, originY, 0, BODY_STATIC);
@@ -531,17 +533,16 @@ function buildFarRagdolls(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       const x =
         2.4 * scale * (j - 0.5 * (columnCount - 1)) + rng.floatRange(-0.3, 0.3);
       const y = 2.0 + 2.2 * scale * i;
-      // Stand-in: vertical capsule (CreateHuman not bound)
-      const body = sim.add_body(originX + x, originY + y, 0, BODY_DYNAMIC);
-      sim.attach_capsule(body, 0, -0.5 * scale, 0, 0.5 * scale, 0.2 * scale, 1, FRIC, 0);
+      // :354 CreateHuman(…, scale, 0.05, 1.0, 0.5, index+1, nullptr, false)
+      sim.create_human(originX + x, originY + y, scale, 0.05, 1.0, 0.5, humanCount + 1, false, 0);
       humanCount++;
     }
   }
 
   controls.appendChild(
     createInfoBox(
-      "PARTIAL: <code>CreateHuman</code> is not bound — capsule stand-ins at C spawn " +
-        "poses (5×5). Ground walls match Far Ragdolls exactly.",
+      "Exact: 5×5 <code>CreateHuman</code> ragdolls piled at 10 000 km. " +
+        "C <code>sample_world.cpp</code> Far Ragdolls.",
     ),
   );
 
@@ -550,7 +551,7 @@ function buildFarRagdolls(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       { label: "Precision", value: "Single precision" },
       {
         label: "Pile",
-        value: `${humanCount} stand-ins @ ${(0.001 * originX).toFixed(0)} km`,
+        value: `${humanCount} ragdolls @ ${(0.001 * originX).toFixed(0)} km`,
       },
     ],
   };

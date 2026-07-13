@@ -103,7 +103,7 @@ export const SAMPLES: SampleEntry[] = [
   ]),
   ...cat("Benchmark", "sample_benchmark.cpp", [
     // All live ports use C DEBUG / wasm-scaled counts (disclosed) → partial.
-    ["Barrel", "partial", "benchmark", "barrel"], // DEBUG rows/cols; Human shape deferred
+    ["Barrel", "partial", "benchmark", "barrel"], // DEBUG rows/cols; Human via CreateHuman
     ["Barrel 2.4", "partial", "benchmark", "barrel-2-4"], // DEBUG numj=5
     ["Compounds", "partial", "benchmark", "compounds"], // DEBUG 10×40
     ["Tumbler", "partial", "benchmark", "tumbler"], // DEBUG grid 20
@@ -119,7 +119,7 @@ export const SAMPLES: SampleEntry[] = [
     ["Kinematic", "partial", "benchmark", "kinematic"], // DEBUG span 20
     ["Cast", "planned"], // needs world ray/circle cast + overlap query APIs
     ["Spinner", "partial", "benchmark", "spinner"], // DEBUG 499; chain friction default
-    ["Rain", "planned"], // needs CreateHuman
+    ["Rain", "partial", "benchmark", "rain"], // DEBUG CreateRain/StepRain via CreateHuman
     ["Shape Distance", "planned"], // needs b2ShapeDistance bind
     ["Sensor", "planned"], // needs custom filter + sensor-event shape flags
     ["Capacity", "partial", "benchmark", "capacity"], // wall-clock vs b2Profile.step
@@ -142,7 +142,7 @@ export const SAMPLES: SampleEntry[] = [
   ]),
   ...cat("Continuous", "sample_continuous.cpp", [
     ["Bounce House", "live", "continuous", "bounce-house"],
-    ["Bounce Humans", "planned"], // needs CreateHuman (shared/human.c)
+    ["Bounce Humans", "live", "continuous", "bounce-humans"],
     ["Chain Drop", "live", "continuous", "chain-drop"],
     ["Chain Slide", "live", "continuous", "chain-slide"],
     ["Segment Slide", "live", "continuous", "segment-slide"],
@@ -153,8 +153,8 @@ export const SAMPLES: SampleEntry[] = [
     ["Speculative Ghost", "live", "continuous", "speculative-ghost"],
     ["Pixel Imperfect", "live", "continuous", "pixel-imperfect"],
     ["Restitution Threshold", "live", "continuous", "restitution-threshold"],
-    // Partial: Scene3 ragdoll needs CreateHuman; Scenes 1/2/4 + C/V/S keys match
-    ["Drop", "partial", "continuous", "drop"],
+    // Exact: Scenes 1–4 including CreateHuman ragdoll Scene3; C/V/S keys match
+    ["Drop", "live", "continuous", "drop"],
     ["Pinball", "live", "continuous", "pinball"],
     ["Wedge", "live", "continuous", "wedge"],
   ]),
@@ -163,8 +163,7 @@ export const SAMPLES: SampleEntry[] = [
     ["SnapShot", "live", "determinism", "snapshot"],
   ]),
   ...cat("Events", "sample_events.cpp", [
-    // Partial: donut path only — CreateHuman not bound
-    ["Sensor Funnel", "partial", "events", "sensor-funnel"],
+    ["Sensor Funnel", "live", "events", "sensor-funnel"],
     ["Sensor Bookend", "live", "events", "sensor-bookend"],
     ["Foot Sensor", "live", "events", "foot-sensor"],
     ["Contact", "live", "events", "contact"],
@@ -212,14 +211,14 @@ export const SAMPLES: SampleEntry[] = [
     ["User Constraint", "partial", "joints", "user-constraint"],
     // Partial: Car + bumps; missing teeter/bridge/truck/chase-cam extras
     ["Driving", "partial", "joints", "driving"],
-    ["Ragdoll", "planned"], // needs CreateHuman (shared/human.c)
+    ["Ragdoll", "live", "joints", "ragdoll"],
     ["Soft Body", "live", "joints", "soft-body"],
     ["Doohickey", "live", "joints", "doohickey"],
     ["Scissor Lift", "planned"], // large; deferred this session
     ["Gear Lift", "planned"], // large; deferred this session
     // Partial: single hinged panel; C two-joint/latch extras missing
     ["Door", "partial", "joints", "door"],
-    ["Scale Ragdoll", "planned"], // needs Human_SetScale
+    ["Scale Ragdoll", "live", "joints", "scale-ragdoll"],
   ]),
   ...cat("Robustness", "sample_robustness.cpp", [
     ["HighMassRatio1", "live", "robustness", "high-mass-ratio1"],
@@ -267,11 +266,10 @@ export const SAMPLES: SampleEntry[] = [
     ["Card House", "live", "stacking", "card-house"],
   ]),
   ...cat("World", "sample_world.cpp", [
-    // Partial: DEBUG cycleCount=10 (C release 600); CreateHuman cycles → donut stand-ins.
+    // Partial: DEBUG cycleCount=10 (C release 600); CreateHuman Exact
     ["Tiles", "partial", "world", "tiles"],
     ["Far Pyramid", "live", "world", "far-pyramid"],
-    // Partial: CreateHuman unbound — capsule stand-ins at C 5×5 spawn poses.
-    ["Far Ragdolls", "partial", "world", "far-ragdolls"],
+    ["Far Ragdolls", "live", "world", "far-ragdolls"],
     ["Far Gate", "live", "world", "far-gate"],
   ]),
   // Replay is registered via RegisterReplay (sample_replay.cpp), not RegisterSample.

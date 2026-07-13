@@ -1,7 +1,7 @@
 // Benchmark — RegisterSample ports from sample_benchmark.cpp / shared/benchmarks.c.
 // C citations use line numbers at the pinned submodule (56edae7).
 // Body counts follow C DEBUG / m_isDebug (wasm-safe); disclosed per scene → Partial.
-// Missing: Cast (world query APIs), Rain/Shape Distance/Sensor (CreateHuman / distance / custom filter).
+// Missing: Cast (world query APIs), Shape Distance / Sensor (distance / custom filter).
 
 import {
   createButton,
@@ -25,7 +25,7 @@ import {
   type SampleCamera,
 } from "./sample-shell.ts";
 
-/** Registry scene keys — Cast/Rain/Shape Distance/Sensor stay planned. */
+/** Registry scene keys — Cast / Shape Distance / Sensor stay planned. */
 export const SCENES = [
   "barrel",
   "barrel-2-4",
@@ -42,6 +42,7 @@ export const SCENES = [
   "large-compounds",
   "kinematic",
   "spinner",
+  "rain",
   "capacity",
   "junkyard",
 ] as const;
@@ -66,6 +67,7 @@ const SCENE_LABEL: Record<Scene, string> = {
   "large-compounds": "Large Compounds",
   kinematic: "Kinematic",
   spinner: "Spinner",
+  rain: "Rain",
   capacity: "Capacity",
   junkyard: "Junkyard",
 };
@@ -73,7 +75,7 @@ const SCENE_LABEL: Record<Scene, string> = {
 /** Disclosed wasm/DEBUG count notes (C release is larger). */
 const SCENE_NOTE: Record<Scene, string> = {
   barrel:
-    "DEBUG rows/cols (40×10 compound default). Human shape deferred (CreateHuman). C sample_benchmark.cpp Barrel.",
+    "DEBUG rows/cols (40×10 compound default; Human 5×10). C sample_benchmark.cpp Barrel.",
   "barrel-2-4": "DEBUG numj=5 (C release 5×26). sample_benchmark.cpp Barrel 2.4.",
   compounds: "DEBUG 10×40 compounds (C release 20×150). CreateCompounds / benchmarks.c.",
   tumbler: "DEBUG gridCount 20 (C release 45). CreateTumbler.",
@@ -88,6 +90,7 @@ const SCENE_NOTE: Record<Scene, string> = {
   "large-compounds": "DEBUG ground 100, span/count 5 (C release 200 / 20 / 5).",
   kinematic: "DEBUG span 20 (C release 100). One kinematic compound spinner.",
   spinner: "DEBUG 499 fill bodies (C release 6076). CreateSpinner; chain friction default (C 0.1).",
+  rain: "DEBUG gridCount=200, 3×10×2 humans (C release 500 / 5×40×5). CreateRain / StepRain.",
   capacity:
     "Spawns 200 boxes every 32 steps until wall-clock step >20ms for 60 frames (C uses b2Profile.step).",
   junkyard: "DEBUG rowCount 2 (C release 40). CreateJunkyard + StepJunkyard pusher.",
@@ -110,6 +113,7 @@ const CAMERAS: Record<Scene, { cx: number; cy: number; zoom: number }> = {
   "large-compounds": { cx: 18.0, cy: 115.0, zoom: 25.0 * 5.5 },
   kinematic: { cx: 0.0, cy: 0.0, zoom: 150.0 },
   spinner: { cx: 0.0, cy: 32.0, zoom: 42.0 },
+  rain: { cx: 0.0, cy: 110.0, zoom: 125.0 },
   capacity: { cx: 0.0, cy: 150.0, zoom: 200.0 },
   junkyard: { cx: 8.0, cy: 25.0, zoom: 60.0 },
 };
@@ -188,10 +192,11 @@ const RIGHT_TRI = new Float32Array([1.0, 0.0, -0.5, 1.0, 0.0, 2.0]);
 // ---------------------------------------------------------------------------
 
 function buildBarrel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // sample_benchmark.cpp:49-321 — DEBUG counts; no Human
-  type ShapeKind = "circle" | "capsule" | "mix" | "compound";
+  // sample_benchmark.cpp:49-321 — DEBUG counts; Human via CreateHuman
+  type ShapeKind = "circle" | "capsule" | "mix" | "compound" | "human";
   let shapeType: ShapeKind = "compound";
   const bodies: number[] = [];
+  const humans: number[] = [];
   addBarrelGround(sim, 40);
 
   function createScene() {
@@ -199,62 +204,84 @@ function buildBarrel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       if (sim.is_body_alive(id)) sim.destroy_body(id);
     }
     bodies.length = 0;
+    for (const h of humans) {
+      if (sim.human_is_spawned(h)) sim.destroy_human(h);
+    }
+    humans.length = 0;
     const rng = makeRng(42);
 
     let columnCount = 10;
     let rowCount = 40;
     if (shapeType === "compound") columnCount = 10;
+    if (shapeType === "human") {
+      rowCount = 5;
+      columnCount = 10;
+    }
 
     let shift = 1.15;
     let extray = 0.5;
     let side = -0.1;
     let centerx = (shift * columnCount) / 2.0;
     const centery = shift / 2.0;
-    const yStart = 100.0;
+    const yStart = shapeType === "human" ? 2.0 : 100.0;
 
     if (shapeType === "compound") {
       extray = 0.25;
       side = 0.25;
       shift = 2.0;
       centerx = (shift * columnCount) / 2.0 - 1.0;
+    } else if (shapeType === "human") {
+      extray = 0.5;
+      side = 0.55;
+      shift = 2.5;
+      centerx = (shift * columnCount) / 2.0;
     }
 
+    let index = 0;
     for (let i = 0; i < columnCount; ++i) {
       const x = i * shift - centerx;
       for (let j = 0; j < rowCount; ++j) {
         const y = j * (shift + extray) + centery + yStart;
         const bx = x + side;
         side = -side;
-        const body = sim.add_body(bx, y, 0, BODY_DYNAMIC);
-        bodies.push(body);
-        if (shapeType === "circle") {
-          const rad = rng.floatRange(0.25, 0.75);
-          sim.attach_circle_mat(body, 0, 0, rad, 1.0, 0.5, 0, 0.2, 0);
-        } else if (shapeType === "capsule") {
-          const rad = rng.floatRange(0.25, 0.5);
-          const length = rng.floatRange(0.25, 1.0);
-          sim.attach_capsule_mat(body, 0, -0.5 * length, 0, 0.5 * length, rad, 1.0, 0.5, 0, 0.2, 0);
-        } else if (shapeType === "mix") {
-          sim.set_angular_damping(body, 0.3);
-          const mod = bodies.length % 3;
-          if (mod === 1) {
+        if (shapeType === "human") {
+          // :289-296 CreateHuman scale=3.5
+          humans.push(
+            sim.create_human(bx, y, 3.5, 0.05, 5.0, 0.5, index + 1, false, 0),
+          );
+        } else {
+          const body = sim.add_body(bx, y, 0, BODY_DYNAMIC);
+          bodies.push(body);
+          if (shapeType === "circle") {
             const rad = rng.floatRange(0.25, 0.75);
-            sim.attach_circle(body, 0, 0, rad, 1.0, 0.5, 0);
-          } else if (mod === 2) {
+            sim.attach_circle_mat(body, 0, 0, rad, 1.0, 0.5, 0, 0.2, 0);
+          } else if (shapeType === "capsule") {
             const rad = rng.floatRange(0.25, 0.5);
             const length = rng.floatRange(0.25, 1.0);
-            sim.attach_capsule(body, 0, -0.5 * length, 0, 0.5 * length, rad, 1.0, 0.5, 0);
+            sim.attach_capsule_mat(body, 0, -0.5 * length, 0, 0.5 * length, rad, 1.0, 0.5, 0, 0.2, 0);
+          } else if (shapeType === "mix") {
+            sim.set_angular_damping(body, 0.3);
+            const mod = bodies.length % 3;
+            if (mod === 1) {
+              const rad = rng.floatRange(0.25, 0.75);
+              sim.attach_circle(body, 0, 0, rad, 1.0, 0.5, 0);
+            } else if (mod === 2) {
+              const rad = rng.floatRange(0.25, 0.5);
+              const length = rng.floatRange(0.25, 1.0);
+              sim.attach_capsule(body, 0, -0.5 * length, 0, 0.5 * length, rad, 1.0, 0.5, 0);
+            } else {
+              const width = rng.floatRange(0.1, 0.5);
+              const height = rng.floatRange(0.5, 0.75);
+              const value = rng.floatRange(-1.0, 1.0);
+              const radius = 0.25 * Math.max(0.0, value);
+              sim.attach_rounded_box(body, width, height, radius, 1.0, 0.5, 0);
+            }
           } else {
-            const width = rng.floatRange(0.1, 0.5);
-            const height = rng.floatRange(0.5, 0.75);
-            const value = rng.floatRange(-1.0, 1.0);
-            const radius = 0.25 * Math.max(0.0, value);
-            sim.attach_rounded_box(body, width, height, radius, 1.0, 0.5, 0);
+            sim.attach_polygon(body, LEFT_TRI, 0, 1.0, 0.5, 0);
+            sim.attach_polygon(body, RIGHT_TRI, 0, 1.0, 0.5, 0);
           }
-        } else {
-          sim.attach_polygon(body, LEFT_TRI, 0, 1.0, 0.5, 0);
-          sim.attach_polygon(body, RIGHT_TRI, 0, 1.0, 0.5, 0);
         }
+        index += 1;
       }
     }
   }
@@ -269,6 +296,7 @@ function buildBarrel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
         { value: "capsule", text: "Capsule" },
         { value: "mix", text: "Mix" },
         { value: "compound", text: "Compound" },
+        { value: "human", text: "Human" },
       ],
       shapeType,
       (v) => {
@@ -942,6 +970,93 @@ function buildSpinner(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 /** Capacity needs step-ms from the page loop — stash on runtime. */
 type CapacityRuntime = SceneRuntime & { setStepMs?: (ms: number) => void };
 
+function buildRain(sim: SimWorld, controls: HTMLElement): SceneRuntime {
+  // shared/benchmarks.c CreateRain / StepRain — DEBUG constants
+  const RAIN_ROW_COUNT = 3;
+  const RAIN_COLUMN_COUNT = 10;
+  const RAIN_GROUP_SIZE = 2;
+  const gridSize = 0.5;
+  const gridCount = 200; // BENCHMARK_DEBUG
+  const delay = 0x1f; // DEBUG delay mask
+
+  // CreateRain ground shelves
+  {
+    const g = sim.add_body(0, 0, 0, BODY_STATIC);
+    let y = 0.0;
+    const width = gridSize;
+    const height = gridSize;
+    for (let i = 0; i < RAIN_ROW_COUNT; ++i) {
+      let x = -0.5 * gridCount * gridSize;
+      for (let j = 0; j <= gridCount; ++j) {
+        sim.attach_box(g, 0.5 * width, 0.5 * height, x, y, 0, 0, 0.6, 0);
+        x += gridSize;
+      }
+      y += 45.0;
+    }
+  }
+
+  // groupIndex → human demo indices (RAIN_GROUP_SIZE each)
+  const groups: number[][] = Array.from(
+    { length: RAIN_ROW_COUNT * RAIN_COLUMN_COUNT },
+    () => [],
+  );
+  let columnCount = 0;
+  let columnIndex = 0;
+  let stepCount = 0;
+
+  function createGroup(rowIndex: number, colIndex: number) {
+    const groupIndex = rowIndex * RAIN_COLUMN_COUNT + colIndex;
+    const span = gridCount * gridSize;
+    const groupDistance = (1.0 * span) / RAIN_COLUMN_COUNT;
+    let px = -0.5 * span + groupDistance * (colIndex + 0.5);
+    const py = 40.0 + 45.0 * rowIndex;
+    const slot: number[] = [];
+    for (let i = 0; i < RAIN_GROUP_SIZE; ++i) {
+      slot.push(sim.create_human(px, py, 1.0, 0.05, 5.0, 0.5, i + 1, false, 0));
+      px += 0.5;
+    }
+    groups[groupIndex] = slot;
+  }
+
+  function destroyGroup(rowIndex: number, colIndex: number) {
+    const groupIndex = rowIndex * RAIN_COLUMN_COUNT + colIndex;
+    for (const h of groups[groupIndex]!) {
+      if (sim.human_is_spawned(h)) sim.destroy_human(h);
+    }
+    groups[groupIndex] = [];
+  }
+
+  controls.appendChild(
+    createInfoBox(
+      "PARTIAL: DEBUG Rain (gridCount=200, 3×10×2 humans). " +
+        "<code>CreateRain</code>/<code>StepRain</code> via <code>CreateHuman</code>.",
+    ),
+  );
+
+  return {
+    beforeStep: () => {
+      // StepRain runs before world step when not paused (sample_benchmark.cpp:1646-1648)
+      if ((stepCount & delay) === 0) {
+        if (columnCount < RAIN_COLUMN_COUNT) {
+          for (let i = 0; i < RAIN_ROW_COUNT; ++i) createGroup(i, columnCount);
+          columnCount += 1;
+        } else {
+          for (let i = 0; i < RAIN_ROW_COUNT; ++i) {
+            destroyGroup(i, columnIndex);
+            createGroup(i, columnIndex);
+          }
+          columnIndex = (columnIndex + 1) % RAIN_COLUMN_COUNT;
+        }
+      }
+      stepCount += 1;
+    },
+    readoutExtra: () => [
+      { label: "columns", value: String(columnCount) },
+      { label: "cycle", value: String(columnIndex) },
+    ],
+  };
+}
+
 function buildCapacityFull(sim: SimWorld, _controls: HTMLElement): CapacityRuntime {
   const g = sim.add_body(0, -5, 0, BODY_STATIC);
   sim.attach_box(g, 800, 5, 0, 0, 0, 0, 0.6, 0);
@@ -1063,6 +1178,8 @@ function buildScene(scene: Scene, sim: SimWorld, controls: HTMLElement): SceneRu
       return buildKinematic(sim, controls);
     case "spinner":
       return buildSpinner(sim, controls);
+    case "rain":
+      return buildRain(sim, controls);
     case "capacity":
       return buildCapacityFull(sim, controls);
     case "junkyard":
@@ -1076,7 +1193,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     container,
     "Benchmark",
     "C <code>sample_benchmark.cpp</code> / <code>shared/benchmarks.c</code> ports. " +
-      "DEBUG/wasm body counts (disclosed). Missing: Cast, Rain, Shape Distance, Sensor.",
+      "DEBUG/wasm body counts (disclosed). Missing: Cast, Shape Distance, Sensor.",
     "Drag to grab · P pause · O step · R restart",
   );
 
