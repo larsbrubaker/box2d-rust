@@ -42,6 +42,7 @@ import { SCENES as bodiesScenes } from "../src/demos/bodies.ts";
 import { SCENES as collisionScenes } from "../src/demos/collision.ts";
 import { SCENES as continuousScenes } from "../src/demos/continuous.ts";
 import { SCENES as eventsScenes } from "../src/demos/events.ts";
+import { SCENES as issuesScenes } from "../src/demos/issues.ts";
 import { SCENES as jointsScenes } from "../src/demos/joints.ts";
 import { SCENES as robustnessScenes } from "../src/demos/robustness.ts";
 import { SCENES as shapesScenes } from "../src/demos/shapes.ts";
@@ -53,6 +54,7 @@ const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string
   collision: { scenes: collisionScenes },
   continuous: { scenes: continuousScenes },
   events: { scenes: eventsScenes },
+  issues: { scenes: issuesScenes },
   joints: { scenes: jointsScenes },
   robustness: { scenes: robustnessScenes },
   shapes: { scenes: shapesScenes },
@@ -157,10 +159,10 @@ test("inventory size matches the C pin (138 RegisterSample + 1 RegisterReplay)",
   expect(categoryOrder().length).toBe(15);
   const stats = totalStats();
   expect(stats.total).toBe(139);
-  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2) + Benchmark (0+17) + Robustness (7) + Collision (8+1); rest planned.
-  expect(stats.live).toBe(80);
+  // Bodies (5+4) + Stacking (10) + Joints (11+7) + Shapes (16+3) + Continuous (13+1) + Events (10+2) + Benchmark (0+17) + Robustness (7) + Collision (8+1) + Issues (6); rest planned.
+  expect(stats.live).toBe(86);
   expect(stats.partial).toBe(35);
-  expect(stats.planned).toBe(24);
+  expect(stats.planned).toBe(18);
 });
 
 test("category totals match the C pin inventory", () => {
@@ -220,6 +222,10 @@ test("category totals match the C pin inventory", () => {
     } else if (cat === "Collision") {
       expect(categoryStats(cat).live).toBe(8);
       expect(categoryStats(cat).partial).toBe(1);
+      expect(categoryStats(cat).planned).toBe(0);
+    } else if (cat === "Issues") {
+      expect(categoryStats(cat).live).toBe(6);
+      expect(categoryStats(cat).partial).toBe(0);
       expect(categoryStats(cat).planned).toBe(0);
     } else {
       expect(categoryStats(cat).planned).toBe(total);

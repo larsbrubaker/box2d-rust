@@ -182,12 +182,12 @@ export const SAMPLES: SampleEntry[] = [
     ["Convex Hull", "planned"],
   ]),
   ...cat("Issues", "sample_issues.cpp", [
-    ["Bad Steiner", "planned"],
-    ["Disable", "planned"],
-    ["Crash01", "planned"],
-    ["StaticVsBulletBug", "planned"],
-    ["Unstable Prismatic Joints", "planned"],
-    ["Unstable Windmill", "planned"],
+    ["Bad Steiner", "live", "issues", "bad-steiner"],
+    ["Disable", "live", "issues", "disable"],
+    ["Crash01", "live", "issues", "crash01"],
+    ["StaticVsBulletBug", "live", "issues", "staticvsbulletbug"],
+    ["Unstable Prismatic Joints", "live", "issues", "unstable-prismatic-joints"],
+    ["Unstable Windmill", "live", "issues", "unstable-windmill"],
   ]),
   ...cat("Joints", "sample_joints.cpp", [
     ["Distance Joint", "live", "joints", "distance-joint"],

@@ -24,6 +24,7 @@ const demoModules: Record<string, () => Promise<{ init: DemoInit }>> = {
   stacking: () => import("./demos/stacking.ts"),
   joints: () => import("./demos/joints.ts"),
   events: () => import("./demos/events.ts"),
+  issues: () => import("./demos/issues.ts"),
   continuous: () => import("./demos/continuous.ts"),
   collision: () => import("./demos/collision.ts"),
   character: () => import("./demos/character.ts"),
