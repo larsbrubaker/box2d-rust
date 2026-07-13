@@ -383,7 +383,10 @@ export function cSourceUrl(entry: SampleEntry): string {
 
 /**
  * Registry entries hosted by a multi-scene page `route`, in registry (C sort)
- * order — the live/partial entries that own a working scene.
+ * order — every navigable (live/partial with a route) entry for that route.
+ * Entries whose `scene` is undefined (single-scene route-only hosts such as
+ * Replay) are still returned so callers can tell a route apart from an empty
+ * one; {@link assertRouteScenes} filters to entries that declare a `scene`.
  */
 function scenesFor(route: string): SampleEntry[] {
   return NAVIGABLE_SAMPLES.filter((s) => s.route === route);

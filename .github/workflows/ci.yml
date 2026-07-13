@@ -32,3 +32,17 @@ jobs:
 
       - name: Test (double precision / large world)
         run: cargo test --features double-precision
+
+  demo-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install demo dependencies
+        run: cd demo && bun install
+
+      - name: Test demo (registry <-> scenes guard)
+        run: cd demo && bun test

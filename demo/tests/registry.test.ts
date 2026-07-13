@@ -5,14 +5,15 @@
 // drift fails `bun test`, so a RegisterSample row added without its page scene —
 // or a scene key renamed on only one side — cannot reach main.
 //
-// Phase 0: every registry entry is `planned` with no `route`/`scene`, and no demo
-// page yet exports a C-faithful `SCENES` table. `PAGES` is therefore empty. As
-// categories are ported:
+// Phase 1: every registry entry is still `planned` with no `route`/`scene`, and no
+// demo page yet exports a C-faithful `SCENES` table. `PAGES` is therefore empty.
+// As categories are ported:
 //   1. Flip entries to live/partial and set route + scene in registry.ts
 //   2. Export `SCENES` from the page and call `assertRouteScenes`
 //   3. Add that route to `PAGES` below
 // The bidirectional checks then tighten automatically. Until then, this file
-// still enforces registry internal consistency and the C pin metadata.
+// still enforces registry internal consistency, the C pin metadata, and the
+// live/partial ↔ scene/PAGES contract (see ROUTE_ONLY_EXCEPTIONS below).
 
 import { test, expect } from "bun:test";
 import {
@@ -32,14 +33,27 @@ import {
  * implements that are intentionally not backed by a RegisterSample entry (mirrors
  * the `extra` arg to `assertRouteScenes`).
  *
- * Phase 0: empty — no page has a registry-backed scene yet. Do not add invented
+ * Phase 1: empty — no page has a registry-backed scene yet. Do not add invented
  * composite demos here; only add a route when its SCENES map 1:1 to live/partial
  * registry rows.
  */
 const PAGES: Record<string, { scenes: readonly string[]; extra?: readonly string[] }> = {
-  // Example (Phase 1+):
+  // Example (Phase 2 category port):
   // stacking: { scenes: stackingScenes },
 };
+
+/**
+ * Route-only exception policy (mirrors box3d Height Field / Replay Viewer):
+ * a live/partial entry may omit `scene` only when it is a single-scene host —
+ * one registry row owns the whole page, so there is no multi-scene table for
+ * `PAGES` / `assertRouteScenes` to guard. Multi-sample categories and any route
+ * that hosts more than one live/partial sample MUST declare `scene` keys and
+ * appear in `PAGES`. Add a route here only with a one-line reason.
+ */
+const ROUTE_ONLY_EXCEPTIONS: ReadonlySet<string> = new Set([
+  // Replay / Viewer — RegisterReplay single-scene page (no scene selector).
+  "replay",
+]);
 
 /** Registry-declared scene keys for a route (entries that own a working scene). */
 function registryScenes(route: string): string[] {
@@ -69,6 +83,51 @@ test("every multi-scene registry route is covered by this test", () => {
   const covered = new Set(Object.keys(PAGES));
   const uncovered = [...routesWithScenes].filter((r) => !covered.has(r)).sort();
   expect(uncovered).toEqual([]);
+});
+
+test("live/partial entries require route; multi-sample hosts require scene + PAGES", () => {
+  // Prevent the loophole where a sample is live/partial with only `route` and no
+  // `scene`, leaving PAGES empty so bidirectional SCENES checks never fire.
+  const livePartial = SAMPLES.filter((s) => s.status === "live" || s.status === "partial");
+
+  for (const s of livePartial) {
+    expect(s.route).toBeTruthy();
+  }
+
+  // Count live/partial samples per category and per route.
+  const byCategory = new Map<string, typeof livePartial>();
+  const byRoute = new Map<string, typeof livePartial>();
+  for (const s of livePartial) {
+    const catList = byCategory.get(s.category) ?? [];
+    catList.push(s);
+    byCategory.set(s.category, catList);
+    if (s.route) {
+      const routeList = byRoute.get(s.route) ?? [];
+      routeList.push(s);
+      byRoute.set(s.route, routeList);
+    }
+  }
+
+  for (const s of livePartial) {
+    const multiCategory = (byCategory.get(s.category)?.length ?? 0) > 1;
+    const multiRoute = (byRoute.get(s.route!)?.length ?? 0) > 1;
+    const needsScene = multiCategory || multiRoute;
+
+    if (needsScene) {
+      expect(s.scene).toBeTruthy();
+    } else if (!s.scene) {
+      // Single-sample, single-scene host: must be an explicit exception.
+      expect(ROUTE_ONLY_EXCEPTIONS.has(s.route!)).toBe(true);
+    }
+  }
+
+  // Every live/partial route that declares scenes must be listed in PAGES.
+  const routesNeedingPages = new Set(
+    livePartial.filter((s) => s.scene != null && s.route).map((s) => s.route!),
+  );
+  const covered = new Set(Object.keys(PAGES));
+  const missingPages = [...routesNeedingPages].filter((r) => !covered.has(r)).sort();
+  expect(missingPages).toEqual([]);
 });
 
 test("pinned C submodule commit is recorded", () => {
@@ -142,7 +201,7 @@ test("live/partial entries must declare a route; planned must not claim scenes",
       expect(s.route).toBeTruthy();
     }
     if (s.status === "planned") {
-      // Phase 0 contract: planned rows have no hosting route/scene yet.
+      // Phase 0/1 contract: planned rows have no hosting route/scene yet.
       expect(s.route).toBeUndefined();
       expect(s.scene).toBeUndefined();
     }

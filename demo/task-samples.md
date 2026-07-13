@@ -7,9 +7,15 @@ Same scene construction, same per-sample controls, same camera defaults, closest
 feasible match to the C app's rendering and UI shell.
 
 Single source of truth: [`demo/src/registry.ts`](src/registry.ts).
-CI drift guard: [`demo/tests/registry.test.ts`](tests/registry.test.ts).
+CI drift guard: [`demo/tests/registry.test.ts`](tests/registry.test.ts)
+(`bun test` runs in `.github/workflows/ci.yml` on PRs and in
+`deploy-demo.yml` before the Pages build).
 Runtime twin: `assertRouteScenes(route, SCENES)` (wired per page as categories
 are ported).
+
+**Merge note:** parallel Phase 2 category branches will collide on
+`registry.ts`, `PAGES` in `registry.test.ts`, and this tracker — the
+coordinator owns those merges; keep category edits scoped and additive.
 
 ## Pin
 
