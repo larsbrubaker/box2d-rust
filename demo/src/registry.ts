@@ -272,9 +272,10 @@ export const SAMPLES: SampleEntry[] = [
   // Replay is registered via RegisterReplay (sample_replay.cpp), not RegisterSample.
   // Kept as its own category so the Samples tree matches the C Replay menu entry.
   ...cat("Replay", "sample_replay.cpp", [
-    // Route-only (no scene): RegisterReplay single-scene host. Partial — no
-    // inspector outliner/query index/keyframe Load popup (disclosed in page).
-    ["Viewer", "partial", "replay"],
+    // Route-only (no scene): RegisterReplay single-scene host.
+    // Exact (serial wasm): inspector/query index/keyframe Load popup live;
+    // Workers slider disclosed N/A (single-threaded wasm).
+    ["Viewer", "live", "replay"],
   ]),
 ];
 

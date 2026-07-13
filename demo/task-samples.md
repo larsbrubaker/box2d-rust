@@ -58,12 +58,12 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 | Geometry (`sample_geometry.cpp`) | 1 | 1 | 0 | 0 | Exact: Convex Hull on `#/geometry` (invented Geometry Queries retired) |
 | Issues (`sample_issues.cpp`) | 6 | 6 | 0 | 0 | All 6 RegisterSample scenes live on `#/issues` |
 | Joints (`sample_joints.cpp`) | 22 | 22 | 0 | 0 | All Exact (Phase 3): Top Down Friction RandomPolygon hull; Breakable 6-joint gallery; Separation 5-joint + overlays; User Constraint dual-anchor soft solver; Driving teeter/bridge/chain/chase; Door spring hinge + impulse. |
-| Replay (`sample_replay.cpp`) | 1 | 0 | 1 | 0 | Via `RegisterReplay`. Partial Viewer on `#/replay` (route-only): transport/scrub/draw live; no inspector/query index/keyframe popup |
+| Replay (`sample_replay.cpp`) | 1 | 1 | 0 | 0 | Via `RegisterReplay`. Exact Viewer on `#/replay` (route-only, serial wasm): inspector outliner/detail/pick, frame query index/overlay, keyframe Load popup; Workers N/A disclosed |
 | Robustness (`sample_robustness.cpp`) | 7 | 7 | 0 | 0 | Exact: HighMassRatio1/2/3, Overlap Recovery, Tiny Pyramid, Cart, Multiple Prismatic. Invented composite replaced by multi-scene `#/robustness`. |
 | Shapes (`sample_shapes.cpp`) | 19 | 19 | 0 | 0 | All Exact (Phase 3): Chain Shape surface material; Compound ComputeAABB; Wind revolute local frames. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 3 | 1 | 0 | Exact: Far Pyramid, Far Ragdolls (CreateHuman), Far Gate. Partial: Tiles (DEBUG cycleCount=10; CreateHuman Exact). Invented `#/world` composite replaced. |
-| **Total** | **139** | **117** | **22** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 2/19 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 0/1 + Geometry 1 + Character 1 + World 3/1 |
+| **Total** | **139** | **118** | **21** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 2/19 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 1 + Geometry 1 + Character 1 + World 3/1 |
 
 ## Non-sample About pages
 
@@ -153,9 +153,9 @@ totals to Exact **117** / Partial **22** / Missing **0**.
 (CreateHuman batch + batch C Cast / Shape Distance / Sensor / Scissor / Gear Lift).
 **Partial upgrades (this branch):** Bodies Weeble/Sleep/Kinematic/Mixed Locks,
 Shapes Chain/Compound/Wind, Events Sensor Hits, Joints Ball & Chain → Exact;
-Joints Top Down / Breakable / Separation / User Constraint / Driving / Door → Exact.
-Left as Partial: DEBUG-count Benchmarks / Dynamic Tree / World Tiles,
-Replay inspector polish.
+Joints Top Down / Breakable / Separation / User Constraint / Driving / Door → Exact;
+Replay Viewer → Exact (serial wasm; Workers N/A disclosed).
+Left as Partial: DEBUG-count Benchmarks / Dynamic Tree / World Tiles.
 
 **Audit follow-ups (Jul 2026 consolidated):**
 - **Contact / AABB (lib):** port `b2Contact_IsValid` + `b2Contact_GetData`; port
@@ -163,8 +163,8 @@ Replay inspector polish.
 - [x] **Profile / Capacity:** fill `b2Profile` timings; Capacity uses `profile.step` (Exact)
 - ~~**Joints (6 Partials → Exact):** Top Down Friction, Breakable, Separation,
   User Constraint, Driving, Door~~ **Done** on `demo/phase-3-joints-exact`
-- **Replay Viewer:** inspector outliner, per-frame query index, keyframe-policy
-  load popup (`set_keyframe_policy`)
+- [x] **Replay Viewer:** inspector outliner, per-frame query index, keyframe-policy
+  load popup (`set_keyframe_policy`); Workers N/A on serial wasm
 
 - [x] **Batch A:** Remove Labs sidebar duplicates; fully retire `#/manifolds`
   (route, `demos/manifolds.ts`, `collide_with_box` wasm helper); keep About
