@@ -323,9 +323,12 @@ impl SimWorld {
         self.world.contact_id_pool.id_count()
     }
 
-    /// Demo body slots in creation order (includes holes from `destroy_body`).
+    /// Live demo bodies (destroyed slots are excluded; slot indices stay stable).
     pub fn body_count(&self) -> usize {
-        self.bodies.len()
+        self.bodies
+            .iter()
+            .filter(|&&b| b != body_ops::DESTROYED_BODY_SLOT)
+            .count()
     }
 
     /// Dynamic box with an initial rotation, for hinge chains. Returns the

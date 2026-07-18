@@ -90,8 +90,10 @@ fn destroy_body_keeps_demo_indices_stable() {
     let b = sim.add_box(1.0, 2.0, 0.5, 0.5, 1.0);
     assert_eq!(sim.body_count(), 3);
     sim.destroy_body(a);
-    // Slot retained; later index still addresses body b.
-    assert_eq!(sim.body_count(), 3);
+    // body_count now reports live bodies only.
+    assert_eq!(sim.body_count(), 2);
+    // Slot retained for index stability: 3 slots x 3 floats, the hole is still a slot.
+    assert_eq!(sim.positions().len(), 9);
     sim.set_linear_velocity(b, 1.0, 0.0);
     let v = sim.get_linear_velocity(b);
     assert!(v[0] > 0.0);
@@ -134,8 +136,8 @@ fn destroy_body_marks_slot_not_alive() {
     sim.destroy_body(a);
     assert!(!sim.is_body_alive(a));
     assert!(sim.is_body_alive(b));
-    // Slot retained (Bodies semantics) — body_count still includes the hole.
-    assert_eq!(sim.body_count(), 3);
+    // body_count now counts live bodies; the slot itself is still retained for index stability.
+    assert_eq!(sim.body_count(), 2);
     for _ in 0..10 {
         sim.step(1.0 / 60.0, 4);
     }
