@@ -37,8 +37,12 @@ per-row in `demo/src/registry.ts:106-127,135,267`:
 
 These may stay Partial by design. If we want to close them, options:
 
-- [ ] Profile current wasm perf per sample; bump any counts that hold 60 fps
+- [x] Profile current wasm perf per sample; bump any counts that hold 60 fps
   to release values (some likely can: Sleep, CreateDestroy, Kinematic).
+  Measured 2026-07-18 (desktop Chrome, release wasm): at C release counts
+  Sleep = 33.4 ms/step (5050 awake), CreateDestroy = 17.3 ms/step +
+  create/destroy overhead, Kinematic = 26.4 ms/step — all exceed the 16.7 ms
+  60 fps budget, so no counts were bumped. Partials stay Partial by design.
 - [ ] Or add a user-facing "release counts" toggle (default DEBUG) so the
   Exact scene is *reachable* even where it isn't real-time — would need a
   status-legend decision in the tracker first.
