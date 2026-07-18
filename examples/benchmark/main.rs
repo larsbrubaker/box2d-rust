@@ -196,6 +196,8 @@ fn main() {
     println!("Starting Box2D benchmarks");
     println!("======================================");
 
+    // mirrors C's indexed loop
+    #[allow(clippy::needless_range_loop)]
     for benchmark_index in 0..benchmark_count as usize {
         if single_benchmark != -1 && benchmark_index as i32 != single_benchmark {
             continue;
@@ -279,6 +281,8 @@ fn main() {
         if record_step_times {
             let file_name = format!("{}_t1.dat", benchmark.name);
             if let Ok(mut file) = File::create(&file_name) {
+                // mirrors C's indexed loop
+                #[allow(clippy::needless_range_loop)]
                 for step_index in 0..step_count as usize {
                     let p = profiles[step_index];
                     let _ = writeln!(
