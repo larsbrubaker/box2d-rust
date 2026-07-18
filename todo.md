@@ -73,3 +73,18 @@ future gap sweeps don't re-flag them:
   `demo/phase-3-joints-replay-exact` all point at merged history
   (`2cf7fe4` or behind) — delete once confirmed fully merged into `main`.
   (verified gone 2026-07-18 — only `main` remains)
+
+## 5. Performance roadmap (vs C, measured 2026-07-18)
+
+Serial Rust vs serial C (`-w=1`), 10 benchmark scenes; geometric mean ≈ **1.9×
+slower than C** (range 1.18–2.73×). Full per-scene table and methodology are in
+the README `## Performance` section. Ordered by expected win:
+
+- [ ] Capsule/segment manifold path (narrow phase) — ~4.6× on spinner; profile
+  and optimize `collide` for capsule vs capsule/chain.
+- [ ] Contact solver inner loops — ~2.7×; investigate bounds-check elimination
+  in the Vec-indexed constraint arrays, memory layout, and whether MSVC is
+  auto-vectorizing the C soft-constraint loops that rustc isn't.
+- [ ] Dynamic tree refit + pair traversal (~1.5–2×).
+- [ ] Re-measure after each change with `cargo run --release --example benchmark`
+  vs the C app.

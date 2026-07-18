@@ -47,6 +47,61 @@ Every portable module of the Box2D v3.1 C source is ported, together with the C 
 Not ported (by design): threading/task system (the port is serial), the global world
 registry (worlds are owned values), and the C arena allocator (Rust `Vec`s).
 
+## Performance
+
+The port is measured against the C reference using the C repo's own `benchmark` app (10
+scenes) and a line-for-line Rust port of it (`examples/benchmark`, run with
+`cargo run --release --example benchmark`). Both run **single-threaded** — the Rust port is
+serial by design, so C runs with `-w=1` (its serial fallback, no scheduler). Both use the
+same scenes, the same constants, `dt = 1/60`, 4 sub-steps, the warm-up step excluded, and a
+minimum of 4 runs kept.
+
+Methodology: Intel Core i7-7660U (2C/4T mobile, 2017) · 8 GB RAM · Windows 10 · rustc 1.91.0
+(release) vs MSVC 19.x /O2 (VS 2022 Build Tools) · C reference @ submodule pin `56edae7` ·
+measured 2026-07-18. Results are indicative; the ratios are the stable quantity, absolute
+times vary with hardware.
+
+Total ms for the scene's full step count (min of 4 runs):
+
+| Scene | Steps | C (ms) | Rust (ms) | Rust / C |
+|---|---|---|---|---|
+| compounds | 500 | 3685 | 6701 | 1.82× |
+| joint_grid | 500 | 5774 | 6842 | 1.18× |
+| junkyard | 800 | 8425 | 17799 | 2.11× |
+| large_pyramid | 500 | 2842 | 6235 | 2.19× |
+| many_pyramids | 200 | 5974 | 11489 | 1.92× |
+| rain | 1000 | 17145 | 28143 | 1.64× |
+| smash | 300 | 3395 | 7345 | 2.16× |
+| spinner | 500 | 9992 | 27259 | 2.73× |
+| tumbler | 750 | 3004 | 4663 | 1.55× |
+| washer | 500 | 10523 | 19497 | 1.85× |
+
+Geometric mean ≈ **1.9× slower than C** today (range 1.18–2.73×).
+
+Attribution (from `b2Profile` per-phase dumps, `-s` flag, mean ms/step):
+
+- Joint solver is near parity: joint_grid `constraints` 9.4 ms vs C 8.2 ms (1.15×).
+- Contact solver is ~2.7×: large_pyramid `constraints` 12.6 ms vs C 4.7 ms.
+- Narrow-phase `collide` is the biggest outlier on capsule-heavy scenes: spinner 31.7 ms vs
+  C 6.9 ms (~4.6×) — this explains spinner's 2.73× overall.
+- Broad phase `pairs`/`refit` run ~1.5–2×.
+
+### Performance roadmap
+
+Ordered by expected win:
+
+1. **Capsule/segment manifold path (narrow phase)** — ~4.6× on spinner; profile and optimize
+   `collide` for capsule vs capsule/chain.
+2. **Contact solver inner loops** — ~2.7×; investigate bounds-check elimination in the
+   Vec-indexed constraint arrays, memory layout, and whether MSVC is auto-vectorizing the C
+   soft-constraint loops that rustc isn't.
+3. **Dynamic tree refit + pair traversal** (~1.5–2×).
+4. **Re-measure after each change** with `cargo run --release --example benchmark` vs the C
+   app (commands documented in `examples/benchmark` and this section).
+
+Multithreading (a work-stealing solver like C's built-in scheduler) is a separate, larger
+lever — the C version gains ~Nx with workers; the port is serial today by design.
+
 ## Porting principles
 
 - **Exact behavioral match** — same algorithms, same `f32` arithmetic, same edge cases as the C
