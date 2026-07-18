@@ -14,10 +14,10 @@
 //! SPDX-FileCopyrightText: 2023 Erin Catto
 //! SPDX-License-Identifier: MIT
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-use web_time::Instant;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::time::Instant;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use web_time::Instant;
 
 /// Opaque tick capture. (return value of `b2GetTicks`)
 #[derive(Clone, Copy)]
