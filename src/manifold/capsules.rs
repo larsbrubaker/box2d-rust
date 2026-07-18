@@ -234,7 +234,9 @@ pub fn collide_capsules(capsule_a: &Capsule, capsule_b: &Capsule, xf: Transform)
 
         manifold.normal = normal;
         manifold.points[0].point = lerp(c1, c2, 0.5);
-        manifold.points[0].separation = distance_sq.sqrt() - radius;
+        // Reuse the sqrt computed above (line 83); same deterministic op on the
+        // same input, so this is bit-identical to recomputing distance_sq.sqrt().
+        manifold.points[0].separation = distance - radius;
         manifold.points[0].id = make_id(i1, i2);
         manifold.point_count = 1;
     }

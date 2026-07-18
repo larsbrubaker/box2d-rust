@@ -456,6 +456,7 @@ impl World {
 }
 
 mod api;
+mod collide;
 mod draw;
 mod query;
 mod step;

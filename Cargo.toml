@@ -43,3 +43,7 @@ double-precision = []
 web-time = "1"
 
 [dev-dependencies]
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
