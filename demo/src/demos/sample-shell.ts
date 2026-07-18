@@ -19,6 +19,7 @@ import {
 } from "../registry.ts";
 import { defaultViewFlags, maskFromFlags, PANEL_FLAG_DEFS } from "../view-flags.ts";
 import { getWasm } from "../wasm.ts";
+import { runSimLoop } from "./sim-common.ts";
 
 /** C Camera defaults from GetDefaultCamera / ResetView (draw.c). */
 export const DEFAULT_CAMERA = {
@@ -268,6 +269,10 @@ export interface SampleTransport {
   singleStep: boolean;
   hertz: number;
   subSteps: number;
+  /** Steps consumed since creation or the last restart (C `m_stepCount`). */
+  readonly stepCount: number;
+  /** Reset the step counter (sample restart). */
+  resetStepCount(): void;
   /** Effective dt for this frame (0 when paused without a single-step). */
   consumeStepDt(): number;
   /** Attach Space/P/O/R keyboard shortcuts; returns a disposer. */
@@ -289,6 +294,7 @@ export function createSampleTransport(opts?: {
     singleStep: false,
     hertz: opts?.hertz ?? DEFAULT_HERTZ,
     subSteps: opts?.subSteps ?? DEFAULT_SUB_STEPS,
+    stepCount: 0,
   };
 
   const transport: SampleTransport = {
@@ -316,6 +322,12 @@ export function createSampleTransport(opts?: {
     set subSteps(v: number) {
       state.subSteps = v;
     },
+    get stepCount() {
+      return state.stepCount;
+    },
+    resetStepCount() {
+      state.stepCount = 0;
+    },
     consumeStepDt() {
       let dt = state.hertz > 0 ? 1 / state.hertz : 0;
       if (state.paused) {
@@ -325,6 +337,7 @@ export function createSampleTransport(opts?: {
           dt = 0;
         }
       }
+      if (dt > 0) state.stepCount += 1;
       return dt;
     },
     bindKeys(target: Window = window) {
@@ -350,7 +363,11 @@ export function createSampleTransport(opts?: {
       target.addEventListener("keydown", onKey);
       return () => target.removeEventListener("keydown", onKey);
     },
-    mountControls(parent: HTMLElement, onRestart: () => void) {
+    mountControls(parent: HTMLElement, onRestartCb: () => void) {
+      const onRestart = () => {
+        state.stepCount = 0;
+        onRestartCb();
+      };
       const pauseBtn = createButton("Pause (Space)", () => {
         state.paused = !state.paused;
         pauseBtn.classList.toggle("active", state.paused);
@@ -452,7 +469,12 @@ export function mountSampleChrome(opts: {
   canvas?: HTMLCanvasElement;
   camera?: SampleCamera;
 }): SampleChrome {
-  const { controls, route, category, transport, onRestart } = opts;
+  const { controls, route, category, transport } = opts;
+  // Restart also rewinds the HUD step counter (C samples recreate the sample).
+  const onRestart = () => {
+    transport.resetStepCount();
+    opts.onRestart();
+  };
   const preexisting = Array.from(controls.childNodes);
   controls.replaceChildren();
   controls.classList.add("samples-info-panel");
@@ -778,4 +800,44 @@ export function mountSampleChrome(opts: {
       applyUiVisibility();
     },
   };
+}
+
+/** Optional per-frame stats a demo world can expose (SimWorld implements all). */
+export interface SampleStatsWorld {
+  body_count?(): number;
+  awake_body_count?(): number;
+  contact_count?(): number;
+}
+
+/**
+ * runSimLoop plus the Info-panel HUD: measures the frame callback, then feeds
+ * frame ms / step count / world counts / camera into `chrome.tick()` so every
+ * sample page gets live stats without wiring them by hand.
+ */
+export function runSampleLoop(
+  frame: () => void,
+  opts: {
+    chrome: SampleChrome;
+    transport: SampleTransport;
+    camera: SampleCamera;
+    readout: HTMLElement;
+    getWorld?: () => SampleStatsWorld | null | undefined;
+  },
+): () => void {
+  const { chrome, transport, camera } = opts;
+  return runSimLoop(() => {
+    const t0 = performance.now();
+    frame();
+    const frameMs = performance.now() - t0;
+    const world = opts.getWorld?.();
+    chrome.tick({
+      frameMs,
+      stepCount: transport.stepCount,
+      paused: transport.paused,
+      camera,
+      bodyCount: world?.body_count?.(),
+      awakeCount: world?.awake_body_count?.(),
+      contactCount: world?.contact_count?.(),
+    });
+  }, opts.readout);
 }

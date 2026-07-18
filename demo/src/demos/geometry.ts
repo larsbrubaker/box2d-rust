@@ -12,10 +12,11 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm } from "../wasm.ts";
-import { demoPage, fitCanvas, runSimLoop } from "./sim-common.ts";
+import { demoPage, fitCanvas } from "./sim-common.ts";
 import {
   createSampleTransport,
   mountSampleChrome,
+  runSampleLoop,
   disposeTransport,
   makeCamera,
   worldToScreen,
@@ -202,7 +203,7 @@ export function init(container: HTMLElement, _initialScene?: string) {
   const unbindKeys = transport.bindKeys();
   const ctx = canvas.getContext("2d")!;
 
-  const stop = runSimLoop(() => {
+  const stop = runSampleLoop(() => {
     fitCanvas(canvas);
     const dt = transport.consumeStepDt();
     const advance = dt > 0;
@@ -253,7 +254,7 @@ export function init(container: HTMLElement, _initialScene?: string) {
       { label: "Auto", value: frame.auto ? "on" : "off" },
       { label: "Bulk", value: frame.bulk ? "on" : "off" },
     ]);
-  }, readout);
+  }, { chrome, transport, camera, readout });
 
   return () => {
     stop();

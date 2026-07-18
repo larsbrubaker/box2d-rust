@@ -97,3 +97,27 @@ describe("transport pause keys (C SPACE, web P alias)", () => {
     unbind();
   });
 });
+
+describe("transport step counter (HUD step N)", () => {
+  test("counts consumed steps, skips paused frames, resets on restart", () => {
+    const transport = createSampleTransport();
+    expect(transport.stepCount).toBe(0);
+
+    transport.consumeStepDt();
+    transport.consumeStepDt();
+    expect(transport.stepCount).toBe(2);
+
+    // Paused frames consume dt = 0 and must not advance the counter.
+    transport.paused = true;
+    transport.consumeStepDt();
+    expect(transport.stepCount).toBe(2);
+
+    // A single-step while paused is a real step (C Sample::Step).
+    transport.singleStep = true;
+    transport.consumeStepDt();
+    expect(transport.stepCount).toBe(3);
+
+    transport.resetStepCount();
+    expect(transport.stepCount).toBe(0);
+  });
+});
