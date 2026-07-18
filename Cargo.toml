@@ -39,4 +39,7 @@ double-precision = []
 
 [dependencies]
 
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+web-time = "1"
+
 [dev-dependencies]

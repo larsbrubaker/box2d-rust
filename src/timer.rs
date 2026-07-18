@@ -4,13 +4,19 @@
 //! Mutex / semaphore / thread wrappers from that file are not ported — Rust's
 //! standard library covers them. Only the profiling clock remains.
 //!
-//! Uses `std::time::Instant` for relative durations. On wasm32 Instant is backed
-//! by `performance.now()` in current rustc, which is enough for demo profiling
-//! (Capacity's 20 ms threshold) as well as native.
+//! Uses an `Instant` for relative durations. On native targets this is
+//! `std::time::Instant`. On `wasm32-unknown-unknown`, `std::time::Instant::now()`
+//! panics ("time not implemented on this platform"), so we use the `web-time`
+//! crate there instead — its `Instant` is backed by `performance.now()`. That
+//! provides real wall-clock values needed for demo profiling (Capacity's 20 ms
+//! threshold) without trapping every world step.
 //!
 //! SPDX-FileCopyrightText: 2023 Erin Catto
 //! SPDX-License-Identifier: MIT
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use web_time::Instant;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::time::Instant;
 
 /// Opaque tick capture. (return value of `b2GetTicks`)
