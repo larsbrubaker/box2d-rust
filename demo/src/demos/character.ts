@@ -13,12 +13,13 @@ import {
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type SimWorld } from "../wasm.ts";
 import { paintSampleDraw } from "./debug-draw.ts";
-import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
+import { demoPage, fitCanvas, freeSim } from "./sim-common.ts";
 import {
   createSampleTransport,
   mountSampleChrome,
+  runSampleLoop,
   disposeTransport,
-  makeCamera,
+  makeCamera,
   worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
@@ -570,7 +571,6 @@ export function init(container: HTMLElement, initialScene?: string) {
       },
     ),
   );
-  chrome.afterHead.appendChild(sceneControls);
   const chrome = mountSampleChrome({
     controls,
     canvas,
@@ -582,6 +582,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     onRestart: rebuild,
     getWorld: () => sim,
   });
+  chrome.afterHead.appendChild(sceneControls);
   controls.appendChild(readout);
 
   const onKeyDown = (e: KeyboardEvent) => runtime.onKeyDown?.(e);
@@ -590,7 +591,7 @@ export function init(container: HTMLElement, initialScene?: string) {
   window.addEventListener("keyup", onKeyUp);
   const unbindTransport = transport.bindKeys(window);
 
-  const stop = runSimLoop(() => {
+  const stop = runSampleLoop(() => {
     fitCanvas(canvas);
     const dt = transport.consumeStepDt();
     runtime.beforeStep?.(dt);
@@ -606,7 +607,7 @@ export function init(container: HTMLElement, initialScene?: string) {
       { label: "Hz", value: String(transport.hertz) },
       ...(runtime.readoutExtra?.() ?? []),
     ]);
-  });
+  }, { chrome, transport, camera, readout, getWorld: () => sim });
 
   return () => {
     stop();

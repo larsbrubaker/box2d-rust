@@ -14,14 +14,15 @@ import {
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type SimWorld } from "../wasm.ts";
 import { paintSampleDraw } from "./debug-draw.ts";
-import { demoPage, fitCanvas, freeSim, runSimLoop } from "./sim-common.ts";
+import { demoPage, fitCanvas, freeSim } from "./sim-common.ts";
 import {
   createSampleTransport,
   mountSampleChrome,
+  runSampleLoop,
   DEFAULT_SUB_STEPS,
   disposeTransport,
   makeCamera,
-  screenToWorld,
+  screenToWorld,
   worldToScreen,
   type SampleCamera,
 } from "./sample-shell.ts";
@@ -945,7 +946,7 @@ export function init(container: HTMLElement, initialScene?: string) {
 
   const unbindKeys = transport.bindKeys();
 
-  const stop = runSimLoop(() => {
+  const stop = runSampleLoop(() => {
     fitCanvas(canvas);
     const dt = transport.consumeStepDt();
     runtime.beforeStep?.(dt);
@@ -965,7 +966,7 @@ export function init(container: HTMLElement, initialScene?: string) {
       { label: "Paused", value: transport.paused ? "yes" : "no" },
       ...(runtime.readoutExtra?.() ?? []),
     ]);
-  }, readout);
+  }, { chrome, transport, camera, readout, getWorld: () => sim });
 
   return () => {
     stop();
