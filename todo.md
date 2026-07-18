@@ -18,11 +18,11 @@ flags in the panel (`5b802a9`).
 
 `demo/task-samples.md` lags its own table after the Replay Exact upgrade:
 
-- [ ] Line ~43 headline says "Exact **117** · Partial **22**" — table says
+- [x] Line ~43 headline says "Exact **117** · Partial **22**" — table says
   118 / 21. Same stale count in the Phase 2 paragraph.
-- [ ] "Audit follow-ups" section: the **Contact / AABB (lib)** bullet is not
+- [x] "Audit follow-ups" section: the **Contact / AABB (lib)** bullet is not
   checked off, but both items shipped (`f6b1b70`, `76d5025`). Mark done.
-- [ ] "Decisions (Phase 0)" still says Replay is "now `partial` route-only" —
+- [x] "Decisions (Phase 0)" still says Replay is "now `partial` route-only" —
   it is Exact since `0a1f5d4`.
 
 ## 2. The 21 remaining Partials — perf-gated count scaling
@@ -65,6 +65,7 @@ future gap sweeps don't re-flag them:
 
 ## 4. Housekeeping
 
-- [ ] Local branches `demo/phase-3-harness-parity`, `demo/phase-3-housekeeping`,
+- [x] Local branches `demo/phase-3-harness-parity`, `demo/phase-3-housekeeping`,
   `demo/phase-3-joints-replay-exact` all point at merged history
   (`2cf7fe4` or behind) — delete once confirmed fully merged into `main`.
+  (verified gone 2026-07-18 — only `main` remains)

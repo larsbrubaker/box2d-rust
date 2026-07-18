@@ -40,7 +40,7 @@ Inventory at this pin:
 | Partial | Route exists; disclosed divergence from C |
 | Missing (`planned`) | No faithful route yet |
 
-**Current totals:** Exact **117** · Partial **22** · Missing **0**.
+**Current totals:** Exact **118** · Partial **21** · Missing **0**.
 Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 `PAGES`).
 
@@ -145,7 +145,7 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 All 15 categories have registry-backed routes. Remaining planned gaps closed in
 Phase 3 batch C (Benchmark Cast / Shape Distance / Sensor; Joints Scissor /
 Gear Lift). Phase 3 Partial upgrades + Joints Exact + profile timings brought
-totals to Exact **117** / Partial **22** / Missing **0**.
+totals to Exact **118** / Partial **21** / Missing **0**.
 
 ### Phase 3 — Shell polish + retire invented pages — IN PROGRESS
 
@@ -158,7 +158,7 @@ Replay Viewer → Exact (serial wasm; Workers N/A disclosed).
 Left as Partial: DEBUG-count Benchmarks / Dynamic Tree / World Tiles.
 
 **Audit follow-ups (Jul 2026 consolidated):**
-- **Contact / AABB (lib):** port `b2Contact_IsValid` + `b2Contact_GetData`; port
+- [x] **Contact / AABB (lib):** port `b2Contact_IsValid` + `b2Contact_GetData`; port
   `LargeWorldAABBTest` from `test_collision.c`
 - [x] **Profile / Capacity:** fill `b2Profile` timings; Capacity uses `profile.step` (Exact)
 - ~~**Joints (6 Partials → Exact):** Top Down Friction, Breakable, Separation,
@@ -193,7 +193,7 @@ live/partial ↔ scene/PAGES contract (Replay route-only exception).
 ## Decisions (Phase 0)
 
 - **Replay**: included via `RegisterReplay` as category `Replay` / name `Viewer`
-  (same special-case treatment as box3d); now `partial` route-only
+  (same special-case treatment as box3d); now Exact (live)
 - **Math**: excluded from the registry; About page only
 - **Many Pyramids**: included (`RegisterSampleWithCapacity`)
 - **Conservative status**: live/partial only with disclosed divergences — no
