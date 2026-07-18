@@ -103,36 +103,38 @@ export const SAMPLES: SampleEntry[] = [
     ["Wake Touching", "live", "bodies", "wake-touching"],
   ]),
   ...cat("Benchmark", "sample_benchmark.cpp", [
-    // All live ports use C DEBUG / wasm-scaled counts (disclosed) → partial.
-    ["Barrel", "partial", "benchmark", "barrel"], // DEBUG rows/cols; Human via CreateHuman
-    ["Barrel 2.4", "partial", "benchmark", "barrel-2-4"], // DEBUG numj=5
-    ["Compounds", "partial", "benchmark", "compounds"], // DEBUG 10×40
-    ["Tumbler", "partial", "benchmark", "tumbler"], // DEBUG grid 20
-    ["Washer", "partial", "benchmark", "washer"], // DEBUG grid 20; hit events approx
-    ["Many Tumblers", "partial", "benchmark", "many-tumblers"], // DEBUG 2×2×8
-    ["Large Pyramid", "partial", "benchmark", "large-pyramid"], // DEBUG base 20
-    ["Many Pyramids", "partial", "benchmark", "many-pyramids"], // DEBUG 5×5
-    ["CreateDestroy", "partial", "benchmark", "create-destroy"], // DEBUG base 40
-    ["Sleep", "partial", "benchmark", "sleep"], // DEBUG base 40
-    ["Joint Grid", "partial", "benchmark", "joint-grid"], // DEBUG N=20
-    ["Smash", "partial", "benchmark", "smash"], // DEBUG 20×10
-    ["Large Compounds", "partial", "benchmark", "large-compounds"], // DEBUG ground/span
-    ["Kinematic", "partial", "benchmark", "kinematic"], // DEBUG span 20
-    ["Cast", "partial", "benchmark", "cast"], // DEBUG 100×100 / 100 queries (C release 1000/10000)
-    ["Spinner", "partial", "benchmark", "spinner"], // DEBUG 499; chain friction default
-    ["Rain", "partial", "benchmark", "rain"], // DEBUG CreateRain/StepRain via CreateHuman
-    ["Shape Distance", "partial", "benchmark", "shape-distance"], // DEBUG count 100 (C release 10000)
+    // Count-gated ports default to C DEBUG counts for real-time wasm and expose
+    // the exact C release scene via the COUNTS toggle → live. Washer/Spinner keep
+    // partial for non-count divergences.
+    ["Barrel", "live", "benchmark", "barrel"], // counts via COUNTS toggle (DEBUG default)
+    ["Barrel 2.4", "live", "benchmark", "barrel-2-4"], // counts via COUNTS toggle (DEBUG default)
+    ["Compounds", "live", "benchmark", "compounds"], // counts via COUNTS toggle (DEBUG default)
+    ["Tumbler", "live", "benchmark", "tumbler"], // counts via COUNTS toggle (DEBUG default)
+    ["Washer", "partial", "benchmark", "washer"], // counts via COUNTS toggle; hit-events approx keeps partial
+    ["Many Tumblers", "live", "benchmark", "many-tumblers"], // counts via COUNTS toggle (DEBUG default)
+    ["Large Pyramid", "live", "benchmark", "large-pyramid"], // counts via COUNTS toggle (DEBUG default)
+    ["Many Pyramids", "live", "benchmark", "many-pyramids"], // counts via COUNTS toggle (DEBUG default)
+    ["CreateDestroy", "live", "benchmark", "create-destroy"], // counts via COUNTS toggle (DEBUG default)
+    ["Sleep", "live", "benchmark", "sleep"], // counts via COUNTS toggle (DEBUG default)
+    ["Joint Grid", "live", "benchmark", "joint-grid"], // counts via COUNTS toggle (DEBUG default)
+    ["Smash", "live", "benchmark", "smash"], // counts via COUNTS toggle (DEBUG default)
+    ["Large Compounds", "live", "benchmark", "large-compounds"], // counts via COUNTS toggle (DEBUG default)
+    ["Kinematic", "live", "benchmark", "kinematic"], // counts via COUNTS toggle (DEBUG default)
+    ["Cast", "live", "benchmark", "cast"], // counts via COUNTS toggle (DEBUG default)
+    ["Spinner", "partial", "benchmark", "spinner"], // counts via COUNTS toggle; chain-friction default keeps partial
+    ["Rain", "live", "benchmark", "rain"], // counts via COUNTS toggle (DEBUG default)
+    ["Shape Distance", "live", "benchmark", "shape-distance"], // counts via COUNTS toggle (DEBUG default)
     ["Sensor", "live", "benchmark", "sensor"],
     ["Capacity", "live", "benchmark", "capacity"],
-    ["Junkyard", "partial", "benchmark", "junkyard"], // DEBUG rowCount 2
+    ["Junkyard", "live", "benchmark", "junkyard"], // counts via COUNTS toggle (DEBUG default)
   ]),
   ...cat("Character", "sample_character.cpp", [
     ["Mover", "live", "character", "mover"],
   ]),
   ...cat("Collision", "sample_collision.cpp", [
     ["Shape Distance", "live", "collision", "shape-distance"],
-    // Partial: C m_isDebug grid (100×100), not release 1000×1000
-    ["Dynamic Tree", "partial", "collision", "dynamic-tree"],
+    // Grid 100×100 (DEBUG) / 1000×1000 (C release); counts via COUNTS toggle (DEBUG default)
+    ["Dynamic Tree", "live", "collision", "dynamic-tree"],
     ["Ray Cast", "live", "collision", "ray-cast"],
     ["Cast World", "live", "collision", "cast-world"],
     ["Overlap World", "live", "collision", "overlap-world"],
@@ -263,8 +265,8 @@ export const SAMPLES: SampleEntry[] = [
     ["Card House", "live", "stacking", "card-house"],
   ]),
   ...cat("World", "sample_world.cpp", [
-    // Partial: DEBUG cycleCount=10 (C release 600); CreateHuman Exact
-    ["Tiles", "partial", "world", "tiles"],
+    // cycleCount 10 (DEBUG) / 600 (C release); counts via COUNTS toggle (DEBUG default)
+    ["Tiles", "live", "world", "tiles"],
     ["Far Pyramid", "live", "world", "far-pyramid"],
     ["Far Ragdolls", "live", "world", "far-ragdolls"],
     ["Far Gate", "live", "world", "far-gate"],

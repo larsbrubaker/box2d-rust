@@ -13,6 +13,7 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type SimWorld } from "../wasm.ts";
+import { pickCount } from "./counts.ts";
 import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim } from "./sim-common.ts";
 import {
@@ -57,9 +58,6 @@ const BODY_STATIC = 0;
 const BODY_DYNAMIC = 2;
 const FRIC = 0.6;
 const PI = Math.PI;
-
-/** Browser DEBUG scale — C m_isDebug ? 10 : 600 (:25). */
-const TILES_CYCLE_COUNT = 10;
 
 interface SceneRuntime {
   beforeStep?: (dt: number) => void;
@@ -303,10 +301,10 @@ function floatGridStep(x: number): number {
 // ---------------------------------------------------------------------------
 
 function buildTiles(sim: SimWorld, controls: HTMLElement, camera: SampleCamera): SceneRuntime {
-  // :17-241 — PARTIAL: DEBUG cycleCount=10 (C release 600); CreateHuman cycles Exact
+  // :17-241 — cycleCount = m_isDebug ? 10 : 600 (:25); COUNTS toggle switches (DEBUG default)
   const period = 40.0;
   const omega = (2.0 * PI) / period;
-  const cycleCount = TILES_CYCLE_COUNT;
+  const cycleCount = pickCount(10, 600); // sample_world.cpp:25
   const gridSize = 1.0;
   const gridCount = Math.floor((cycleCount * period) / gridSize);
   const xStart = -0.5 * (cycleCount * period);
@@ -426,8 +424,8 @@ function buildTiles(sim: SimWorld, controls: HTMLElement, camera: SampleCamera):
   );
   controls.appendChild(
     createInfoBox(
-      "PARTIAL: DEBUG <code>cycleCount=10</code> (C release 600). Human cycles use " +
-        "<code>CreateHuman</code>. ASD drives the car.",
+      "<code>cycleCount</code> 10 (DEBUG) / 600 (C release) — COUNTS toggle switches. " +
+        "Human cycles use <code>CreateHuman</code>. ASD drives the car.",
     ),
   );
 
@@ -937,6 +935,9 @@ export function init(container: HTMLElement, initialScene?: string) {
     transport,
     onRestart: () => rebuild(),
     getWorld: () => sim,
+    // Shared per-category mount → toggle shows on all World samples; only Tiles
+    // is count-gated (Far scenes ignore it).
+    countsToggle: true,
   });
   controls.appendChild(createSeparator());
   chrome.afterHead.appendChild(sceneControls);

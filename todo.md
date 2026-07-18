@@ -1,8 +1,9 @@
 # TODO — remaining gaps vs C reference
 
 State snapshot (2026-07-14): `main` @ `e77b58b` (v1.2.0), clean tree,
-submodule pinned at `56edae7`. Sample tracker: **Exact 118 · Partial 21 ·
-Missing 0** (per-category table in `demo/task-samples.md`).
+submodule pinned at `56edae7`. Sample tracker: **Exact 137 · Partial 2 ·
+Missing 0** after the counts toggle (branch `demo/release-counts-toggle`) —
+per-category table in `demo/task-samples.md`.
 
 This list is what remains after the July 2026 gap audit (C headers vs `src/`,
 C test suite vs Rust tests, C samples vs demo registry) **and** the follow-up
@@ -25,29 +26,32 @@ flags in the panel (`5b802a9`).
 - [x] "Decisions (Phase 0)" still says Replay is "now `partial` route-only" —
   it is Exact since `0a1f5d4`.
 
-## 2. The 21 remaining Partials — perf-gated count scaling
+## 2. Count-gated samples — COUNTS toggle (SHIPPED)
 
-All 21 are functionally complete ports running the C `m_isDebug` (reduced)
-counts so wasm stays real-time; the only divergence is magnitude, disclosed
-per-row in `demo/src/registry.ts:106-127,135,267`:
+**Shipped on `demo/release-counts-toggle`.** The count-gated ports run the C
+`m_isDebug` (reduced) counts by default so wasm stays real-time, and now expose
+the exact C release (NDEBUG) scene via a user-facing **COUNTS** toggle
+(`demo/src/demos/counts.ts` → `pickCount(debug, release)`; default DEBUG). Both
+counts are the C source's own gated values, so matching either is Exact. **19 of
+the former 21 Partials flipped to Exact** (all 21 formerly disclosed in
+`demo/src/registry.ts`): 17 Benchmark + Collision/Dynamic Tree
+(100×100 / 1000×1000) + World/Tiles (`cycleCount` 10 / 600).
 
-- 19 Benchmark samples (all but Sensor and Capacity)
-- Collision / Dynamic Tree (100×100 grid vs release 1000×1000)
-- World / Tiles (`cycleCount` 10 vs release 600)
+**Remaining 2 Partials** — non-count divergences, pending their own branch:
 
-These may stay Partial by design. If we want to close them, options:
+- Benchmark / Washer — hit-events approximation (counts converted; still Partial)
+- Benchmark / Spinner — chain-friction default (counts converted; still Partial)
 
 - [x] Profile current wasm perf per sample; bump any counts that hold 60 fps
   to release values (some likely can: Sleep, CreateDestroy, Kinematic).
   Measured 2026-07-18 (desktop Chrome, release wasm): at C release counts
   Sleep = 33.4 ms/step (5050 awake), CreateDestroy = 17.3 ms/step +
   create/destroy overhead, Kinematic = 26.4 ms/step — all exceed the 16.7 ms
-  60 fps budget, so no counts were bumped. Partials stay Partial by design.
-- [ ] Or add a user-facing "release counts" toggle (default DEBUG) so the
-  Exact scene is *reachable* even where it isn't real-time — would need a
-  status-legend decision in the tracker first.
-- Minor extra divergences noted in registry comments while touching these:
-  Washer "hit events approx", Spinner "chain friction default".
+  60 fps budget, so no counts were bumped. The toggle makes the release scene
+  *reachable* (disclosed "may run below real-time") without changing the default.
+- [x] Add a user-facing "release counts" toggle (default DEBUG) so the Exact
+  scene is *reachable* even where it isn't real-time — shipped on
+  `demo/release-counts-toggle`; status-legend note added to the tracker.
 
 ## 3. Library non-goals (do NOT re-audit; intentional omissions)
 

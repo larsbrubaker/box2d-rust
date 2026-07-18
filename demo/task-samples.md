@@ -40,7 +40,15 @@ Inventory at this pin:
 | Partial | Route exists; disclosed divergence from C |
 | Missing (`planned`) | No faithful route yet |
 
-**Current totals:** Exact **118** · Partial **21** · Missing **0**.
+**Counts toggle:** Exact count-gated samples default to the C **DEBUG** counts so
+they stay real-time in wasm, and expose the exact C **release** (NDEBUG /
+`m_isDebug`) scene via the **COUNTS** toggle in the sample panel (`getCountsMode` /
+`pickCount` in [`demos/counts.ts`](src/demos/counts.ts)). Default stays DEBUG;
+switching rebuilds the scene with release counts (disclosed as "may run below
+real-time"). Matching a value under the non-default mode is still Exact — both
+counts are the C source's own gated values.
+
+**Current totals:** Exact **137** · Partial **2** · Missing **0**.
 Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 `PAGES`).
 
@@ -48,10 +56,10 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 
 | Category (C file) | Total | Exact | Partial | Missing | Notes |
 |---|---|---|---|---|---|
-| Benchmark (`sample_benchmark.cpp`) | 21 | 2 | 19 | 0 | DEBUG/wasm counts disclosed. Exact: Sensor, Capacity (`b2Profile.step` via engine timers). Partial: Barrel (Human via CreateHuman), Barrel 2.4, Compounds, Tumbler, Washer, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Cast (DEBUG grid/queries), Spinner, Rain (DEBUG CreateRain), Shape Distance (DEBUG count), Junkyard. |
+| Benchmark (`sample_benchmark.cpp`) | 21 | 19 | 2 | 0 | Counts via COUNTS toggle (DEBUG default). Exact: Sensor, Capacity, Barrel, Barrel 2.4, Compounds, Tumbler, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Cast, Rain, Shape Distance, Junkyard. Partial: Washer (hit-events approx), Spinner (chain-friction default) — non-count divergences pending their own branch. |
 | Bodies (`sample_bodies.cpp`) | 9 | 9 | 0 | 0 | All Exact (Phase 3): Weeble mix callbacks + SetMassData; Sleep sensors/thresholds; Kinematic SetTargetTransform; Mixed Locks motionLocks. |
 | Character (`sample_character.cpp`) | 1 | 1 | 0 | 0 | Exact: Mover (C SolveMove + scene) |
-| Collision (`sample_collision.cpp`) | 9 | 8 | 1 | 0 | Exact: Shape Distance, Ray Cast, Cast World, Overlap World, Manifold, Smooth Manifold, Shape Cast, Time of Impact. Partial: Dynamic Tree (C debug 100A-100 grid, not release 1000A-1000). Invented `#/manifolds` fully retired (route + wasm helper gone). |
+| Collision (`sample_collision.cpp`) | 9 | 9 | 0 | 0 | All Exact: Shape Distance, Ray Cast, Cast World, Overlap World, Manifold, Smooth Manifold, Shape Cast, Time of Impact, Dynamic Tree (grid 100×100 DEBUG / 1000×1000 release via COUNTS toggle). Invented `#/manifolds` fully retired (route + wasm helper gone). |
 | Continuous (`sample_continuous.cpp`) | 15 | 15 | 0 | 0 | Exact: Bounce House, Bounce Humans (CreateHuman), Chain Drop/Slide, Segment Slide, Skinny Box, Ghost Bumps, Speculative Fallback/Sliver/Ghost, Pixel Imperfect, Restitution Threshold, Drop (Scenes 1–4 incl. ragdoll), Pinball, Wedge. Invented bullet/wall composite replaced. |
 | Determinism (`sample_determinism.cpp`) | 2 | 2 | 0 | 0 | Exact: Falling Hinges, SnapShot on `#/determinism` |
 | Events (`sample_events.cpp`) | 12 | 12 | 0 | 0 | All Exact (Phase 3): Sensor Hits uses prismatic GetTranslation. |
@@ -62,8 +70,8 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 | Robustness (`sample_robustness.cpp`) | 7 | 7 | 0 | 0 | Exact: HighMassRatio1/2/3, Overlap Recovery, Tiny Pyramid, Cart, Multiple Prismatic. Invented composite replaced by multi-scene `#/robustness`. |
 | Shapes (`sample_shapes.cpp`) | 19 | 19 | 0 | 0 | All Exact (Phase 3): Chain Shape surface material; Compound ComputeAABB; Wind revolute local frames. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
-| World (`sample_world.cpp`) | 4 | 3 | 1 | 0 | Exact: Far Pyramid, Far Ragdolls (CreateHuman), Far Gate. Partial: Tiles (DEBUG cycleCount=10; CreateHuman Exact). Invented `#/world` composite replaced. |
-| **Total** | **139** | **118** | **21** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 2/19 + Robustness 7 + Collision 8/1 + Issues 6 + Determinism 2 + Replay 1 + Geometry 1 + Character 1 + World 3/1 |
+| World (`sample_world.cpp`) | 4 | 4 | 0 | 0 | All Exact: Far Pyramid, Far Ragdolls (CreateHuman), Far Gate, Tiles (cycleCount 10 DEBUG / 600 release via COUNTS toggle). Invented `#/world` composite replaced. |
+| **Total** | **139** | **137** | **2** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 19/2 + Robustness 7 + Collision 9 + Issues 6 + Determinism 2 + Replay 1 + Geometry 1 + Character 1 + World 4 |
 
 ## Non-sample About pages
 
@@ -145,7 +153,8 @@ toggle, sensor box / events, explode, set gravity, snapshot/restore, mover queri
 All 15 categories have registry-backed routes. Remaining planned gaps closed in
 Phase 3 batch C (Benchmark Cast / Shape Distance / Sensor; Joints Scissor /
 Gear Lift). Phase 3 Partial upgrades + Joints Exact + profile timings brought
-totals to Exact **118** / Partial **21** / Missing **0**.
+totals to Exact **118** / Partial **21** / Missing **0**; the counts toggle
+(below) then lifted 19 count-gated rows to Exact **137** / Partial **2**.
 
 ### Phase 3 — Shell polish + retire invented pages — IN PROGRESS
 
@@ -155,7 +164,10 @@ totals to Exact **118** / Partial **21** / Missing **0**.
 Shapes Chain/Compound/Wind, Events Sensor Hits, Joints Ball & Chain → Exact;
 Joints Top Down / Breakable / Separation / User Constraint / Driving / Door → Exact;
 Replay Viewer → Exact (serial wasm; Workers N/A disclosed).
-Left as Partial: DEBUG-count Benchmarks / Dynamic Tree / World Tiles.
+**Counts toggle (`demo/release-counts-toggle`):** the 21 DEBUG-count Benchmarks +
+Dynamic Tree + World Tiles gained a COUNTS toggle exposing the exact C release
+scene; 19 flipped to Exact. Left as Partial: Washer (hit-events approx) and
+Spinner (chain-friction default) — non-count divergences pending their own branch.
 
 **Audit follow-ups (Jul 2026 consolidated):**
 - [x] **Contact / AABB (lib):** port `b2Contact_IsValid` + `b2Contact_GetData`; port
