@@ -1,6 +1,7 @@
 // Benchmark — RegisterSample ports from sample_benchmark.cpp / shared/benchmarks.c.
 // C citations use line numbers at the pinned submodule (56edae7).
-// Body counts follow C DEBUG / m_isDebug (wasm-safe); disclosed per scene → Partial.
+// Body counts use pickCount(debug, release): the COUNTS toggle switches between
+// the wasm-safe C DEBUG counts (default) and the C release (NDEBUG / m_isDebug) scene.
 // Missing: Cast (world query APIs), Shape Distance / Sensor (distance / custom filter).
 
 import {
@@ -86,32 +87,43 @@ const SCENE_LABEL: Record<Scene, string> = {
 /** Disclosed wasm/DEBUG count notes (C release is larger). */
 const SCENE_NOTE: Record<Scene, string> = {
   barrel:
-    "DEBUG rows/cols (40×10 compound default; Human 5×10). C sample_benchmark.cpp Barrel.",
-  "barrel-2-4": "DEBUG numj=5 (C release 5×26). sample_benchmark.cpp Barrel 2.4.",
-  compounds: "DEBUG 10×40 compounds (C release 20×150). CreateCompounds / benchmarks.c.",
-  tumbler: "DEBUG gridCount 20 (C release 45). CreateTumbler.",
-  washer: "DEBUG gridCount 20 (C release 90). CreateWasher; hit count via hit_events.",
-  "many-tumblers": "DEBUG 2×2 tumblers × 8 bodies (C release 19×19 × 50). sample_benchmark.cpp.",
+    "10 cols × 40 rows (DEBUG) / 26×150 (C release); compound & human variants scale too — COUNTS toggle switches. sample_benchmark.cpp Barrel.",
+  "barrel-2-4":
+    "numj 5 (DEBUG) / 130 = 5×26 (C release) — COUNTS toggle switches. sample_benchmark.cpp Barrel 2.4.",
+  compounds:
+    "10×40 (DEBUG) / 20×150 (C release) — COUNTS toggle switches. CreateCompounds / benchmarks.c.",
+  tumbler: "gridCount 20 (DEBUG) / 45 (C release) — COUNTS toggle switches. CreateTumbler.",
+  washer:
+    "gridCount 20 (DEBUG) / 90 (C release) — COUNTS toggle switches. CreateWasher; hit count via hit_events.",
+  "many-tumblers":
+    "2×2 tumblers × 8 bodies (DEBUG) / 19×19 × 50 (C release) — COUNTS toggle switches. sample_benchmark.cpp.",
   "large-pyramid":
     "baseCount 20 (DEBUG) / 100 (C release) — COUNTS toggle switches. CreateLargePyramid; sleep off.",
-  "many-pyramids": "DEBUG 5×5 pyramids (C release 20×20). CreateManyPyramids; sleep off.",
-  "create-destroy": "DEBUG baseCount 40, iterations 1 (C release 100 / 10).",
-  sleep: "DEBUG baseCount 40 (C release 100). Filter-joint wake/sleep timing.",
+  "many-pyramids":
+    "5×5 pyramids (DEBUG) / 20×20 (C release) — COUNTS toggle switches. CreateManyPyramids; sleep off.",
+  "create-destroy":
+    "baseCount 40, iterations 1 (DEBUG) / 100, 10 (C release) — COUNTS toggle switches. sample_benchmark.cpp.",
+  sleep:
+    "baseCount 40 (DEBUG) / 100 (C release) — COUNTS toggle switches. Filter-joint wake/sleep timing.",
   "joint-grid":
     "N=20 (DEBUG) / 100 (C release) — COUNTS toggle switches. CreateJointGrid; sleep off.",
-  smash: "DEBUG 20×10 (C release 120×80). CreateSmash; zero gravity.",
-  "large-compounds": "DEBUG ground 100, span/count 5 (C release 200 / 20 / 5).",
-  kinematic: "DEBUG span 20 (C release 100). One kinematic compound spinner.",
-  cast: "DEBUG 100×100 grid / 100 queries (C release 1000×1000 / 10000). sample_benchmark.cpp Cast.",
-  spinner: "DEBUG 499 fill bodies (C release 6076). CreateSpinner; chain friction default (C 0.1).",
-  rain: "DEBUG gridCount=200, 3×10×2 humans (C release 500 / 5×40×5). CreateRain / StepRain.",
+  smash: "20×10 (DEBUG) / 120×80 (C release) — COUNTS toggle switches. CreateSmash; zero gravity.",
+  "large-compounds":
+    "ground 100², span 5 (DEBUG) / 200², span 20 (C release); count 5 — COUNTS toggle switches. sample_benchmark.cpp.",
+  kinematic:
+    "span 20 (DEBUG) / 100 (C release) — COUNTS toggle switches. One kinematic compound spinner.",
+  cast: "100×100 grid / 100 queries (DEBUG) / 1000×1000 / 10000 (C release) — COUNTS toggle switches. sample_benchmark.cpp Cast.",
+  spinner:
+    "499 fill bodies (DEBUG) / 6076 (C release) — COUNTS toggle switches. CreateSpinner; chain friction default (C 0.1).",
+  rain: "gridCount 200, 3×10×2 humans (DEBUG) / 500, 5×40×5 (C release) — COUNTS toggle switches. CreateRain / StepRain.",
   "shape-distance":
-    "DEBUG count 100 (C release 10000). Free b2ShapeDistance via collision_shape_distance.",
+    "count 100 (DEBUG) / 10000 (C release) — COUNTS toggle switches. Free b2ShapeDistance via collision_shape_distance.",
   sensor:
     "Exact: 40×40 sensors + custom filter row + active kill strip. sample_benchmark.cpp Sensor.",
   capacity:
     "Exact: spawns 200 boxes every 32 steps until b2Profile.step >20ms for 60 frames.",
-  junkyard: "DEBUG rowCount 2 (C release 40). CreateJunkyard + StepJunkyard pusher.",
+  junkyard:
+    "rowCount 2 (DEBUG) / 40 (C release) — COUNTS toggle switches. CreateJunkyard + StepJunkyard pusher.",
 };
 
 /** C camera.center / camera.zoom (half-height). */
@@ -242,12 +254,14 @@ function buildBarrel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
     humans.length = 0;
     const rng = makeRng(42);
 
-    let columnCount = 10;
-    let rowCount = 40;
-    if (shapeType === "compound") columnCount = 10;
-    if (shapeType === "human") {
-      rowCount = 5;
-      columnCount = 10;
+    // sample_benchmark.cpp:129-150 — base columns/rows plus compound & human overrides
+    let columnCount = pickCount(10, 26); // :129 m_isDebug ? 10 : e_maxColumns(26)
+    let rowCount = pickCount(40, 150); // :130 m_isDebug ? 40 : e_maxRows(150)
+    if (shapeType === "compound") {
+      columnCount = pickCount(10, 20); // :134-137 release sets columns 20
+    } else if (shapeType === "human") {
+      rowCount = pickCount(5, 30); // :143 DEBUG 5 / :148 RELEASE 30
+      columnCount = pickCount(10, 26); // :144 DEBUG 10 / release keeps :129 (26)
     }
 
     let shift = 1.15;
@@ -343,7 +357,7 @@ function buildBarrel(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 }
 
 function buildBarrel24(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // sample_benchmark.cpp:342-417 — DEBUG numj=5
+  // sample_benchmark.cpp:342-417
   const groundSize = 25.0;
   {
     const g = sim.add_body(0, 0, 0, BODY_STATIC);
@@ -363,7 +377,7 @@ function buildBarrel24(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
   const shift = rad * 2.0;
   const centerx = (shift * num) / 2.0;
   const centery = shift / 2.0;
-  const numj = 5; // DEBUG
+  const numj = pickCount(5, 5 * num); // :393-397 _DEBUG 5 / release 5*num (5×26=130)
 
   for (let i = 0; i < num; ++i) {
     const x = i * shift - centerx;
@@ -377,12 +391,12 @@ function buildBarrel24(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildCompounds(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // benchmarks.c CreateCompounds — DEBUG 10×40
+  // benchmarks.c CreateCompounds:851-852 — columns 10:20, rows 40:150
   sim.set_sleeping(false);
   addBarrelGround(sim, 40);
 
-  const columnCount = 10;
-  const rowCount = 40;
+  const columnCount = pickCount(10, 20); // benchmarks.c:851
+  const rowCount = pickCount(40, 150); // benchmarks.c:852
   const shift = 2.0;
   const extray = 0.25;
   let side = 0.25;
@@ -404,7 +418,7 @@ function buildCompounds(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildTumbler(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // benchmarks.c CreateTumbler — DEBUG gridCount 20
+  // benchmarks.c CreateTumbler:548 — gridCount 20:45
   const ground = sim.add_body(0, 0, 0, BODY_STATIC);
   const drum = sim.add_body(0, 10, 0, BODY_DYNAMIC);
   sim.attach_box(drum, 0.5, 10.0, 10.0, 0, 0, 50.0, 0.6, 0);
@@ -432,7 +446,7 @@ function buildTumbler(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
     false,
   );
 
-  const gridCount = 20;
+  const gridCount = pickCount(20, 45); // benchmarks.c:548
   let y = -0.2 * gridCount + 10.0;
   for (let i = 0; i < gridCount; ++i) {
     let x = -0.2 * gridCount;
@@ -447,7 +461,7 @@ function buildTumbler(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildWasher(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // benchmarks.c CreateWasher — kinematic drum, DEBUG grid 20
+  // benchmarks.c CreateWasher:673 — kinematic drum, gridCount 20:90
   sim.add_body(0, 0, 0, BODY_STATIC);
   const motorSpeed = (PI / 180.0) * 25.0;
   const drum = sim.add_body(0, 10, 0, BODY_KINEMATIC);
@@ -510,7 +524,7 @@ function buildWasher(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
     u1y = u2y;
   }
 
-  const gridCount = 20;
+  const gridCount = pickCount(20, 90); // benchmarks.c:673
   const a = 0.1;
   let y = -1.1 * a * gridCount + 10.0;
   for (let i = 0; i < gridCount; ++i) {
@@ -535,9 +549,9 @@ function buildWasher(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildManyTumblers(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // sample_benchmark.cpp:501-683 — DEBUG 2×2
-  let rowCount = 2;
-  let columnCount = 2;
+  // sample_benchmark.cpp:501-683 — rows/cols 2:19 (:517-518), bodiesPerTumbler 8:50 (:603)
+  let rowCount = pickCount(2, 19); // :517
+  let columnCount = pickCount(2, 19); // :518
   let angularSpeed = 25.0;
   let tumblerIds: number[] = [];
   let positions: { x: number; y: number }[] = [];
@@ -580,7 +594,7 @@ function buildManyTumblers(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       x += 8.0;
     }
 
-    const bodiesPerTumbler = 8;
+    const bodiesPerTumbler = pickCount(8, 50); // :603
     const bodyCount = bodiesPerTumbler * tumblerIds.length;
     bodyIds = new Array(bodyCount).fill(-1);
   }
@@ -588,13 +602,15 @@ function buildManyTumblers(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   createScene();
 
   controls.appendChild(
-    createSlider("Row Count", 1, 8, rowCount, 1, (v) => {
+    // C SliderInt range 1..32 (sample_benchmark.cpp:617-618) so the release
+    // default (19) is representable.
+    createSlider("Row Count", 1, 32, rowCount, 1, (v) => {
       rowCount = v;
       createScene();
     }),
   );
   controls.appendChild(
-    createSlider("Column Count", 1, 8, columnCount, 1, (v) => {
+    createSlider("Column Count", 1, 32, columnCount, 1, (v) => {
       columnCount = v;
       createScene();
     }),
@@ -649,12 +665,12 @@ function buildLargePyramid(sim: SimWorld, _controls: HTMLElement): SceneRuntime 
 }
 
 function buildManyPyramids(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // benchmarks.c CreateManyPyramids — DEBUG 5×5
+  // benchmarks.c CreateManyPyramids:161-164 — baseCount 10 (fixed), rows/cols 5:20
   sim.set_sleeping(false);
   const baseCount = 10;
   const extent = 0.5;
-  const rowCount = 5;
-  const columnCount = 5;
+  const rowCount = pickCount(5, 20); // benchmarks.c:163
+  const columnCount = pickCount(5, 20); // benchmarks.c:164
 
   const ground = sim.add_body(0, 0, 0, BODY_STATIC);
   const groundDeltaY = 2.0 * extent * (baseCount + 1.0);
@@ -685,12 +701,12 @@ function buildManyPyramids(sim: SimWorld, _controls: HTMLElement): SceneRuntime 
 }
 
 function buildCreateDestroy(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // sample_benchmark.cpp:741-868 — DEBUG base 40, iterations 1
+  // sample_benchmark.cpp:741-868 — baseCount 40:100 (:776), iterations 1:10 (:777)
   const g = sim.add_body(0, 0, 0, BODY_STATIC);
   sim.attach_box(g, 100, 1, 0, 0, 0, 0, 0.6, 0);
 
-  const baseCount = 40;
-  const iterations = 1;
+  const baseCount = pickCount(40, 100); // :776
+  const iterations = pickCount(1, 10); // :777
   let bodies: number[] = [];
   let createMs = 0;
   let destroyMs = 0;
@@ -747,11 +763,11 @@ function buildCreateDestroy(sim: SimWorld, _controls: HTMLElement): SceneRuntime
 }
 
 function buildSleep(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // sample_benchmark.cpp:872-985 — DEBUG base 40
+  // sample_benchmark.cpp:872-985 — baseCount 40:100 (:901)
   const g = sim.add_body(0, 0, 0, BODY_STATIC);
   sim.attach_box(g, 100, 1, 0, 0, 0, 0, 0.6, 0);
 
-  const baseCount = 40;
+  const baseCount = pickCount(40, 100); // :901
   const bodies: number[] = [];
   const rad = 0.5;
   const shift = rad * 2.0;
@@ -858,15 +874,15 @@ function buildJointGrid(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildSmash(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // benchmarks.c CreateSmash — DEBUG 20×10
+  // benchmarks.c CreateSmash:492-493 — columns 20:120, rows 10:80
   sim.set_gravity(0, 0);
   const heavy = sim.add_body(-20, 0, 0, BODY_DYNAMIC);
   sim.set_linear_velocity(heavy, 40, 0);
   sim.attach_box(heavy, 4, 4, 0, 0, 0, 8.0, 0.6, 0);
 
   const d = 0.4;
-  const columns = 20;
-  const rows = 10;
+  const columns = pickCount(20, 120); // benchmarks.c:492
+  const rows = pickCount(10, 80); // benchmarks.c:493
   for (let i = 0; i < columns; ++i) {
     for (let j = 0; j < rows; ++j) {
       const x = i * d + 30.0;
@@ -880,10 +896,10 @@ function buildSmash(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildLargeCompounds(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // sample_benchmark.cpp:1036-1131 — DEBUG 100 / span 5
+  // sample_benchmark.cpp:1036-1131 — height/width 100:200 (:1049-1055), span 5:20 (:1086-1092)
   const grid = 1.0;
-  const height = 100;
-  const width = 100;
+  const height = pickCount(100, 200); // :1053/:1050
+  const width = pickCount(100, 200); // :1054/:1051
   const ground = sim.add_body(0, 0, 0, BODY_STATIC);
   for (let i = 0; i < height; ++i) {
     const y = grid * i;
@@ -893,8 +909,8 @@ function buildLargeCompounds(sim: SimWorld, _controls: HTMLElement): SceneRuntim
     }
   }
 
-  const span = 5;
-  const count = 5;
+  const span = pickCount(5, 20); // :1090/:1087
+  const count = 5; // :1088/:1091 (not gated)
   for (let m = 0; m < count; ++m) {
     const ybody = (100.0 + m * span) * grid;
     for (let n = 0; n < count; ++n) {
@@ -912,9 +928,9 @@ function buildLargeCompounds(sim: SimWorld, _controls: HTMLElement): SceneRuntim
 }
 
 function buildKinematic(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // sample_benchmark.cpp:1136-1187 — DEBUG span 20
+  // sample_benchmark.cpp:1136-1187 — span 20:100 (:1150-1154)
   const grid = 1.0;
-  const span = 20;
+  const span = pickCount(20, 100); // :1153/:1151
   const body = sim.add_body(0, 0, 0, BODY_KINEMATIC);
   sim.set_angular_velocity(body, 1.0);
   for (let i = -span; i < span; ++i) {
@@ -972,7 +988,7 @@ function buildSpinner(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
     false,
   );
 
-  const bodyCount = 499;
+  const bodyCount = pickCount(499, 2 * 3038); // benchmarks.c:425 (release 2*3038=6076)
   let x = -23.0;
   let y = 2.0;
   for (let i = 0; i < bodyCount; ++i) {
@@ -1003,13 +1019,14 @@ function buildSpinner(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 type CapacityRuntime = SceneRuntime;
 
 function buildRain(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // shared/benchmarks.c CreateRain / StepRain — DEBUG constants
-  const RAIN_ROW_COUNT = 3;
-  const RAIN_COLUMN_COUNT = 10;
-  const RAIN_GROUP_SIZE = 2;
+  // shared/benchmarks.c CreateRain / StepRain — RainConstants 3/10/2 : 5/40/5
+  // (:211-224), gridCount 200:500 (:247), StepRain delay 0x1F:0x7 (:320)
+  const RAIN_ROW_COUNT = pickCount(3, 5);
+  const RAIN_COLUMN_COUNT = pickCount(10, 40);
+  const RAIN_GROUP_SIZE = pickCount(2, 5);
   const gridSize = 0.5;
-  const gridCount = 200; // BENCHMARK_DEBUG
-  const delay = 0x1f; // DEBUG delay mask
+  const gridCount = pickCount(200, 500); // benchmarks.c:247
+  const delay = pickCount(0x1f, 0x7); // benchmarks.c:320
 
   // CreateRain ground shelves
   {
@@ -1060,8 +1077,8 @@ function buildRain(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 
   controls.appendChild(
     createInfoBox(
-      "PARTIAL: DEBUG Rain (gridCount=200, 3×10×2 humans). " +
-        "<code>CreateRain</code>/<code>StepRain</code> via <code>CreateHuman</code>.",
+      "Rain gridCount 200, 3×10×2 humans (DEBUG) / 500, 5×40×5 (C release) — " +
+        "COUNTS toggle switches. <code>CreateRain</code>/<code>StepRain</code> via <code>CreateHuman</code>.",
     ),
   );
 
@@ -1130,11 +1147,11 @@ function buildCapacityFull(sim: SimWorld, _controls: HTMLElement): CapacityRunti
 }
 
 function buildJunkyard(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // benchmarks.c CreateJunkyard + StepJunkyard — DEBUG rowCount 2
+  // benchmarks.c CreateJunkyard:746-747 + StepJunkyard — columnCount 200 (fixed), rowCount 2:40
   addBarrelGround(sim, 80);
 
-  const columnCount = 200;
-  const rowCount = 2;
+  const columnCount = 200; // benchmarks.c:746 (not gated)
+  const rowCount = pickCount(2, 40); // benchmarks.c:747
   const radius = 0.25;
   const phi = PI * (Math.sqrt(5.0) - 1.0);
   const pts: number[] = [];
@@ -1182,11 +1199,11 @@ const COLOR_FUCHSIA = 0xff00ff;
 const COLOR_LIME = 0x00ff00;
 
 function buildCast(sim: SimWorld, controls: HTMLElement): SceneRuntime {
-  // sample_benchmark.cpp:1199-1581 — DEBUG grid/sample counts
+  // sample_benchmark.cpp:1199-1581 — grid 100:1000 (:1216-1217), samples 100:10000 (:1225)
   type QueryKind = "ray" | "circle" | "overlap";
   let queryType: QueryKind = "circle";
-  let rowCount = 100;
-  let columnCount = 100;
+  let rowCount = pickCount(100, 1000); // :1216
+  let columnCount = pickCount(100, 1000); // :1217
   let fill = 0.1;
   let grid = 1.0;
   let ratio = 5.0;
@@ -1199,7 +1216,7 @@ function buildCast(sim: SimWorld, controls: HTMLElement): SceneRuntime {
   let lastNode = 0;
   let lastLeaf = 0;
   let lastMs = 0;
-  const sampleCount = 100;
+  const sampleCount = pickCount(100, 10000); // :1225
   const origins: { x: number; y: number }[] = [];
   const translations: { x: number; y: number }[] = [];
   const gridBodies: number[] = [];
@@ -1278,14 +1295,16 @@ function buildCast(sim: SimWorld, controls: HTMLElement): SceneRuntime {
     ),
   );
   controls.appendChild(
-    createSlider("rows", 0, 100, rowCount, 1, (v) => {
+    // C SliderInt range 0..1000 (sample_benchmark.cpp:1338/1343) so the release
+    // default (1000) is representable.
+    createSlider("rows", 0, 1000, rowCount, 1, (v) => {
       rowCount = v;
       precomputeRays();
       buildGrid();
     }),
   );
   controls.appendChild(
-    createSlider("columns", 0, 100, columnCount, 1, (v) => {
+    createSlider("columns", 0, 1000, columnCount, 1, (v) => {
       columnCount = v;
       precomputeRays();
       buildGrid();
@@ -1487,8 +1506,8 @@ function invMulWorld(
 }
 
 function buildShapeDistance(sim: SimWorld, controls: HTMLElement, wasm: ReturnType<typeof getWasm>): SceneRuntime {
-  // sample_benchmark.cpp:1667-1798 — DEBUG count 100
-  const count = 100;
+  // sample_benchmark.cpp:1667-1798 — m_count 100:10000 (:1790)
+  const count = pickCount(100, 10000); // :1790
   const vertsA = octagonVerts(0.5);
   const vertsB = octagonVerts(0.5);
   const radiusA = 0.0;
