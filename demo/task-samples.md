@@ -48,7 +48,9 @@ switching rebuilds the scene with release counts (disclosed as "may run below
 real-time"). Matching a value under the non-default mode is still Exact — both
 counts are the C source's own gated values.
 
-**Current totals:** Exact **137** · Partial **2** · Missing **0**.
+**Current totals:** Exact **139** · Partial **0** · Missing **0** — every C
+sample is now a faithful port. Count-gated scenes default to C DEBUG counts for
+real-time wasm and expose the exact C release scene via the COUNTS toggle.
 Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 `PAGES`).
 
@@ -56,7 +58,7 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 
 | Category (C file) | Total | Exact | Partial | Missing | Notes |
 |---|---|---|---|---|---|
-| Benchmark (`sample_benchmark.cpp`) | 21 | 19 | 2 | 0 | Counts via COUNTS toggle (DEBUG default). Exact: Sensor, Capacity, Barrel, Barrel 2.4, Compounds, Tumbler, Many Tumblers, Large/Many Pyramid(s), CreateDestroy, Sleep, Joint Grid, Smash, Large Compounds, Kinematic, Cast, Rain, Shape Distance, Junkyard. Partial: Washer (hit-events approx), Spinner (chain-friction default) — non-count divergences pending their own branch. |
+| Benchmark (`sample_benchmark.cpp`) | 21 | 21 | 0 | 0 | All Exact. Counts via COUNTS toggle (DEBUG default). Sensor + Capacity use `b2Profile.step`; Washer sets enableHitEvents on the grid bodies (benchmarks.c:680); Spinner sets chain friction 0.1 (benchmarks.c:375); the rest run CreateHuman / DEBUG grids faithfully. |
 | Bodies (`sample_bodies.cpp`) | 9 | 9 | 0 | 0 | All Exact (Phase 3): Weeble mix callbacks + SetMassData; Sleep sensors/thresholds; Kinematic SetTargetTransform; Mixed Locks motionLocks. |
 | Character (`sample_character.cpp`) | 1 | 1 | 0 | 0 | Exact: Mover (C SolveMove + scene) |
 | Collision (`sample_collision.cpp`) | 9 | 9 | 0 | 0 | All Exact: Shape Distance, Ray Cast, Cast World, Overlap World, Manifold, Smooth Manifold, Shape Cast, Time of Impact, Dynamic Tree (grid 100×100 DEBUG / 1000×1000 release via COUNTS toggle). Invented `#/manifolds` fully retired (route + wasm helper gone). |
@@ -71,7 +73,7 @@ Phase 0 baseline was Exact 0 · Partial 0 · Missing 139 (all planned, empty
 | Shapes (`sample_shapes.cpp`) | 19 | 19 | 0 | 0 | All Exact (Phase 3): Chain Shape surface material; Compound ComputeAABB; Wind revolute local frames. |
 | Stacking (`sample_stacking.cpp`) | 10 | 10 | 0 | 0 | All 10 RegisterSample scenes live on `#/stacking` |
 | World (`sample_world.cpp`) | 4 | 4 | 0 | 0 | All Exact: Far Pyramid, Far Ragdolls (CreateHuman), Far Gate, Tiles (cycleCount 10 DEBUG / 600 release via COUNTS toggle). Invented `#/world` composite replaced. |
-| **Total** | **139** | **137** | **2** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 19/2 + Robustness 7 + Collision 9 + Issues 6 + Determinism 2 + Replay 1 + Geometry 1 + Character 1 + World 4 |
+| **Total** | **139** | **139** | **0** | **0** | Bodies 9 + Stacking 10 + Joints 22 + Shapes 19 + Continuous 15 + Events 12 + Benchmark 21 + Robustness 7 + Collision 9 + Issues 6 + Determinism 2 + Replay 1 + Geometry 1 + Character 1 + World 4 |
 
 ## Non-sample About pages
 
@@ -154,7 +156,8 @@ All 15 categories have registry-backed routes. Remaining planned gaps closed in
 Phase 3 batch C (Benchmark Cast / Shape Distance / Sensor; Joints Scissor /
 Gear Lift). Phase 3 Partial upgrades + Joints Exact + profile timings brought
 totals to Exact **118** / Partial **21** / Missing **0**; the counts toggle
-(below) then lifted 19 count-gated rows to Exact **137** / Partial **2**.
+(below) lifted 19 count-gated rows to Exact **137** / Partial **2**, and the
+Washer/Spinner divergence fixes closed the last two → Exact **139** / Partial **0**.
 
 ### Phase 3 — Shell polish + retire invented pages — IN PROGRESS
 
@@ -166,8 +169,11 @@ Joints Top Down / Breakable / Separation / User Constraint / Driving / Door → 
 Replay Viewer → Exact (serial wasm; Workers N/A disclosed).
 **Counts toggle (`demo/release-counts-toggle`):** the 21 DEBUG-count Benchmarks +
 Dynamic Tree + World Tiles gained a COUNTS toggle exposing the exact C release
-scene; 19 flipped to Exact. Left as Partial: Washer (hit-events approx) and
-Spinner (chain-friction default) — non-count divergences pending their own branch.
+scene; 19 flipped to Exact.
+**Washer/Spinner (`demo/washer-spinner-exact`):** the final two non-count
+divergences resolved — Washer sets enableHitEvents on the grid bodies
+(benchmarks.c:680) via `b2Body_EnableHitEvents`; Spinner sets chain friction 0.1
+(benchmarks.c:375) via `attach_chain_ex`. Both now Exact → **139 / 0 / 0**.
 
 **Audit follow-ups (Jul 2026 consolidated):**
 - [x] **Contact / AABB (lib):** port `b2Contact_IsValid` + `b2Contact_GetData`; port

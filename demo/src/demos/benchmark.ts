@@ -532,7 +532,9 @@ function buildWasher(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
     for (let j = 0; j < gridCount; ++j) {
       const b = sim.add_body(x, y, 0, BODY_DYNAMIC);
       sim.attach_box(b, a, a, 0, 0, 0, 1.0, 0.6, 0);
-      // C enableHitEvents on shapes — partial (hit_events may under-count without shape flag).
+      // C: shapeDef.enableHitEvents = true on the grid bodies (benchmarks.c:680).
+      // b2Body_EnableHitEvents flips the flag on the body's one shape identically.
+      sim.enable_body_hit_events(b, true);
       x += 2.1 * a;
     }
     y += 2.1 * a;
@@ -963,8 +965,10 @@ function buildSpinner(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
     px = nx;
     py = ny;
   }
-  // C: chain on ground with friction 0.1. attach_chain has no per-material; disclose.
-  sim.attach_chain(ground, new Float32Array(points), true);
+  // C: chainDef material friction 0.1 on the ground loop (benchmarks.c:374-384).
+  // attach_chain_ex applies a single surface material (restitution/rolling/tangent 0),
+  // matching C's `b2SurfaceMaterial{0}` with friction 0.1.
+  sim.attach_chain_ex(ground, new Float32Array(points), true, 0, 0, false, 0.1);
 
   const spinner = sim.add_body(0, 12, 0, BODY_DYNAMIC);
   sim.enable_body_sleep(spinner, false);

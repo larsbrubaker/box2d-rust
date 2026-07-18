@@ -104,13 +104,13 @@ export const SAMPLES: SampleEntry[] = [
   ]),
   ...cat("Benchmark", "sample_benchmark.cpp", [
     // Count-gated ports default to C DEBUG counts for real-time wasm and expose
-    // the exact C release scene via the COUNTS toggle → live. Washer/Spinner keep
-    // partial for non-count divergences.
+    // the exact C release scene via the COUNTS toggle → live. Washer/Spinner's
+    // former non-count divergences (hit events, chain friction) are now fixed → live.
     ["Barrel", "live", "benchmark", "barrel"], // counts via COUNTS toggle (DEBUG default)
     ["Barrel 2.4", "live", "benchmark", "barrel-2-4"], // counts via COUNTS toggle (DEBUG default)
     ["Compounds", "live", "benchmark", "compounds"], // counts via COUNTS toggle (DEBUG default)
     ["Tumbler", "live", "benchmark", "tumbler"], // counts via COUNTS toggle (DEBUG default)
-    ["Washer", "partial", "benchmark", "washer"], // counts via COUNTS toggle; hit-events approx keeps partial
+    ["Washer", "live", "benchmark", "washer"], // counts via COUNTS toggle; hit events on grid bodies (b2Body_EnableHitEvents)
     ["Many Tumblers", "live", "benchmark", "many-tumblers"], // counts via COUNTS toggle (DEBUG default)
     ["Large Pyramid", "live", "benchmark", "large-pyramid"], // counts via COUNTS toggle (DEBUG default)
     ["Many Pyramids", "live", "benchmark", "many-pyramids"], // counts via COUNTS toggle (DEBUG default)
@@ -121,7 +121,7 @@ export const SAMPLES: SampleEntry[] = [
     ["Large Compounds", "live", "benchmark", "large-compounds"], // counts via COUNTS toggle (DEBUG default)
     ["Kinematic", "live", "benchmark", "kinematic"], // counts via COUNTS toggle (DEBUG default)
     ["Cast", "live", "benchmark", "cast"], // counts via COUNTS toggle (DEBUG default)
-    ["Spinner", "partial", "benchmark", "spinner"], // counts via COUNTS toggle; chain-friction default keeps partial
+    ["Spinner", "live", "benchmark", "spinner"], // counts via COUNTS toggle; chain friction 0.1 (benchmarks.c:375)
     ["Rain", "live", "benchmark", "rain"], // counts via COUNTS toggle (DEBUG default)
     ["Shape Distance", "live", "benchmark", "shape-distance"], // counts via COUNTS toggle (DEBUG default)
     ["Sensor", "live", "benchmark", "sensor"],
