@@ -15,6 +15,7 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type SimWorld } from "../wasm.ts";
+import { pickCount } from "./counts.ts";
 import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim } from "./sim-common.ts";
 import {
@@ -91,11 +92,13 @@ const SCENE_NOTE: Record<Scene, string> = {
   tumbler: "DEBUG gridCount 20 (C release 45). CreateTumbler.",
   washer: "DEBUG gridCount 20 (C release 90). CreateWasher; hit count via hit_events.",
   "many-tumblers": "DEBUG 2×2 tumblers × 8 bodies (C release 19×19 × 50). sample_benchmark.cpp.",
-  "large-pyramid": "DEBUG baseCount 20 (C release 100). CreateLargePyramid; sleep off.",
+  "large-pyramid":
+    "baseCount 20 (DEBUG) / 100 (C release) — COUNTS toggle switches. CreateLargePyramid; sleep off.",
   "many-pyramids": "DEBUG 5×5 pyramids (C release 20×20). CreateManyPyramids; sleep off.",
   "create-destroy": "DEBUG baseCount 40, iterations 1 (C release 100 / 10).",
   sleep: "DEBUG baseCount 40 (C release 100). Filter-joint wake/sleep timing.",
-  "joint-grid": "DEBUG N=20 (C release 100). CreateJointGrid; sleep off.",
+  "joint-grid":
+    "N=20 (DEBUG) / 100 (C release) — COUNTS toggle switches. CreateJointGrid; sleep off.",
   smash: "DEBUG 20×10 (C release 120×80). CreateSmash; zero gravity.",
   "large-compounds": "DEBUG ground 100, span/count 5 (C release 200 / 20 / 5).",
   kinematic: "DEBUG span 20 (C release 100). One kinematic compound spinner.",
@@ -626,12 +629,12 @@ function buildManyTumblers(sim: SimWorld, controls: HTMLElement): SceneRuntime {
 }
 
 function buildLargePyramid(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // benchmarks.c CreateLargePyramid — DEBUG baseCount 20
+  // benchmarks.c CreateLargePyramid:93 — baseCount = BENCHMARK_DEBUG ? 20 : 100
   sim.set_sleeping(false);
   const g = sim.add_body(0, -1, 0, BODY_STATIC);
   sim.attach_box(g, 100, 1, 0, 0, 0, 0, 0.6, 0);
 
-  const baseCount = 20;
+  const baseCount = pickCount(20, 100);
   const a = 0.5;
   const shift = 1.0 * a;
   for (let i = 0; i < baseCount; ++i) {
@@ -794,9 +797,9 @@ function buildSleep(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
 }
 
 function buildJointGrid(sim: SimWorld, _controls: HTMLElement): SceneRuntime {
-  // benchmarks.c CreateJointGrid — DEBUG N=20
+  // benchmarks.c CreateJointGrid:24 — N = BENCHMARK_DEBUG ? 20 : 100
   sim.set_sleeping(false);
-  const N = 20;
+  const N = pickCount(20, 100);
   const bodies: number[] = [];
   let index = 0;
 
@@ -1870,6 +1873,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     transport,
     onRestart: () => rebuild(),
     getWorld: () => sim,
+    countsToggle: true,
   });
   controls.appendChild(createSeparator());
   chrome.afterHead.appendChild(sceneControls);
