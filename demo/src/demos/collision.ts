@@ -13,6 +13,7 @@ import {
 } from "../controls.ts";
 import { assertRouteScenes } from "../registry.ts";
 import { getWasm, type Box2dWasm, type SimWorld } from "../wasm.ts";
+import { pickCount } from "./counts.ts";
 import { paintSampleDraw } from "./debug-draw.ts";
 import { demoPage, fitCanvas, freeSim } from "./sim-common.ts";
 import {
@@ -350,11 +351,21 @@ function buildShapeDistance(wasm: Box2dWasm, controls: HTMLElement): SceneRuntim
 }
 
 // ---------------------------------------------------------------------------
-// Dynamic Tree — sample_collision.cpp:465-867 (debug 100×100 grid → partial)
+// Dynamic Tree — sample_collision.cpp:465-867. Grid rows/cols = m_isDebug ? 100 : 1000
+// (:489-490); COUNTS toggle switches between them (DEBUG default).
 // ---------------------------------------------------------------------------
 
 function buildDynamicTree(wasm: Box2dWasm, controls: HTMLElement): SceneRuntime {
   const tree = new wasm.TreeDemo();
+  // :489-490 m_rowCount/m_columnCount = m_isDebug ? 100 : 1000. TreeDemo defaults
+  // to 100; only override + rebuild for release so DEBUG stays bit-identical.
+  const gridRows = pickCount(100, 1000);
+  const gridCols = pickCount(100, 1000);
+  if (gridRows !== tree.row_count() || gridCols !== tree.column_count()) {
+    tree.set_rows(gridRows);
+    tree.set_columns(gridCols);
+    tree.build_tree();
+  }
   let queryDrag = false;
   let rayDrag = false;
   let qx0 = 0;
@@ -369,18 +380,20 @@ function buildDynamicTree(wasm: Box2dWasm, controls: HTMLElement): SceneRuntime 
 
   controls.appendChild(
     createInfoBox(
-      "Partial: uses C <code>m_isDebug</code> grid (100×100), not release 1000×1000. " +
+      "Grid 100×100 (DEBUG) / 1000×1000 (C release) — COUNTS toggle switches. " +
         "Drag AABB query · Shift+drag ray cast.",
     ),
   );
+  // C SliderInt range 0..1000 (sample_collision.cpp:579/584) so release (1000)
+  // is representable.
   controls.appendChild(
-    createSlider("rows", 0, 200, tree.row_count(), 1, (v) => {
+    createSlider("rows", 0, 1000, tree.row_count(), 1, (v) => {
       tree.set_rows(v | 0);
       tree.build_tree();
     }),
   );
   controls.appendChild(
-    createSlider("columns", 0, 200, tree.column_count(), 1, (v) => {
+    createSlider("columns", 0, 1000, tree.column_count(), 1, (v) => {
       tree.set_columns(v | 0);
       tree.build_tree();
     }),
@@ -1489,6 +1502,9 @@ export function init(container: HTMLElement, initialScene?: string) {
     transport,
     onRestart: () => rebuild(),
     getWorld: () => sim,
+    // Shared per-category mount → toggle shows on all Collision samples; only
+    // Dynamic Tree is count-gated (others ignore it).
+    countsToggle: true,
   });
   controls.appendChild(createSeparator());
   chrome.afterHead.appendChild(sceneControls);

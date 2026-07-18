@@ -6,9 +6,12 @@ import {
   createButton,
   createCheckbox,
   createCollapsingSection,
+  createControlLabel,
+  createInfoBox,
   createSeparator,
   createSlider,
 } from "../controls.ts";
+import { type CountsMode, getCountsMode, setCountsMode } from "./counts.ts";
 import {
   cSourceUrl,
   entryHref,
@@ -468,6 +471,8 @@ export function mountSampleChrome(opts: {
   getWorld?: () => SampleWorldToggles | null | undefined;
   canvas?: HTMLCanvasElement;
   camera?: SampleCamera;
+  /** Opt-in DEBUG / RELEASE body-count toggle (Partial benchmark scenes). */
+  countsToggle?: boolean;
 }): SampleChrome {
   const { controls, route, category, transport } = opts;
   // Restart also rewinds the HUD step counter (C samples recreate the sample).
@@ -586,6 +591,36 @@ export function mountSampleChrome(opts: {
   });
   transportRow.append(pauseBtn, stepBtn);
   controls.appendChild(transportRow);
+
+  // COUNTS toggle — DEBUG (wasm real-time) vs RELEASE (C NDEBUG scene). Only the
+  // pilot pages opt in; selecting a mode persists it then rebuilds the scene via
+  // the same restart path as the Restart button so the new counts take effect.
+  if (opts.countsToggle) {
+    const countsRow = document.createElement("div");
+    countsRow.className = "control-row samples-transport";
+    const debugBtn = createButton("DEBUG", () => selectCountsMode("debug"));
+    const releaseBtn = createButton("RELEASE", () => selectCountsMode("release"));
+    const releaseNote = createInfoBox("C release counts — may run below real-time");
+    releaseNote.classList.add("samples-counts-note");
+
+    function syncCountsUI() {
+      const mode = getCountsMode();
+      debugBtn.classList.toggle("active", mode === "debug");
+      releaseBtn.classList.toggle("active", mode === "release");
+      releaseNote.hidden = mode !== "release";
+    }
+    function selectCountsMode(mode: CountsMode) {
+      setCountsMode(mode);
+      syncCountsUI();
+      onRestart();
+    }
+
+    countsRow.append(debugBtn, releaseBtn);
+    controls.appendChild(createControlLabel("COUNTS"));
+    controls.appendChild(countsRow);
+    controls.appendChild(releaseNote);
+    syncCountsUI();
+  }
 
   const solver = createCollapsingSection("Solver", true);
   controls.appendChild(solver.root);
