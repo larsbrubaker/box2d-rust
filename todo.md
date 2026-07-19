@@ -83,17 +83,26 @@ future gap sweeps don't re-flag them:
   (`2cf7fe4` or behind) — delete once confirmed fully merged into `main`.
   (verified gone 2026-07-18 — only `main` remains)
 
-## 5. Performance roadmap (vs C, measured 2026-07-18)
+## 5. Performance roadmap (vs C, updated 2026-07-19)
 
-Serial Rust vs serial C (`-w=1`), 10 benchmark scenes; geometric mean ≈ **1.9×
-slower than C** (range 1.18–2.73×). Full per-scene table and methodology are in
-the README `## Performance` section. Ordered by expected win:
+Serial Rust vs serial C (`-w=1`), 10 benchmark scenes, measured interleaved (C
+then Rust per scene, min of 2 runs) to defeat thermal throttling; geometric mean
+≈ **1.45× slower than C** (range 1.09–2.12×). Full per-scene table and
+methodology are in the README `## Performance` section.
 
-- [ ] Capsule/segment manifold path (narrow phase) — ~4.6× on spinner; profile
-  and optimize `collide` for capsule vs capsule/chain.
-- [ ] Contact solver inner loops — ~2.7×; investigate bounds-check elimination
-  in the Vec-indexed constraint arrays, memory layout, and whether MSVC is
-  auto-vectorizing the C soft-constraint loops that rustc isn't.
-- [ ] Dynamic tree refit + pair traversal (~1.5–2×).
+- [x] Capsule/segment manifold path (narrow phase) — **misattribution.** The
+  spinner outlier was not the `collide` path; it was C's `B2_VALIDATE`-only
+  validators (`b2ValidateIsland`) running in release on island-churning scenes.
+  Gating them to debug builds took spinner 2.73× → 1.21×. (commit ea08a52)
+- [x] Dynamic tree refit + pair traversal — **misattribution**, same root cause
+  as above; no dynamic-tree change was needed. (commits ea08a52, 0cf469d)
+- [ ] SIMD contact solver — `large_pyramid` remains at 2.12× and other
+  contact-heavy scenes at ~1.3–1.7×. C solves graph-color contacts in
+  hand-written 4/8-wide `b2FloatW` kernels; the port is scalar. Port the wide
+  kernels as a lane-wise `[f32; 4]` newtype mirroring `b2ContactConstraintSIMD`
+  (per-lane arithmetic is bit-identical to scalar, so determinism holds). The
+  joint solver (scalar in C too) is already at 1.09×.
+- [ ] Residual scalar codegen differences (~1.3×) on contact-heavy scenes —
+  profile after the SIMD port lands.
 - [ ] Re-measure after each change with `cargo run --release --example benchmark`
-  vs the C app.
+  vs the C app, interleaved per scene.

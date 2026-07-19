@@ -53,51 +53,55 @@ The port is measured against the C reference using the C repo's own `benchmark` 
 scenes) and a line-for-line Rust port of it (`examples/benchmark`, run with
 `cargo run --release --example benchmark`). Both run **single-threaded** — the Rust port is
 serial by design, so C runs with `-w=1` (its serial fallback, no scheduler). Both use the
-same scenes, the same constants, `dt = 1/60`, 4 sub-steps, the warm-up step excluded, and a
-minimum of 4 runs kept.
+same scenes, the same constants, `dt = 1/60`, 4 sub-steps, and the warm-up step excluded.
 
-Methodology: Intel Core i7-7660U (2C/4T mobile, 2017) · 8 GB RAM · Windows 10 · rustc 1.91.0
+Methodology: scenes are measured **interleaved** — C then Rust for each scene, back-to-back,
+minimum of 2 runs kept per scene. This mobile CPU thermally throttles under sustained load,
+so a sequential whole-suite comparison (all of C, then all of Rust) is unfair: the second
+suite runs hotter and slower. Measuring each scene's C and Rust builds from equal thermal
+state makes the ratio — the stable quantity — meaningful; absolute times still vary with
+hardware. Intel Core i7-7660U (2C/4T mobile, 2017) · 8 GB RAM · Windows 10 · rustc 1.91.0
 (release) vs MSVC 19.x /O2 (VS 2022 Build Tools) · C reference @ submodule pin `56edae7` ·
-measured 2026-07-18. Results are indicative; the ratios are the stable quantity, absolute
-times vary with hardware.
+updated 2026-07-19.
 
-Total ms for the scene's full step count (min of 4 runs):
+Total ms for the scene's full step count (min of 2 runs, interleaved):
 
 | Scene | Steps | C (ms) | Rust (ms) | Rust / C |
 |---|---|---|---|---|
-| compounds | 500 | 3685 | 6701 | 1.82× |
-| joint_grid | 500 | 5774 | 6842 | 1.18× |
-| junkyard | 800 | 8425 | 17799 | 2.11× |
-| large_pyramid | 500 | 2842 | 6235 | 2.19× |
-| many_pyramids | 200 | 5974 | 11489 | 1.92× |
-| rain | 1000 | 17145 | 28143 | 1.64× |
-| smash | 300 | 3395 | 7345 | 2.16× |
-| spinner | 500 | 9992 | 27259 | 2.73× |
-| tumbler | 750 | 3004 | 4663 | 1.55× |
-| washer | 500 | 10523 | 19497 | 1.85× |
+| compounds | 500 | 3429 | 5039 | 1.47× |
+| joint_grid | 500 | 5421 | 5907 | 1.09× |
+| junkyard | 800 | 7327 | 11892 | 1.62× |
+| large_pyramid | 500 | 2618 | 5541 | 2.12× |
+| many_pyramids | 200 | 5386 | 9209 | 1.71× |
+| rain | 1000 | 15814 | 20897 | 1.32× |
+| smash | 300 | 2848 | 3701 | 1.30× |
+| spinner | 500 | 8224 | 9939 | 1.21× |
+| tumbler | 750 | 2609 | 3662 | 1.40× |
+| washer | 500 | 9014 | 13291 | 1.47× |
 
-Geometric mean ≈ **1.9× slower than C** today (range 1.18–2.73×).
+Geometric mean ≈ **1.45× slower than C** (range 1.09–2.12×), down from 1.9× at first
+measurement.
 
-Attribution (from `b2Profile` per-phase dumps, `-s` flag, mean ms/step):
+### What closed the gap
 
-- Joint solver is near parity: joint_grid `constraints` 9.4 ms vs C 8.2 ms (1.15×).
-- Contact solver is ~2.7×: large_pyramid `constraints` 12.6 ms vs C 4.7 ms.
-- Narrow-phase `collide` is the biggest outlier on capsule-heavy scenes: spinner 31.7 ms vs
-  C 6.9 ms (~4.6×) — this explains spinner's 2.73× overall.
-- Broad phase `pairs`/`refit` run ~1.5–2×.
+The largest win was not an algorithm change but a build-configuration bug. The port ran C's
+`B2_VALIDATE`-only structure validators (notably `b2ValidateIsland`) in **release** builds;
+on island-churning scenes that walk is effectively quadratic. Gating those validators to
+debug builds (matching C, where `B2_VALIDATE` compiles out of release) took spinner from
+2.73× to 1.21×, back in line with C. Also landed: fat LTO + `codegen-units=1`, a zero-copy
+in-place collide driver matching C's access pattern, and minor capsule `sqrt` reuse.
 
-### Performance roadmap
+### What remains
 
-Ordered by expected win:
-
-1. **Capsule/segment manifold path (narrow phase)** — ~4.6× on spinner; profile and optimize
-   `collide` for capsule vs capsule/chain.
-2. **Contact solver inner loops** — ~2.7×; investigate bounds-check elimination in the
-   Vec-indexed constraint arrays, memory layout, and whether MSVC is auto-vectorizing the C
-   soft-constraint loops that rustc isn't.
-3. **Dynamic tree refit + pair traversal** (~1.5–2×).
-4. **Re-measure after each change** with `cargo run --release --example benchmark` vs the C
-   app (commands documented in `examples/benchmark` and this section).
+1. **SIMD contact solver.** C solves graph-color contacts in hand-written 4/8-wide `b2FloatW`
+   kernels; the port is scalar. This is `large_pyramid`'s remaining 2.12× and part of the
+   ~1.3–1.7× on other contact-heavy scenes. The joint solver (scalar in C too) is already at
+   1.09×, which shows the contact path is where the width matters. Plan: port the wide kernels
+   as a lane-wise `[f32; 4]` newtype mirroring `b2ContactConstraintSIMD`. Per-lane arithmetic
+   is bit-identical to scalar, so determinism is preserved — the current scalar solver already
+   matches C's SIMD results bit-for-bit.
+2. **Residual scalar codegen differences (~1.3×)** on contact-heavy scenes — profile after the
+   SIMD port lands, since the layout change may absorb some of it.
 
 Multithreading (a work-stealing solver like C's built-in scheduler) is a separate, larger
 lever — the C version gains ~Nx with workers; the port is serial today by design.
