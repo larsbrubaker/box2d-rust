@@ -109,10 +109,15 @@ export function zoomCameraAtScreen(
 /**
  * Interactive camera matching C samples main.cpp: right-drag pan, scroll zoom,
  * arrow-key pan, HOME reset, held Z (zoom out) / X (zoom in).
+ *
+ * `onUserCamera` (optional) fires when the user manually drives the camera via
+ * right-drag pan or wheel zoom. Pages with a follow-cam (Character/Mover) use it
+ * to disengage auto-follow so manual input isn't immediately overwritten.
  */
 export function bindCameraControls(
   camera: SampleCamera,
   canvas: HTMLCanvasElement,
+  onUserCamera?: () => void,
 ): () => void {
   let rightDown = false;
   let clickWorld = { x: 0, y: 0 };
@@ -134,6 +139,7 @@ export function bindCameraControls(
     clickWorld = screenToWorld(camera, canvas, px, py);
     rightDown = true;
     canvas.setPointerCapture(e.pointerId);
+    onUserCamera?.();
     e.preventDefault();
   };
 
@@ -157,6 +163,7 @@ export function bindCameraControls(
     const { px, py } = canvasPoint(e);
     const factor = e.deltaY < 0 ? 1 / CAMERA_SCROLL_ZOOM : CAMERA_SCROLL_ZOOM;
     zoomCameraAtScreen(camera, canvas, px, py, factor);
+    onUserCamera?.();
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -473,6 +480,8 @@ export function mountSampleChrome(opts: {
   camera?: SampleCamera;
   /** Opt-in DEBUG / RELEASE body-count toggle (Partial benchmark scenes). */
   countsToggle?: boolean;
+  /** Fires on manual right-drag pan / wheel zoom (follow-cam pages disengage). */
+  onUserCamera?: () => void;
 }): SampleChrome {
   const { controls, route, category, transport } = opts;
   // Restart also rewinds the HUD step counter (C samples recreate the sample).
@@ -767,7 +776,9 @@ export function mountSampleChrome(opts: {
   window.addEventListener("keydown", onChromeKey);
 
   const unbindCamera =
-    opts.canvas && opts.camera ? bindCameraControls(opts.camera, opts.canvas) : () => {};
+    opts.canvas && opts.camera
+      ? bindCameraControls(opts.camera, opts.canvas, opts.onUserCamera)
+      : () => {};
 
   let rafId = 0;
   let lastRaf = performance.now();

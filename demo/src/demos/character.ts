@@ -164,6 +164,8 @@ interface SceneRuntime {
   dispose?: () => void;
   onKeyDown?: (e: KeyboardEvent) => void;
   onKeyUp?: (e: KeyboardEvent) => void;
+  /** Manual camera input (right-drag / wheel) — disengage the follow-cam. */
+  onUserCamera?: () => void;
 }
 
 function applyCamera(camera: SampleCamera) {
@@ -382,11 +384,10 @@ function buildMover(sim: SimWorld, controls: HTMLElement): SceneRuntime {
       },
     ),
   );
-  controls.appendChild(
-    createCheckbox("Lock Camera", lockCamera, (v) => {
-      lockCamera = v;
-    }),
-  );
+  const lockCameraCheckbox = createCheckbox("Lock Camera", lockCamera, (v) => {
+    lockCamera = v;
+  });
+  controls.appendChild(lockCameraCheckbox);
   controls.appendChild(createSeparator());
 
   return {
@@ -399,9 +400,12 @@ function buildMover(sim: SimWorld, controls: HTMLElement): SceneRuntime {
     },
     afterStep: (dt) => {
       let throttle = 0;
-      if (keys.has("KeyA") || keys.has("ArrowLeft")) throttle -= 1;
-      if (keys.has("KeyD") || keys.has("ArrowRight")) throttle += 1;
-      const jumpHeld = keys.has("KeyW") || keys.has("ArrowUp");
+      // C sample_character.cpp:531-541 uses only A/D/W; the arrow keys are
+      // reserved for camera panning (sample-shell bindCameraControls), so no
+      // arrow aliases here — otherwise arrows would drive character and camera.
+      if (keys.has("KeyA")) throttle -= 1;
+      if (keys.has("KeyD")) throttle += 1;
+      const jumpHeld = keys.has("KeyW");
       const state = sim.mover_update(dt, throttle, jumpHeld);
       moverX = state[0]!;
       moverY = state[1]!;
@@ -520,6 +524,15 @@ function buildMover(sim: SimWorld, controls: HTMLElement): SceneRuntime {
     onKeyUp: (e) => {
       keys.delete(e.code);
     },
+    onUserCamera: () => {
+      // Manual pan / zoom disengages the follow-cam so the next painted frame
+      // doesn't snap centerX back to the mover (see paintOverlay). Re-checking
+      // "Lock Camera" resumes following.
+      if (!lockCamera) return;
+      lockCamera = false;
+      const input = lockCameraCheckbox.querySelector("input");
+      if (input) input.checked = false;
+    },
     dispose: () => {
       keys.clear();
     },
@@ -581,6 +594,7 @@ export function init(container: HTMLElement, initialScene?: string) {
     transport,
     onRestart: rebuild,
     getWorld: () => sim,
+    onUserCamera: () => runtime.onUserCamera?.(),
   });
   chrome.afterHead.appendChild(sceneControls);
   controls.appendChild(readout);

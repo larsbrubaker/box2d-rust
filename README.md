@@ -60,7 +60,8 @@ minimum of 2 runs kept per scene. This mobile CPU thermally throttles under sust
 so a sequential whole-suite comparison (all of C, then all of Rust) is unfair: the second
 suite runs hotter and slower. Measuring each scene's C and Rust builds from equal thermal
 state makes the ratio — the stable quantity — meaningful; absolute times still vary with
-hardware. Intel Core i7-7660U (2C/4T mobile, 2017) · 8 GB RAM · Windows 10 · rustc 1.91.0
+hardware. Rust runs second within each scene pair, so any residual thermal drift biases
+against Rust. Intel Core i7-7660U (2C/4T mobile, 2017) · 8 GB RAM · Windows 10 · rustc 1.91.0
 (release) vs MSVC 19.x /O2 (VS 2022 Build Tools) · C reference @ submodule pin `56edae7` ·
 updated 2026-07-19.
 
@@ -68,40 +69,42 @@ Total ms for the scene's full step count (min of 2 runs, interleaved):
 
 | Scene | Steps | C (ms) | Rust (ms) | Rust / C |
 |---|---|---|---|---|
-| compounds | 500 | 3429 | 5039 | 1.47× |
-| joint_grid | 500 | 5421 | 5907 | 1.09× |
-| junkyard | 800 | 7327 | 11892 | 1.62× |
-| large_pyramid | 500 | 2618 | 5541 | 2.12× |
-| many_pyramids | 200 | 5386 | 9209 | 1.71× |
-| rain | 1000 | 15814 | 20897 | 1.32× |
-| smash | 300 | 2848 | 3701 | 1.30× |
-| spinner | 500 | 8224 | 9939 | 1.21× |
-| tumbler | 750 | 2609 | 3662 | 1.40× |
-| washer | 500 | 9014 | 13291 | 1.47× |
+| compounds | 500 | 3676 | 4869 | 1.32× |
+| joint_grid | 500 | 5933 | 6737 | 1.14× |
+| junkyard | 800 | 8829 | 12003 | 1.36× |
+| large_pyramid | 500 | 3189 | 4676 | 1.47× |
+| many_pyramids | 200 | 6427 | 9318 | 1.45× |
+| rain | 1000 | 18250 | 21312 | 1.17× |
+| smash | 300 | 3933 | 4568 | 1.16× |
+| spinner | 500 | 10468 | 12097 | 1.16× |
+| tumbler | 750 | 3075 | 3466 | 1.13× |
+| washer | 500 | 11749 | 13895 | 1.18× |
 
-Geometric mean ≈ **1.45× slower than C** (range 1.09–2.12×), down from 1.9× at first
-measurement.
+Geometric mean ≈ **1.25× slower than C** (range 1.13–1.47×). Progression: 1.9× at first
+measurement → 1.45× (release-mode validator gating) → 1.25× (SIMD contact solver).
 
 ### What closed the gap
 
-The largest win was not an algorithm change but a build-configuration bug. The port ran C's
-`B2_VALIDATE`-only structure validators (notably `b2ValidateIsland`) in **release** builds;
-on island-churning scenes that walk is effectively quadratic. Gating those validators to
-debug builds (matching C, where `B2_VALIDATE` compiles out of release) took spinner from
-2.73× to 1.21×, back in line with C. Also landed: fat LTO + `codegen-units=1`, a zero-copy
-in-place collide driver matching C's access pattern, and minor capsule `sqrt` reuse.
+1. **Release-mode validator gating.** The largest single win was not an algorithm change but
+   a build-configuration bug. The port ran C's `B2_VALIDATE`-only structure validators (notably
+   `b2ValidateIsland`) in **release** builds; on island-churning scenes that walk is effectively
+   quadratic. Gating those validators to debug builds (matching C, where `B2_VALIDATE` compiles
+   out of release) took spinner from 2.73× to 1.21×, back in line with C.
+2. **Build configuration.** Fat LTO + `codegen-units=1`, a zero-copy in-place collide driver
+   matching C's access pattern, and minor capsule `sqrt` reuse.
+3. **4-wide SIMD contact solver.** Ported C's 4-wide `b2FloatW` contact-solver kernels as safe
+   `[f32; 4]` lane-wise Rust: graph colors run wide, the overflow set stays scalar, and per-lane
+   op order is identical to C, so the determinism hash is unchanged. This took the geometric mean
+   from 1.45× to 1.25× and closed most of the pyramid-scene gap.
 
 ### What remains
 
-1. **SIMD contact solver.** C solves graph-color contacts in hand-written 4/8-wide `b2FloatW`
-   kernels; the port is scalar. This is `large_pyramid`'s remaining 2.12× and part of the
-   ~1.3–1.7× on other contact-heavy scenes. The joint solver (scalar in C too) is already at
-   1.09×, which shows the contact path is where the width matters. Plan: port the wide kernels
-   as a lane-wise `[f32; 4]` newtype mirroring `b2ContactConstraintSIMD`. Per-lane arithmetic
-   is bit-identical to scalar, so determinism is preserved — the current scalar solver already
-   matches C's SIMD results bit-for-bit.
-2. **Residual scalar codegen differences (~1.3×)** on contact-heavy scenes — profile after the
-   SIMD port lands, since the layout change may absorb some of it.
+1. **Wide-kernel codegen.** Pyramid-type scenes (`large_pyramid` / `many_pyramids`, ~1.45×) are
+   still contact-solver-bound — likely the gap between rustc's autovectorized lane loops and C's
+   hand-written SSE2 intrinsics in the prepare/solve kernels. Explicit `core::arch` intrinsics are
+   a possible next step, at the cost of unsafe code.
+2. **Residual codegen differences (~1.15–1.35×)** elsewhere — general per-scene overhead relative
+   to MSVC /O2; profile the residual after the intrinsics work.
 
 Multithreading (a work-stealing solver like C's built-in scheduler) is a separate, larger
 lever — the C version gains ~Nx with workers; the port is serial today by design.

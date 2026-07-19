@@ -87,7 +87,7 @@ future gap sweeps don't re-flag them:
 
 Serial Rust vs serial C (`-w=1`), 10 benchmark scenes, measured interleaved (C
 then Rust per scene, min of 2 runs) to defeat thermal throttling; geometric mean
-≈ **1.45× slower than C** (range 1.09–2.12×). Full per-scene table and
+≈ **1.25× slower than C** (range 1.13–1.47×). Full per-scene table and
 methodology are in the README `## Performance` section.
 
 - [x] Capsule/segment manifold path (narrow phase) — **misattribution.** The
@@ -96,13 +96,13 @@ methodology are in the README `## Performance` section.
   Gating them to debug builds took spinner 2.73× → 1.21×. (commit ea08a52)
 - [x] Dynamic tree refit + pair traversal — **misattribution**, same root cause
   as above; no dynamic-tree change was needed. (commits ea08a52, 0cf469d)
-- [ ] SIMD contact solver — `large_pyramid` remains at 2.12× and other
-  contact-heavy scenes at ~1.3–1.7×. C solves graph-color contacts in
-  hand-written 4/8-wide `b2FloatW` kernels; the port is scalar. Port the wide
-  kernels as a lane-wise `[f32; 4]` newtype mirroring `b2ContactConstraintSIMD`
-  (per-lane arithmetic is bit-identical to scalar, so determinism holds). The
-  joint solver (scalar in C too) is already at 1.09×.
-- [ ] Residual scalar codegen differences (~1.3×) on contact-heavy scenes —
-  profile after the SIMD port lands.
+- [x] SIMD contact solver — ported C's 4-wide `b2FloatW` contact-solver kernels
+  as safe `[f32; 4]` lane-wise Rust (graph colors wide, overflow set scalar,
+  per-lane op order identical so the determinism hash is unchanged). Geometric
+  mean 1.45× → 1.25×; pyramid scenes 2.12×/1.71× → ~1.45×. (commit 6045779)
+- [ ] Close the remaining 1.25× → 1.0×: explicit `core::arch` intrinsics for the
+  wide prepare/solve kernels (rustc's autovectorized lane loops still trail C's
+  hand-written SSE2 on the pyramid scenes, ~1.45×), then profile the residual
+  ~1.15–1.35× general codegen gap elsewhere.
 - [ ] Re-measure after each change with `cargo run --release --example benchmark`
   vs the C app, interleaved per scene.
