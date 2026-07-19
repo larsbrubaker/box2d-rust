@@ -66,6 +66,11 @@ impl IdPool {
 
     /// Debug check that `id` is currently free. (b2ValidateFreeId)
     pub fn validate_free_id(&self, id: i32) {
+        // B2_VALIDATE: compiled out in release like the C reference
+        if !cfg!(debug_assertions) {
+            return;
+        }
+
         if self.free_array.contains(&id) {
             return;
         }
@@ -75,6 +80,11 @@ impl IdPool {
 
     /// Debug check that `id` is currently in use. (b2ValidateUsedId)
     pub fn validate_used_id(&self, id: i32) {
+        // B2_VALIDATE: compiled out in release like the C reference
+        if !cfg!(debug_assertions) {
+            return;
+        }
+
         debug_assert!(!self.free_array.contains(&id), "id {id} is free");
     }
 }

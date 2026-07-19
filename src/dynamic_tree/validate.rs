@@ -98,6 +98,11 @@ impl DynamicTree {
 
     /// Validate this tree. For testing. (b2DynamicTree_Validate)
     pub fn validate(&self) {
+        // B2_VALIDATE: compiled out in release like the C reference
+        if !cfg!(debug_assertions) {
+            return;
+        }
+
         if self.root == NULL_INDEX {
             return;
         }
@@ -125,6 +130,11 @@ impl DynamicTree {
     /// Validate this tree has no enlarged AABBs. For testing.
     /// (b2DynamicTree_ValidateNoEnlarged)
     pub fn validate_no_enlarged(&self) {
+        // B2_VALIDATE: compiled out in release like the C reference
+        if !cfg!(debug_assertions) {
+            return;
+        }
+
         for node in &self.nodes {
             if node.flags & ALLOCATED_NODE != 0 {
                 debug_assert!(node.flags & ENLARGED_NODE == 0);

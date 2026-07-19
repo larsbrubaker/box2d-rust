@@ -413,6 +413,11 @@ impl World {
     /// colors; those checks are added as their slices land. This subset
     /// validates the body <-> sim <-> set <-> island mapping.
     pub fn validate_solver_sets(&self) {
+        // B2_VALIDATE: compiled out in release like the C reference
+        if !cfg!(debug_assertions) {
+            return;
+        }
+
         use crate::core::NULL_INDEX;
 
         let mut active_body_count = 0;

@@ -430,6 +430,11 @@ pub fn unlink_joint(world: &mut World, joint_id: i32) {
 /// The C version is compiled in only with B2_ENABLE_VALIDATION; here it always
 /// runs when called and asserts in debug builds.
 pub fn validate_island(world: &World, island_id: i32) {
+    // B2_VALIDATE: compiled out in release like the C reference
+    if !cfg!(debug_assertions) {
+        return;
+    }
+
     if island_id == NULL_INDEX {
         return;
     }
