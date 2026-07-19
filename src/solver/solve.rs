@@ -8,9 +8,12 @@
 // order, the overflow-before-colors ordering, and the ascending color order
 // are preserved exactly — they determine the float accumulation order.
 //
-// Per-color contact constraints live in a local Vec per color (the C uses
-// arena scratch hung off b2GraphColor). All colors run the scalar kernels;
-// see contact_solver.rs for why this matches the C wide path.
+// Per-color contact constraints live in local Vecs (the C uses arena scratch
+// hung off b2GraphColor / b2StepContext). The graph colors run the wide (SIMD)
+// kernels four contacts at a time, stored in blocks of SIMD_WIDTH; the overflow
+// color keeps the scalar kernels. This mirrors the C dispatch in solver.c,
+// where colored blocks route to b2*ContactsTask and the overflow color routes
+// to b2*Contacts_Overflow.
 //
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
@@ -21,9 +24,12 @@
 
 use super::integrate::{finalize_bodies, integrate_positions, integrate_velocities};
 use super::StepContext;
-use crate::constants::GRAPH_COLOR_COUNT;
 use crate::constraint_graph::OVERFLOW_INDEX;
 use crate::contact::contact_flags;
+use crate::contact_solver::wide_kernels::{
+    apply_restitution_wide, prepare_contacts_wide, solve_contacts_wide, store_impulses_wide,
+    warm_start_contacts_wide, wide_block_count, ContactConstraintWide,
+};
 use crate::contact_solver::{
     apply_restitution, prepare_contacts, solve_contacts, store_impulses, warm_start_contacts,
     ContactConstraint,
@@ -127,25 +133,39 @@ pub fn solve(world: &mut World, context: &StepContext) {
         prepare_color_joints(world, color_index, context);
     }
 
-    // (stage b2_stagePrepareContacts: colored contacts)
-    let mut color_constraints: Vec<Vec<ContactConstraint>> =
-        (0..GRAPH_COLOR_COUNT).map(|_| Vec::new()).collect();
-    for color_index in 0..GRAPH_COLOR_COUNT as usize {
-        // Overflow contacts prepare below to match the C stage order; the
-        // constraint storage is sized here either way.
+    // (stage b2_stagePrepareContacts: colored contacts run the wide kernels;
+    // the overflow color runs the scalar kernels below)
+    let mut wide_constraints: Vec<Vec<ContactConstraintWide>> =
+        (0..OVERFLOW_INDEX).map(|_| Vec::new()).collect();
+    for color_index in 0..OVERFLOW_INDEX as usize {
         let count = world.constraint_graph.colors[color_index]
             .contact_sims
             .len();
-        color_constraints[color_index].resize(count, ContactConstraint::default());
+        wide_constraints[color_index]
+            .resize(wide_block_count(count), ContactConstraintWide::default());
     }
+    let mut overflow_constraints: Vec<ContactConstraint> = Vec::new();
+    overflow_constraints.resize(
+        world.constraint_graph.colors[OVERFLOW_INDEX as usize]
+            .contact_sims
+            .len(),
+        ContactConstraint::default(),
+    );
+
+    let enable_softening = world.enable_contact_softening;
+    let contact_hertz = world.contact_hertz;
+    let contact_damping_ratio = world.contact_damping_ratio;
     for color_index in 0..OVERFLOW_INDEX as usize {
         let contacts = &world.constraint_graph.colors[color_index].contact_sims;
         let states = &world.solver_sets[AWAKE_SET as usize].body_states;
-        prepare_contacts(
-            &mut color_constraints[color_index],
+        prepare_contacts_wide(
+            &mut wide_constraints[color_index],
             contacts,
             states,
             context,
+            enable_softening,
+            contact_hertz,
+            contact_damping_ratio,
         );
     }
 
@@ -155,12 +175,7 @@ pub fn solve(world: &mut World, context: &StepContext) {
     {
         let contacts = &world.constraint_graph.colors[OVERFLOW_INDEX as usize].contact_sims;
         let states = &world.solver_sets[AWAKE_SET as usize].body_states;
-        prepare_contacts(
-            &mut color_constraints[OVERFLOW_INDEX as usize],
-            contacts,
-            states,
-            context,
-        );
+        prepare_contacts(&mut overflow_constraints, contacts, states, context);
     }
 
     world.profile.prepare_constraints += get_milliseconds_and_reset(&mut ticks);
@@ -183,13 +198,13 @@ pub fn solve(world: &mut World, context: &StepContext) {
             for joint in graph.colors[OVERFLOW_INDEX as usize].joint_sims.iter_mut() {
                 warm_start_joint(joint, states);
             }
-            warm_start_contacts(&mut color_constraints[OVERFLOW_INDEX as usize], states);
+            warm_start_contacts(&mut overflow_constraints, states);
 
             for color_index in 0..OVERFLOW_INDEX as usize {
                 for joint in graph.colors[color_index].joint_sims.iter_mut() {
                     warm_start_joint(joint, states);
                 }
-                warm_start_contacts(&mut color_constraints[color_index], states);
+                warm_start_contacts_wide(&mut wide_constraints[color_index], states);
             }
         }
         world.profile.warm_start += get_milliseconds_and_reset(&mut ticks);
@@ -208,12 +223,7 @@ pub fn solve(world: &mut World, context: &StepContext) {
             for joint in graph.colors[OVERFLOW_INDEX as usize].joint_sims.iter_mut() {
                 solve_joint(joint, context, states, use_bias);
             }
-            solve_contacts(
-                &mut color_constraints[OVERFLOW_INDEX as usize],
-                states,
-                context,
-                use_bias,
-            );
+            solve_contacts(&mut overflow_constraints, states, context, use_bias);
 
             for color_index in 0..OVERFLOW_INDEX as usize {
                 for joint in graph.colors[color_index].joint_sims.iter_mut() {
@@ -232,8 +242,8 @@ pub fn solve(world: &mut World, context: &StepContext) {
                         }
                     }
                 }
-                solve_contacts(
-                    &mut color_constraints[color_index],
+                solve_contacts_wide(
+                    &mut wide_constraints[color_index],
                     states,
                     context,
                     use_bias,
@@ -256,19 +266,14 @@ pub fn solve(world: &mut World, context: &StepContext) {
             for joint in graph.colors[OVERFLOW_INDEX as usize].joint_sims.iter_mut() {
                 solve_joint(joint, context, states, use_bias);
             }
-            solve_contacts(
-                &mut color_constraints[OVERFLOW_INDEX as usize],
-                states,
-                context,
-                use_bias,
-            );
+            solve_contacts(&mut overflow_constraints, states, context, use_bias);
 
             for color_index in 0..OVERFLOW_INDEX as usize {
                 for joint in graph.colors[color_index].joint_sims.iter_mut() {
                     solve_joint(joint, context, states, use_bias);
                 }
-                solve_contacts(
-                    &mut color_constraints[color_index],
+                solve_contacts_wide(
+                    &mut wide_constraints[color_index],
                     states,
                     context,
                     use_bias,
@@ -283,13 +288,9 @@ pub fn solve(world: &mut World, context: &StepContext) {
         let world_parts = &mut *world;
         let states = &mut world_parts.solver_sets[AWAKE_SET as usize].body_states;
 
-        apply_restitution(
-            &mut color_constraints[OVERFLOW_INDEX as usize],
-            states,
-            context,
-        );
+        apply_restitution(&mut overflow_constraints, states, context);
         for color_index in 0..OVERFLOW_INDEX as usize {
-            apply_restitution(&mut color_constraints[color_index], states, context);
+            apply_restitution_wide(&mut wide_constraints[color_index], states, context);
         }
     }
     world.profile.apply_restitution += get_milliseconds_and_reset(&mut ticks);
@@ -304,13 +305,13 @@ pub fn solve(world: &mut World, context: &StepContext) {
         let neg_hit_threshold = -world_parts.hit_event_threshold;
 
         store_impulses(
-            &color_constraints[OVERFLOW_INDEX as usize],
+            &overflow_constraints,
             &mut graph.colors[OVERFLOW_INDEX as usize].contact_sims,
         );
 
         for color_index in 0..OVERFLOW_INDEX as usize {
-            store_impulses(
-                &color_constraints[color_index],
+            store_impulses_wide(
+                &wide_constraints[color_index],
                 &mut graph.colors[color_index].contact_sims,
             );
 

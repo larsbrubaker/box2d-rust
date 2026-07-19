@@ -26,6 +26,12 @@
 //
 // bring-up: called by the solver slice.
 
+// Wide (SIMD) contact solver: the graph-color contacts run four lanes at a
+// time through these submodules, while the overflow color keeps the scalar
+// kernels below. See wide.rs for why the wide path is bit-identical.
+pub mod wide;
+pub mod wide_kernels;
+
 use crate::body::{body_flags, BodyState, IDENTITY_BODY_STATE};
 use crate::contact::ContactSim;
 use crate::core::NULL_INDEX;
