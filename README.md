@@ -25,7 +25,7 @@ hashes), overlap-recovery robustness, and benchmarks.
 ## Status: Complete
 
 Every portable module of the Box2D v3.1 C source is ported, together with the C test suite
-(129 tests, green in both precision modes). The pinned reference source lives in the
+(132 tests, green in both precision modes). The pinned reference source lives in the
 `box2d-cpp-reference/` submodule.
 
 | Area | Ported | Tests |
