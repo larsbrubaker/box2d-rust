@@ -33,6 +33,18 @@ jobs:
       - name: Test (double precision / large world)
         run: cargo test --features double-precision
 
+      - name: Install wasm32-unknown-unknown target
+        if: matrix.os == 'ubuntu-latest'
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Check wasm (non-browser hosts, no wasm-bindgen)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo check -p box2d-rust --target wasm32-unknown-unknown --no-default-features
+
+      - name: Check wasm (browser, web-time clock)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo check -p box2d-rust --target wasm32-unknown-unknown
+
   demo-registry:
     runs-on: ubuntu-latest
     steps:

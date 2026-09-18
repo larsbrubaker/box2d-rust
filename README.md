@@ -47,6 +47,29 @@ Every portable module of the Box2D v3.1 C source is ported, together with the C 
 Not ported (by design): threading/task system (the port is serial), the global world
 registry (worlds are owned values), and the C arena allocator (Rust `Vec`s).
 
+### WASM targets
+
+On `wasm32-unknown-unknown` the default `web-time` feature supplies the profiling clock
+(`performance.now()` through `wasm-bindgen`), which is what browsers want. Non-browser WASM
+hosts (Wasmtime, WASI runtimes, ...) have no `__wbindgen_placeholder__` module, so those
+imports make the module fail to instantiate. Build without them:
+
+```toml
+box2d-rust = { version = "1.4", default-features = false }
+```
+
+If you already build with `default-features = false` (for any reason) and want to keep the
+browser clock on wasm, add `features = ["web-time"]` — it moved out of the always-on
+dependencies in 1.4.0.
+
+Without a clock, every `Profile` field reads zero; simulation and determinism are
+unaffected. To get real timings, hand the crate a host clock returning monotonic
+nanoseconds:
+
+```rust
+box2d_rust::timer::set_clock(Some(host_nanos));
+```
+
 ## Performance
 
 The port is measured against the C reference using the C repo's own `benchmark` app (10
