@@ -42,9 +42,7 @@ pub fn collide_chain_segment_and_circle(
     let u = dot(e, sub(p2, p_b));
     let v = dot(e, sub(p_b, p1));
 
-    let p_a;
-
-    if v <= 0.0 {
+    let p_a = if v <= 0.0 {
         // Behind point1?
         // Is pB in the Voronoi region of the previous edge?
         let prev_edge = sub(p1, segment_a.ghost1);
@@ -53,7 +51,7 @@ pub fn collide_chain_segment_and_circle(
             return manifold;
         }
 
-        p_a = p1;
+        p1
     } else if u <= 0.0 {
         // Ahead of point2?
         let next_edge = sub(segment_a.ghost2, p2);
@@ -64,15 +62,19 @@ pub fn collide_chain_segment_and_circle(
             return manifold;
         }
 
-        p_a = p2;
+        p2
     } else {
         let ee = dot(e, e);
         let pa = Vec2 {
             x: u * p1.x + v * p2.x,
             y: u * p1.y + v * p2.y,
         };
-        p_a = if ee > 0.0 { mul_sv(1.0 / ee, pa) } else { p1 };
-    }
+        if ee > 0.0 {
+            mul_sv(1.0 / ee, pa)
+        } else {
+            p1
+        }
+    };
 
     let mut distance = 0.0;
     let normal = get_length_and_normalize(&mut distance, sub(p_b, p_a));

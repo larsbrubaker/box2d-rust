@@ -61,20 +61,19 @@ pub fn collide_capsule_and_circle(
     // dot(p - pA, e) = 0
     // dot(p - (p1 + s1 * e), e) = 0
     // s1 = dot(p - p1, e)
-    let p_a;
     let s1 = dot(sub(p_b, p1), e);
     let s2 = dot(sub(p2, p_b), e);
-    if s1 < 0.0 {
+    let p_a = if s1 < 0.0 {
         // p1 region
-        p_a = p1;
+        p1
     } else if s2 < 0.0 {
         // p2 region
-        p_a = p2;
+        p2
     } else {
         // circle colliding with segment interior
         let s = s1 / dot(e, e);
-        p_a = mul_add(p1, s, e);
-    }
+        mul_add(p1, s, e)
+    };
 
     let mut distance = 0.0;
     let normal = get_length_and_normalize(&mut distance, sub(p_b, p_a));
