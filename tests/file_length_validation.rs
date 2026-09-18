@@ -20,7 +20,7 @@ fn find_files_with_extensions(dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
                         || dir_name == "node_modules"
                         || dir_name == "dist"
                         || dir_name == "pkg"
-                        || dir_name == "Tests"
+                        || dir_name == "tests"
                     {
                         continue;
                     }
@@ -306,7 +306,7 @@ mod file_metrics {
 
         // Check for essential directories. examples/ and benches/ get added to this list
         // once the engine is far enough along to have them.
-        let essential_dirs = ["src", "Tests", "demo"];
+        let essential_dirs = ["src", "tests", "demo"];
 
         for dir in essential_dirs {
             let dir_path = project_root.join(dir);
